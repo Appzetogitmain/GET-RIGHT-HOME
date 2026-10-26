@@ -110,7 +110,12 @@ export const workerServesBooking = (worker, filters, professions = []) => {
   if (held.length > 0) {
     // A deactivated profession serves nothing; it must not fall back to fuzzy
     // name matching on the profession's label.
-    return !!filters?.categoryId && held.some(p => p.isActive !== false) && held.filter(p => p.isActive !== false).some(p => (p.categoryIds || []).some(id => String(id) === String(filters.categoryId)));
+    const viaProfession = !!filters?.categoryId && held.some(p => p.isActive !== false) && held.filter(p => p.isActive !== false).some(p => (p.categoryIds || []).some(id => String(id) === String(filters.categoryId)));
+    if (viaProfession) return true;
+    // Extra skills the worker requested and an admin verified also qualify them.
+    // Only admin-verified skills count (never pending ones, never fuzzy profession labels).
+    const verifiedSkills = (worker.verifiedSkillsDetails || []).map(v => v.category).filter(Boolean);
+    return verifiedSkills.length > 0 && matchesWorkerCategory(verifiedSkills, filters);
   }
   return matchesWorkerCategory(plain, filters);
 };

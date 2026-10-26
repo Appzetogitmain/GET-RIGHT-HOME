@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { FiClock, FiCheck, FiMapPin, FiX } from 'react-icons/fi';
 import workerService from '../../../../services/workerService';
+import useSocketAwarePoll from '../../../../hooks/useSocketAwarePoll';
 import { stopAlertRing } from '../../../../utils/notificationSound';
 
 const formatCountdown = (sec) => {
@@ -34,18 +35,13 @@ export default function JobReminderModal() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-    const poll = setInterval(load, 20000);
-    const onReminder = () => load();
-    window.addEventListener('jobReminder', onReminder);
-    window.addEventListener('focus', load);
-    return () => {
-      clearInterval(poll);
-      window.removeEventListener('jobReminder', onReminder);
-      window.removeEventListener('focus', load);
-    };
-  }, [load]);
+  // 'job_reminder' socket event drives this; polling is only a slow safety net
+  // (faster only while the socket is down).
+  useSocketAwarePoll(load, {
+    events: ['jobReminder'],
+    connectedMs: 120000,
+    fallbackMs: 20000,
+  });
 
   useEffect(() => {
     if (reminders.length === 0) return undefined;

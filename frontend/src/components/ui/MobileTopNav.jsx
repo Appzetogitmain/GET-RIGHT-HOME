@@ -62,10 +62,10 @@ const MobileTopNav = () => {
                 <div className="flex items-center gap-1.5">
                     <div
                         onClick={() => navigate('/list-property')}
-                        className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+                        className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform rounded-full border border-[#005B9F]/30 bg-[#005B9F]/5 pl-3 pr-1.5 py-1 shadow-sm"
                     >
-                        <span className="text-[#005B9F] font-semibold text-[13px]">Post property</span>
-                        <span className="bg-[#10B981] text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Free</span>
+                        <span className="text-[#005B9F] font-bold text-[13px] leading-none">Post Property</span>
+                        <span className="bg-[#10B981] text-white text-[9px] px-1.5 py-0.5 rounded-full uppercase font-bold tracking-wider leading-none">Free</span>
                     </div>
 
                     <button

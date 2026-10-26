@@ -718,14 +718,6 @@ const ProfileEdit = () => {
       to: '/user/home-services/bookings',
       badge: hsBookings.length > 0 ? hsBookings.length : null
     },
-    { 
-      label: 'Stay Bookings', 
-      desc: 'Hotel & room reservations', 
-      icon: Ticket, 
-      iconBg: 'bg-amber-50 text-amber-600', 
-      to: '/bookings',
-      badge: stayBookings.length > 0 ? stayBookings.length : null
-    },
     { label: 'Post Property', desc: 'Sell/Rent your property faster', icon: Home, iconBg: 'bg-blue-50 text-blue-500', to: '/list-property' },
     { label: 'Search Properties', desc: 'Explore residential and commercial listings', icon: Search, iconBg: 'bg-orange-50 text-orange-500', to: '/search' },
     { label: 'My Properties', desc: 'Manage your active listings', icon: Building2, iconBg: 'bg-teal-50 text-teal-500', to: '/my-properties' },
@@ -837,16 +829,19 @@ const ProfileEdit = () => {
             })}
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-3.5 text-red-500 font-bold text-sm bg-white hover:bg-red-50 rounded-2xl border border-slate-200/80 hover:border-red-100 active:scale-[0.98] transition-all cursor-pointer shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)]"
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
-          <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-            Version 2.0.4 • Made with ❤️ in India
-          </p>
+          {/* Desktop: logout stays in the sidebar. Mobile copy is at the page end. */}
+          <div className="hidden lg:block space-y-4">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 py-3.5 text-red-500 font-bold text-sm bg-white hover:bg-red-50 rounded-2xl border border-slate-200/80 hover:border-red-100 active:scale-[0.98] transition-all cursor-pointer shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)]"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+            <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              Version 2.0.4 • Made with ❤️ in India
+            </p>
+          </div>
         </div>
 
         {/* ───────── Right column: editable form ───────── */}
@@ -1338,6 +1333,21 @@ const ProfileEdit = () => {
             )}
           </button>
         </form>
+
+        {/* Mobile/tablet: logout at the very end of the page */}
+        <div className="lg:hidden mt-5 pb-6 space-y-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 py-3.5 text-red-500 font-bold text-sm bg-white hover:bg-red-50 rounded-2xl border border-slate-200/80 hover:border-red-100 active:scale-[0.98] transition-all cursor-pointer shadow-[0_2px_12px_-4px_rgba(15,23,42,0.06)]"
+          >
+            <LogOut size={16} />
+            Logout
+          </button>
+          <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            Version 2.0.4 • Made with ❤️ in India
+          </p>
+        </div>
       </motion.div>
     </div>
   );

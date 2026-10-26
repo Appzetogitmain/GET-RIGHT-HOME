@@ -937,9 +937,13 @@ export const getWorkerAnalytics = async (req, res) => {
         { $match: { approvalStatus: 'approved' } },
         { $group: { _id: '$isOnline', count: { $sum: 1 } } }
       ]),
-      VendorBill.aggregate([
-        { $match: { ...dateFilter, status: 'paid' } },
-        { $group: { _id: null, companyRevenue: { $sum: '$companyRevenue' }, adminCommission: { $sum: '$adminCommission' } } }
+      // Money actually collected from customers: the full bill once paid, or
+      // just the advance while the booking is only partially paid. This used
+      // to sum VendorBill platform earnings, which only exist after a bill is
+      // raised, so an advance/instant payment never showed up.
+      HomeServiceBooking.aggregate([
+        { $match: { ...dateFilter, status: { $ne: BOOKING_STATUS.CANCELLED }, paymentStatus: { $in: [PAYMENT_STATUS.PAID, PAYMENT_STATUS.PARTIAL] } } },
+        { $group: { _id: null, collected: { $sum: { $cond: [{ $eq: ['$paymentStatus', PAYMENT_STATUS.PAID] }, '$finalAmount', '$advancePaid'] } } } }
       ]),
       HomeServiceBooking.find(dateFilter)
         .select('serviceName status createdAt totalAmount address bookingNumber')
@@ -951,7 +955,7 @@ export const getWorkerAnalytics = async (req, res) => {
         .lean()
     ]);
 
-    const totalRevenue = revenueAgg.length > 0 ? ((revenueAgg[0].companyRevenue || 0) + (revenueAgg[0].adminCommission || 0)) : 0;
+    const totalRevenue = revenueAgg[0]?.collected || 0;
 
     const mappedBookings = recentBookings.map(b => ({
       ...b,

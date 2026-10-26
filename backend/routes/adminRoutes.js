@@ -57,6 +57,7 @@ import {
   getAdminTransactionsList,
   getAdminTransactionStats
 } from '../controllers/adminController.js';
+import { getFeatureFlagsHandler, updateFeatureFlagsHandler } from '../utils/featureFlags.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
     adminGetAllEnquiries,
@@ -178,6 +179,8 @@ router.get('/contact-messages', checkManagerPermission('contact_messages', 'view
 router.put('/contact-messages/:id/status', checkManagerPermission('contact_messages', 'edit'), updateContactStatus);
 router.get('/platform-settings', checkManagerPermission('settings', 'view'), getPlatformSettings);
 router.put('/platform-settings', checkManagerPermission('settings', 'edit'), updatePlatformSettings);
+router.get('/feature-flags', checkManagerPermission('settings', 'view'), getFeatureFlagsHandler);
+router.put('/feature-flags', checkManagerPermission('settings', 'edit'), updateFeatureFlagsHandler);
 router.get('/homepage-layout', checkManagerPermission('settings', 'view'), getHomePageConfig);
 router.put('/homepage-layout', checkManagerPermission('settings', 'edit'), updateHomePageConfig);
 router.get('/reel-analysis', checkManagerPermission('reel_analysis', 'view'), getReelAnalysis);

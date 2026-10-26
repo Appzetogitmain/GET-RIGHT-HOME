@@ -52,6 +52,45 @@ const DEFAULT_CATEGORIES = [
   'Kitchen Deep Cleaning'
 ];
 
+// Experience + certificate the worker submitted for a skill. Verified details take
+// priority; fall back to the original request (e.g. right after approval in the UI).
+const findSkillDetail = (worker, cat) => {
+  const same = (c) => c?.category && String(c.category).trim().toLowerCase() === String(cat).trim().toLowerCase();
+  return (worker.verifiedSkillsDetails || []).find(same) || (worker.skillRequests || []).find(same) || null;
+};
+
+const SkillExperience = ({ detail, compact = false }) => {
+  if (!detail) return null;
+  const years = Number(detail.experienceYears) || 0;
+  const letter = detail.experienceLetter;
+  const isPdf = letter && /\.pdf($|\?)/i.test(letter);
+  return (
+    <div className={`flex items-center flex-wrap gap-x-3 gap-y-1 ${compact ? 'text-[11px] font-medium text-emerald-700' : 'text-xs text-gray-600'}`}>
+      <span className="inline-flex items-center gap-1">
+        <FiClock className="w-3 h-3" />
+        {years > 0 ? `${years} yr${years > 1 ? 's' : ''} experience` : 'Experience not provided'}
+      </span>
+      {letter ? (
+        <a
+          href={letter}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-blue-600 font-semibold hover:underline"
+        >
+          {isPdf ? (
+            <FiFileText className="w-3.5 h-3.5" />
+          ) : (
+            <img src={letter} alt="Certificate" className="w-6 h-6 rounded object-cover border" />
+          )}
+          View certificate
+        </a>
+      ) : (
+        <span className="text-gray-400 italic">No certificate</span>
+      )}
+    </div>
+  );
+};
+
 const AllWorkers = () => {
   const [workers, setWorkers] = useState([]);
   const [zones, setZones] = useState([]);
@@ -2188,7 +2227,8 @@ const AllWorkers = () => {
                   </div>
                   <div className="space-y-1.5">
                     {selectedWorker.pendingServiceCategories.map((cat, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border border-amber-200">
+                      <div key={idx} className="p-2 bg-white rounded border border-amber-200 space-y-1.5">
+                      <div className="flex items-center justify-between">
                         <span className="font-bold text-gray-800">{cat}</span>
                         <div className="flex items-center gap-1.5">
                           <button
@@ -2205,6 +2245,8 @@ const AllWorkers = () => {
                           </button>
                         </div>
                       </div>
+                      <SkillExperience detail={findSkillDetail(selectedWorker, cat)} />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -2215,21 +2257,28 @@ const AllWorkers = () => {
                 <div className="text-[10px] font-bold text-gray-500 uppercase mb-1.5">Verified Skills</div>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedWorker.serviceCategories && selectedWorker.serviceCategories.length > 0 ? (
-                    selectedWorker.serviceCategories.map((cat, idx) => (
-                      <span
+                    selectedWorker.serviceCategories.map((cat, idx) => {
+                      const detail = findSkillDetail(selectedWorker, cat);
+                      const hasDetail = detail && (detail.experienceYears > 0 || detail.experienceLetter);
+                      return (
+                      <div
                         key={idx}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-semibold text-xs"
+                        className="inline-flex flex-col gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md font-semibold text-xs"
                       >
-                        <FiCheck className="w-3 h-3 text-emerald-600" />
-                        {cat}
-                        <button
-                          onClick={() => handleRemoveSkill(selectedWorker.id, cat)}
-                          className="ml-1 text-gray-400 hover:text-rose-600"
-                        >
-                          <FiX className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))
+                        <span className="inline-flex items-center gap-1">
+                          <FiCheck className="w-3 h-3 text-emerald-600" />
+                          {cat}
+                          <button
+                            onClick={() => handleRemoveSkill(selectedWorker.id, cat)}
+                            className="ml-1 text-gray-400 hover:text-rose-600"
+                          >
+                            <FiX className="w-3 h-3" />
+                          </button>
+                        </span>
+                        {hasDetail && <SkillExperience detail={detail} compact />}
+                      </div>
+                      );
+                    })
                   ) : (
                     <span className="text-gray-400 italic">No verified skills</span>
                   )}

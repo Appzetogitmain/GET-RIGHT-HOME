@@ -39,7 +39,8 @@ export const getVipConfig = (settings) => {
     .map(normalise);
   const first = plans[0];
   return {
-    enabled: vip.enabled === true && tiers.length > 0,
+    // userSubscriptionEnabled is the admin kill switch for the user app.
+    enabled: vip.enabled === true && tiers.length > 0 && settings?.userSubscriptionEnabled !== false,
     name: vip.name || first.name,
     price: first.price,
     originalPrice: first.originalPrice,

@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import { uploadVideoToCloudinary, getVideoThumbnailUrl, deleteVideoFromCloudinary } from '../utils/cloudinary.js';
 import { safeRegex } from '../utils/escapeRegex.js';
+import { createNotification } from './notificationControllers/notificationController.js';
 
 const MAX_REEL_DURATION_SEC = 30;
 const MAX_CAPTION_LENGTH = 500;
@@ -99,6 +100,19 @@ export const uploadReel = async (req, res) => {
     }
 
     const populated = await Reel.findById(reel._id).populate('user', 'name profileImage');
+
+    // Tell the uploader their reel is live. Fire-and-forget: a push failure
+    // must never turn a successful upload into an error response.
+    createNotification({
+      userId: req.user._id,
+      type: 'reel_uploaded',
+      title: 'Reel Uploaded',
+      body: `Your reel${reel.title ? ` "${reel.title}"` : ''} has been uploaded successfully.`,
+      relatedId: reel._id,
+      relatedType: 'reel',
+      pushData: { type: 'reel_uploaded', link: '/reels/my' },
+    }).catch((e) => console.error('[Reel] upload notification failed:', e.message));
+
     res.status(201).json({ success: true, reel: populated });
   } catch (err) {
     if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);

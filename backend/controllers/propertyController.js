@@ -1380,7 +1380,9 @@ export const getPublicProperties = async (req, res) => {
           { 'address.city': cityRegex },
           { 'address.district': cityRegex },
           { 'address.area': cityRegex },
-          { 'address.fullAddress': cityRegex }
+          { 'address.fullAddress': cityRegex },
+          // Home sections fall back to dynamicData.city, so search must too
+          { 'dynamicData.city': cityRegex }
         ]
       };
 

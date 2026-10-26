@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import useSocketAwarePoll from '../../../../hooks/useSocketAwarePoll';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { FiX, FiMapPin, FiClock, FiCheck, FiBell, FiMinimize2 } from 'react-icons/fi';
@@ -124,7 +125,7 @@ const WorkerAlertCard = ({ booking, onAccept, onReject, initialTimeLeft }) => {
               <h4 className="text-[14px] font-black text-gray-900 leading-tight">
                 {booking.serviceName || booking.serviceType || 'Service Job'}
               </h4>
-              
+
               {/* Display Booked Items or Requirement Text */}
               <div className="mt-2 space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
                 {booking.isConsultancyRequest && booking.requirementText && (
@@ -241,15 +242,15 @@ export default function GlobalWorkerJobAlert() {
   // Catch up on any job offer sent while the app wasn't connected to receive
   // the live socket alert (still loading, tab backgrounded, network drop) —
   // runs on mount and again whenever the tab regains focus/network.
-  useEffect(() => {
-    let rejectedToken = null;
-    const fetchPending = async () => {
+  const rejectedTokenRef = useRef(null);
+  const fetchPending = useCallback(async () => {
+    {
       // Only a logged-in worker has offers. Polling on the login/signup pages (or
       // with another role's token) only produced 403s and extra server load.
       const path = window.location.pathname;
       if (path.startsWith('/worker/login') || path.startsWith('/worker/signup')) return;
       const token = sessionStorage.getItem('workerAccessToken') || localStorage.getItem('workerAccessToken');
-      if (!token || token === rejectedToken) return;
+      if (!token || token === rejectedTokenRef.current) return;
       try {
         const res = await workerService.getPendingRequests();
         if (!res?.success) return;
@@ -286,7 +287,7 @@ export default function GlobalWorkerJobAlert() {
     };
 
     fetchPending();
-    const interval = setInterval(fetchPending, 10000); // fail-safe background sync (live offers arrive over the socket)
+    const interval = setInterval(fetchPending, 4000); // 4-second fail-safe background sync
     window.addEventListener('focus', fetchPending);
     window.addEventListener('online', fetchPending);
     window.addEventListener('workerJobsUpdated', fetchPending);
@@ -297,6 +298,14 @@ export default function GlobalWorkerJobAlert() {
       window.removeEventListener('workerJobsUpdated', fetchPending);
     };
   }, []);
+
+  // Socket delivers live alerts; this only syncs on (re)connect, focus and
+  // 'workerJobsUpdated', plus a slow safety sync (fast only if socket is down).
+  useSocketAwarePoll(fetchPending, {
+    events: ['workerJobsUpdated'],
+    connectedMs: 60000,
+    fallbackMs: 8000,
+  });
 
   // Stop sound ring whenever no active alerts remain
   useEffect(() => {

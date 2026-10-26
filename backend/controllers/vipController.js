@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
 import HomeContent from '../models/HomeContent.js';
 import User from '../models/User.js';
+import { getFeatureFlags } from '../utils/featureFlags.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -38,6 +39,26 @@ export const createVipOrder = async (req, res) => {
 
         const vipPrice = homeContent.vipPrice || 199;
         const vipDurationDays = homeContent.vipDurationDays || 56;
+
+        // Admin switch: Razorpay OFF means no payment, VIP is activated directly.
+        if ((await getFeatureFlags()).userRazorpay === false) {
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + vipDurationDays);
+            const user = await User.findByIdAndUpdate(
+                req.user._id,
+                { isVip: true, vipExpiry: expiryDate },
+                { new: true }
+            );
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'User not found' });
+            }
+            return res.json({
+                success: true,
+                free: true,
+                message: 'VIP Membership activated successfully!',
+                vip: { isVip: true, vipExpiry: expiryDate, durationDays: vipDurationDays }
+            });
+        }
 
         const amountInPaise = Math.round(vipPrice * 100);
 

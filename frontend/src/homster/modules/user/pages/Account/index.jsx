@@ -30,9 +30,11 @@ import {
   FiPieChart
 } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 import NotificationBell from '../../components/common/NotificationBell';
 
 const Account = () => {
+  const featureFlags = useFeatureFlags();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState({
     name: 'Verified Customer',
@@ -296,7 +298,7 @@ const Account = () => {
           </motion.div>
 
           {/* Designer Active Plan Card */}
-          {userProfile.plans && userProfile.plans.isActive && (
+          {featureFlags.userSubscription && userProfile.plans && userProfile.plans.isActive && (
             <motion.div
               variants={itemVariants}
               onClick={() => navigate('/user/my-plan')}
@@ -405,11 +407,13 @@ const Account = () => {
               label="Received Bookings"
               onClick={() => navigate('/my-received-bookings')}
             />
-            <MenuItem
-              icon={FiTrendingUp}
-              label="Subscription Plans"
-              onClick={() => navigate('/my-subscriptions')}
-            />
+            {featureFlags.userSubscription && (
+              <MenuItem
+                icon={FiTrendingUp}
+                label="Subscription Plans"
+                onClick={() => navigate('/my-subscriptions')}
+              />
+            )}
           </motion.div>
 
           {/* Shopping */}
@@ -420,11 +424,13 @@ const Account = () => {
               label="Scrap Deals"
               onClick={() => navigate('/user/scrap')}
             />
-            <MenuItem
-              icon={FiFileText}
-              label="My Plans"
-              onClick={() => navigate('/user/my-plan')}
-            />
+            {featureFlags.userSubscription && (
+              <MenuItem
+                icon={FiFileText}
+                label="My Plans"
+                onClick={() => navigate('/user/my-plan')}
+              />
+            )}
           </motion.div>
 
           {/* Activity */}

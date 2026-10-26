@@ -268,6 +268,9 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  workerOnlinePaymentEnabled: { type: Boolean, default: true },
+  userSubscriptionEnabled: { type: Boolean, default: true },
+  workerSubscriptionEnabled: { type: Boolean, default: true },
   bookingModel: {
     type: String,
     enum: ['vendor', 'worker'],

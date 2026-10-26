@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiCalendar } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiCalendar, FiShield } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -213,6 +213,8 @@ const Profile = () => {
     { icon: FiUsers, label: 'Referrals', path: '/worker/referrals' },
     { icon: FiMessageSquare, label: 'Complaint Management', path: '/worker/complaints' },
     { icon: FiHelpCircle, label: 'Help Center', path: '/worker/support' },
+    { icon: FiShield, label: 'Privacy Policy', path: '/worker/privacy' },
+    { icon: FiFileText, label: 'Terms & Conditions', path: '/worker/terms' },
     { icon: FiSettings, label: 'Settings', path: '/worker/settings' }
   ];
 

@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import { registerFCMToken } from '../../../../services/pushNotificationService';
 import { motion } from 'framer-motion';
 import { createVipOrder, verifyVipPayment } from '../services/planService';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 import { userService } from '../../../../services/apiService';
 
 // Lazy load heavy components for better initial load performance
@@ -303,6 +304,7 @@ const Home = () => {
   }, [address]); // Re-run if address changes
 
 
+  const featureFlags = useFeatureFlags();
   const [categories, setCategories] = useState([]);
   const [homeContent, setHomeContent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -443,8 +445,10 @@ const Home = () => {
       setVipLoading(true);
       toast.loading('Initializing payment...');
 
-      const isLoaded = await loadRazorpay();
-      if (!isLoaded || !window.Razorpay) {
+      // Admin switched Razorpay OFF: the server activates VIP without payment.
+      const paymentOff = featureFlags.userRazorpay === false;
+      const isLoaded = paymentOff ? true : await loadRazorpay();
+      if (!isLoaded || (!paymentOff && !window.Razorpay)) {
         toast.dismiss();
         toast.error('Payment gateway failed to load. Check internet connection.');
         setVipLoading(false);
@@ -457,6 +461,17 @@ const Home = () => {
 
       if (!orderRes.success) {
         toast.error(orderRes.message || 'Failed to create payment order');
+        setVipLoading(false);
+        return;
+      }
+
+      if (orderRes.free) {
+        setUserIsVip(true);
+        const stored = JSON.parse(localStorage.getItem('userData') || '{}');
+        stored.isVip = true;
+        stored.vipExpiry = orderRes.vip?.vipExpiry;
+        localStorage.setItem('userData', JSON.stringify(stored));
+        toast.success('🎉 VIP Membership Activated! Enjoy your discounts.');
         setVipLoading(false);
         return;
       }
@@ -785,7 +800,7 @@ const Home = () => {
               </motion.section>
 
               {/* VIP Membership Section */}
-              {homeContent?.isVipEnabled !== false && (
+              {featureFlags.userSubscription && homeContent?.isVipEnabled !== false && (
                 <motion.section variants={itemVariants} className="px-4">
                   <div
                     className="relative overflow-hidden rounded-3xl"

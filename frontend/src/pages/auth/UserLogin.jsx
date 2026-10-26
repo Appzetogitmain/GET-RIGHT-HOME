@@ -7,13 +7,14 @@ import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import AuthLegalLinks from './AuthLegalLinks';
 
 const UserLogin = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { login } = useAuth();
     const [step, setStep] = useState(1); // 1: Enter Phone, 2: Enter OTP
-    const [phone, setPhone] = useState('');
+    const [phone, setPhone] = useState(() => sessionStorage.getItem('user_login_phone_draft') || '');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -57,6 +58,12 @@ const UserLogin = () => {
             setPhone(location.state.phone);
         }
     }, [location]);
+
+    // Keep what was typed across a refresh
+    useEffect(() => {
+        if (phone) sessionStorage.setItem('user_login_phone_draft', phone);
+        else sessionStorage.removeItem('user_login_phone_draft');
+    }, [phone]);
 
     // Auto focus phone input on page mount (step 1)
     useEffect(() => {
@@ -148,6 +155,7 @@ const UserLogin = () => {
 
             login(res.user);
             clearPendingSession();
+            sessionStorage.removeItem('user_login_phone_draft');
             const redirectParam = new URLSearchParams(location.search).get('redirect');
             const from = location.state?.from || redirectParam;
             navigate(from || '/', { replace: true });
@@ -446,6 +454,7 @@ const UserLogin = () => {
                     >
                         ← Back to Store
                     </Link>
+                    <AuthLegalLinks />
                 </div>
             </motion.div>
         </div>

@@ -239,6 +239,8 @@ app.get('/api/public/homepage-layout', getHomePageConfig);
 // Public operating hours & slots endpoint
 import { getPlatformOperatingHours } from './controllers/workerControllers/workerOfflineController.js';
 app.get('/api/public/operating-hours', getPlatformOperatingHours);
+import { getPublicFeatureFlagsHandler, flagsFromSettings } from './utils/featureFlags.js';
+app.get('/api/public/feature-flags', getPublicFeatureFlagsHandler);
 app.get('/api/public/config', async (req, res) => {
   try {
     const PlatformSettings = (await import('./models/PlatformSettings.js')).default;
@@ -255,7 +257,8 @@ app.get('/api/public/config', async (req, res) => {
         visitedCharges: hsSettings.visitedCharges,
         serviceGstPercentage: hsSettings.serviceGstPercentage,
         partsGstPercentage: hsSettings.partsGstPercentage,
-        isOnlinePaymentEnabled: hsSettings.isOnlinePaymentEnabled
+        isOnlinePaymentEnabled: hsSettings.isOnlinePaymentEnabled,
+        featureFlags: flagsFromSettings(hsSettings)
       }
     });
   } catch (err) {

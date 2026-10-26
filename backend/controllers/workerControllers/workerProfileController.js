@@ -9,7 +9,7 @@ import { validationResult } from 'express-validator';
 import cloudinaryService from '../../services/cloudinaryService.js';
 import { createNotification } from '../notificationControllers/notificationController.js';
 
-const WORKER_CAN_EDIT_CATEGORIES = false;
+const WORKER_CAN_EDIT_CATEGORIES = true;
 
 /**
  * Get worker profile
@@ -132,8 +132,8 @@ const updateProfile = async (req, res) => {
     let customSuccessMessage = 'Profile updated successfully';
 
     // Handle categories with verification flow
-    // Workers no longer pick categories: bookings follow the profession(s) the
-    // admin (or signup) assigned. Incoming category edits are ignored.
+    // Workers can request extra skills (experience + optional certificate); they
+    // stay pending until an admin verifies them. Profession-based bookings are unaffected.
     if (WORKER_CAN_EDIT_CATEGORIES && (serviceCategories !== undefined || serviceCategory !== undefined)) {
       const incoming = (serviceCategories && Array.isArray(serviceCategories))
         ? serviceCategories.map(c => typeof c === 'string' ? c.trim() : '').filter(Boolean)

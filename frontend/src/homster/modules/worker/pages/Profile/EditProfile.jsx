@@ -365,6 +365,12 @@ const EditProfile = () => {
   };
 
 
+  // Deep link from the dashboard (/worker/profile/edit#skills) → jump to Work Profile
+  useEffect(() => {
+    if (loading || window.location.hash !== '#skills') return;
+    document.getElementById('skills')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [loading]);
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="flex flex-col items-center gap-3">
@@ -525,7 +531,7 @@ const EditProfile = () => {
         </div>
 
         {/* Work Category */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 border border-gray-100">
+        <div id="skills" className="bg-white rounded-2xl p-5 shadow-sm space-y-4 border border-gray-100 scroll-mt-4">
           <div className="flex items-center gap-2 mb-2">
             <FiBriefcase className="text-blue-600" />
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Work Profile</h2>
@@ -556,7 +562,170 @@ const EditProfile = () => {
             )}
           </div>
 
-          {/* Categories are not chosen by the worker: they follow the profession assigned above. */}
+          {/* Skills: worker can request extra skills; admin verifies before jobs are received for them */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 mb-2 block uppercase tracking-wide">
+              Categories / Skills
+            </label>
+
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3 space-y-2">
+              {formData.serviceCategories.length === 0 && (
+                <p className="text-xs text-gray-400 px-1 py-1">No skills added yet. Tap “Add skill” below.</p>
+              )}
+              {formData.serviceCategories.map((cat) => {
+                const isVerified = verifiedCategories.some(v => v.toLowerCase() === cat.toLowerCase());
+                const isPending = !isVerified && pendingCategories.some(p => p.toLowerCase() === cat.toLowerCase());
+                return (
+                  <div
+                    key={cat}
+                    className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${
+                      isVerified ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'
+                    }`}
+                  >
+                    <span className={`flex items-center gap-1.5 text-sm font-semibold ${isVerified ? 'text-green-900' : 'text-amber-900'}`}>
+                      {isVerified ? <FiCheck className="w-4 h-4 text-green-600 shrink-0" /> : <FiClock className="w-4 h-4 text-amber-600 shrink-0" />}
+                      {cat}
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                        isVerified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {isVerified ? 'Verified' : isPending ? 'Pending' : 'New'}
+                      </span>
+                      {!isVerified && (
+                        <button
+                          type="button"
+                          onClick={() => handleCategoryChange(cat)}
+                          className="p-1 rounded-full text-amber-700 hover:bg-amber-100"
+                          aria-label={`Remove ${cat}`}
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setIsCategoryOpen(o => !o)}
+                className="w-full flex items-center justify-between rounded-xl border border-dashed border-blue-300 bg-white px-3 py-2.5 text-sm font-bold text-blue-600 active:scale-[0.99] transition"
+              >
+                + Add skill
+                <FiChevronDown className={`w-4 h-4 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isCategoryOpen && (
+                <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-100 bg-white divide-y divide-gray-50">
+                  {categories
+                    .filter(c => c.title && !formData.serviceCategories.some(s => s.toLowerCase() === c.title.toLowerCase()))
+                    .map(c => (
+                      <button
+                        key={c._id || c.id || c.title}
+                        type="button"
+                        onClick={() => { handleCategoryChange(c.title); setIsCategoryOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-blue-50"
+                      >
+                        {c.title}
+                      </button>
+                    ))}
+                  {categories.filter(c => c.title && !formData.serviceCategories.some(s => s.toLowerCase() === c.title.toLowerCase())).length === 0 && (
+                    <p className="px-3 py-3 text-xs text-gray-400">No more skills available.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Experience & optional certificate for new / pending skills */}
+          {(() => {
+            const needsDetails = formData.serviceCategories.filter(
+              cat => !verifiedCategories.some(v => v.toLowerCase() === cat.toLowerCase())
+            );
+            if (needsDetails.length === 0) return null;
+            return (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <FiFileText className="w-3.5 h-3.5 text-blue-600" /> New Skill Details & Verification
+                </h3>
+                {needsDetails.map(cat => {
+                  const data = skillsData[cat] || {};
+                  const isPending = pendingCategories.some(p => p.toLowerCase() === cat.toLowerCase());
+                  const preview = data.experienceLetterPreview;
+                  const isImage = preview && !/\.pdf($|\?)/i.test(preview) && !(data.letterFile && data.letterFile.type === 'application/pdf');
+                  return (
+                    <div key={cat} className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold text-gray-800">{cat}</p>
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-amber-100 text-amber-700">
+                          {isPending ? 'Pending Admin Review' : 'New Skill'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-1">
+                          Years of experience
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={data.experienceYears ?? ''}
+                          onChange={(e) => handleExperienceYearsChange(cat, e.target.value)}
+                          placeholder="e.g. 3"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-1">
+                          Certificate / experience letter <span className="normal-case font-medium text-gray-400">(optional)</span>
+                        </label>
+                        {preview ? (
+                          <div className="flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isImage ? (
+                                <img src={preview} alt="Certificate" className="w-10 h-10 rounded-lg object-cover" />
+                              ) : (
+                                <FiFileText className="w-6 h-6 text-blue-500 shrink-0" />
+                              )}
+                              <span className="text-xs text-gray-600 truncate">{data.letterFile?.name || 'Uploaded document'}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExperienceLetter(cat)}
+                              className="p-1.5 rounded-full text-red-500 hover:bg-red-50 shrink-0"
+                              aria-label="Remove document"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white px-3 py-3 text-xs font-semibold text-gray-500 cursor-pointer hover:bg-gray-50">
+                            <FiUploadCloud className="w-4 h-4" /> Upload certificate (image / PDF, max 5MB)
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              onChange={(e) => handleExperienceLetterChange(cat, e.target.files?.[0])}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 flex gap-2">
+            <FiAlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-800 leading-relaxed">
+              <span className="font-bold">Skill Verification Notice:</span> Newly added skills require admin review and verification before you can receive job requests for them. Your existing verified skills keep receiving jobs without interruption.
+            </p>
+          </div>
 
         </div>
 

@@ -139,6 +139,12 @@ export const workerAuthService = {
     return response.data;
   },
 
+  // Check a referral code before any OTP is sent
+  validateReferral: async (code) => {
+    const response = await api.get(`/workers/auth/validate-referral/${encodeURIComponent(code)}`);
+    return response.data;
+  },
+
   // Send OTP
   sendOTP: async (phone, email = null) => {
     const response = await api.post('/workers/auth/send-otp', { phone, email });

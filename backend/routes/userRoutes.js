@@ -1,4 +1,5 @@
 import express from 'express';
+import { requireFeature } from '../utils/featureFlags.js';
 import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedPlaces, toggleSavedPlace, updateUserRole, getCheckoutData, validatePromo, getRecommendedBrokers, getBrokerProfile, syncCart, sendEmergencyAlert } from '../controllers/userController.js';
 import { createVipOrder, verifyVipPayment } from '../controllers/vipController.js';
 import { protect } from '../middlewares/authMiddleware.js';
@@ -30,7 +31,7 @@ router.put('/notifications/:id/read', protect, markNotificationRead);
 router.delete('/notifications', protect, deleteNotifications);
 
 // VIP Membership Routes
-router.post('/vip/purchase', protect, createVipOrder);
+router.post('/vip/purchase', protect, requireFeature('userSubscription'), createVipOrder);
 router.post('/vip/verify', protect, verifyVipPayment);
 
 export default router;

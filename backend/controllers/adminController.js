@@ -253,21 +253,25 @@ export const getDashboardStats = async (req, res) => {
 
 export const getDashboardRevenue = async (req, res) => {
   try {
-    const { period = 'monthly' } = req.query;
+    const { period = 'monthly', startDate, endDate } = req.query;
 
     // Bucket size + lookback window per period, computed from completed
     // Home Service bookings' finalAmount.
     const dateFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%G-W%V' : '%Y-%m';
     const lookbackDays = period === 'daily' ? 30 : period === 'weekly' ? 90 : 365;
-    const since = new Date();
-    since.setDate(since.getDate() - lookbackDays);
+    const since = startDate ? new Date(startDate) : new Date();
+    if (!startDate) since.setDate(since.getDate() - lookbackDays);
+    const createdAt = { $gte: since };
+    if (endDate) createdAt.$lte = new Date(endDate);
 
+    // Collected from customers: full bill once paid, advance while partial.
     const rows = await HomeServiceBooking.aggregate([
-      { $match: { status: 'completed', createdAt: { $gte: since } } },
+      { $match: { status: { $ne: 'cancelled' }, paymentStatus: { $in: ['paid', 'partial'] }, createdAt } },
       {
         $group: {
           _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
-          revenue: { $sum: '$finalAmount' }
+          revenue: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$finalAmount', '$advancePaid'] } },
+          bookings: { $sum: 1 }
         }
       },
       { $sort: { _id: 1 } }
@@ -1619,6 +1623,7 @@ export const updatePlatformSettings = async (req, res) => {
       workerReferralBonusReferrer,
       workerReferralBonusReferee,
       privacyPolicy,
+      termsAndConditions,
       supportEmail,
       supportPhone,
       supportWhatsapp,
@@ -1754,6 +1759,7 @@ export const updatePlatformSettings = async (req, res) => {
     if (workerReferralBonusReferrer !== undefined) settings.workerReferralBonusReferrer = Number(workerReferralBonusReferrer);
     if (workerReferralBonusReferee !== undefined) settings.workerReferralBonusReferee = Number(workerReferralBonusReferee);
     if (privacyPolicy !== undefined) settings.privacyPolicy = privacyPolicy;
+    if (termsAndConditions !== undefined) settings.termsAndConditions = termsAndConditions;
 
     await settings.save();
 

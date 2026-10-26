@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, X, Loader2, ArrowLeft, Search, SlidersHorizontal, Video, Link, MapPin, Phone, User } from 'lucide-react';
 import ReelCard from '../../components/reels/ReelCard';
 import ReelCommentsSheet from '../../components/reels/ReelCommentsSheet';
+import ReelAreaPicker from '../../components/reels/ReelAreaPicker';
 import { reelService } from '../../services/reelService';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -406,7 +407,12 @@ export default function ReelsPage() {
       loadFeed(null, true);
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to submit reel');
+      const serverMsg = err.response?.data?.message;
+      if (serverMsg) toast.error(serverMsg);
+      else if (err.response?.status === 413) toast.error('Video is too large. Please upload a video under 20MB.');
+      else if (err.code === 'ECONNABORTED') toast.error('Upload timed out. Check your connection or try a shorter video.');
+      else if (!err.response) toast.error('Could not reach the server. Check your connection and try again.');
+      else toast.error('Failed to submit reel');
     } finally {
       setUploading(false);
     }
@@ -433,8 +439,8 @@ export default function ReelsPage() {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 30 * 1024 * 1024) {
-        toast.error('Video must be under 30MB');
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error('Video must be under 20MB');
         return;
       }
       setSelectedFile(file);
@@ -799,7 +805,7 @@ export default function ReelsPage() {
               <div>
                 <span className="font-black text-[9px] uppercase tracking-widest text-blue-500">Step {uploadStep} of 4</span>
                 <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
-                  {uploadStep === 1 && "Select Bangalore City Area"}
+                  {uploadStep === 1 && "Select City Area"}
                   {uploadStep === 2 && "Select Target Budget"}
                   {uploadStep === 3 && "Add Video Reel Source"}
                   {uploadStep === 4 && "Add Property Specifications"}
@@ -817,27 +823,11 @@ export default function ReelsPage() {
             {/* STEP 1: Bangalore City Selector */}
             {uploadStep === 1 && (
               <div className="space-y-3">
-                <span className="text-[10px] text-white/50 uppercase tracking-wide block mb-2">Select the area closest to the property:</span>
-                <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
-                  {BENGALURU_AREAS.map((area) => (
-                    <button
-                      key={area}
-                      type="button"
-                      onClick={() => setSelectedCity(area)}
-                      className={`py-3 px-3.5 rounded-xl border text-left text-xs font-bold transition-all flex items-center justify-between ${selectedCity === area
-                          ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20'
-                          : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
-                        }`}
-                    >
-                      <span>{area}</span>
-                      <MapPin size={11} className={selectedCity === area ? 'text-white' : 'text-neutral-500'} />
-                    </button>
-                  ))}
-                </div>
+                <ReelAreaPicker areas={BENGALURU_AREAS} value={selectedCity} onChange={setSelectedCity} />
 
                 <button
                   type="button"
-                  disabled={!selectedCity}
+                  disabled={!selectedCity.trim()}
                   onClick={() => setUploadStep(2)}
                   className="w-full mt-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg"
                 >
@@ -920,7 +910,7 @@ export default function ReelsPage() {
                     <span className="text-xs font-bold text-white">
                       {selectedFileName ? 'Change Selected Video' : 'Select MP4/WebM Video'}
                     </span>
-                    <span className="text-[9px] text-white/55 mt-1">Maximum size 30MB, duration max 30s.</span>
+                    <span className="text-[9px] text-white/55 mt-1">Maximum size 20MB, duration max 30s.</span>
                     {selectedFileName && (
                       <span className="mt-3 text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 rounded-lg px-3 py-1 font-mono truncate max-w-[200px]">
                         {selectedFileName}
