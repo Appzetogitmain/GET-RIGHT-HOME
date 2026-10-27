@@ -1,4 +1,5 @@
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import Subscription from '../models/Subscription.js';
 import SubscriptionTier from '../models/SubscriptionTier.js';
 import Partner from '../models/Partner.js';
 import User from '../models/User.js';
@@ -220,9 +221,52 @@ export const getCurrentSubscription = async (req, res) => {
 
         if (!partner) return res.status(404).json({ message: 'User not found' });
 
+        let subscription = partner.subscription;
+
+        // Check if there is an active subscription in modern Subscription collection
+        if (!subscription?.planId || subscription?.status !== 'active') {
+            const activeSub = await Subscription.findOne({
+                userId: partnerId,
+                status: 'active',
+                expiryDate: { $gt: new Date() }
+            }).populate('planId').lean();
+
+            if (activeSub) {
+                const snap = activeSub.entitlementSnapshot || {};
+                const maxProps = snap.propertyLimit != null
+                    ? snap.propertyLimit
+                    : (activeSub.planId?.maxProperties ?? activeSub.planId?.propertiesPerPurchase ?? 1);
+                const leadLimit = snap.leadLimit != null
+                    ? snap.leadLimit
+                    : (activeSub.planId?.leadCap ?? 0);
+
+                subscription = {
+                    planId: {
+                        _id: activeSub.planId?._id || activeSub.planId,
+                        name: activeSub.planName || activeSub.planId?.name || 'Active Plan',
+                        maxProperties: maxProps,
+                        leadCap: leadLimit,
+                        planTier: activeSub.planTier,
+                        mode: activeSub.mode
+                    },
+                    planName: activeSub.planName || activeSub.planId?.name,
+                    planTier: activeSub.planTier,
+                    mode: activeSub.mode,
+                    subscriptionId: activeSub.subscriptionId,
+                    status: 'active',
+                    startDate: activeSub.startDate,
+                    expiryDate: activeSub.expiryDate,
+                    propertiesAdded: activeSub.propertyIds?.length || 0,
+                    leadsUsedThisMonth: activeSub.usage?.leadsUsed || 0,
+                    isPaused: false,
+                    entitlementSnapshot: snap
+                };
+            }
+        }
+
         res.json({
             success: true,
-            subscription: partner.subscription,
+            subscription,
             createdAt: partner.createdAt,
             partnerSince: partner.partnerSince || partner.createdAt
         });

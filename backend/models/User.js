@@ -136,6 +136,12 @@ const userSchema = new mongoose.Schema({
   },
   vipExpiry: { type: Date },
 
+  // User Wallet & Cancellation Penalty
+  wallet: {
+    balance: { type: Number, default: 0 },
+    penalty: { type: Number, default: 0 }
+  },
+
   // Subscription Details (For Owner / Broker)
   subscription: {
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan' },

@@ -15,6 +15,7 @@ import { safeRegex } from '../utils/escapeRegex.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
 import Notification from '../models/Notification.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import Subscription from '../models/Subscription.js';
 import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
 import Wallet from '../models/Wallet.js';
@@ -100,6 +101,7 @@ export const getDashboardStats = async (req, res) => {
       revLastMonthAgg,
       partnerStats,
       userStats,
+      modernSubStats,
       monthlyRevenue,
       bookingStatusStats,
       recentBookings,
@@ -141,6 +143,23 @@ export const getDashboardStats = async (req, res) => {
       ]),
       Partner.aggregate(subscriptionRevenuePipeline),
       User.aggregate(subscriptionRevenuePipeline),
+      Subscription.aggregate([
+        {
+          $match: {
+            status: 'active',
+            expiryDate: { $gt: new Date() }
+          }
+        },
+        {
+          $group: {
+            _id: '$planId',
+            planName: { $first: '$planName' },
+            planPrice: { $first: '$amount' },
+            subscriberCount: { $sum: 1 },
+            totalRevenue: { $sum: '$amount' }
+          }
+        }
+      ]),
       Booking.aggregate([
         {
           $match: {
@@ -184,7 +203,7 @@ export const getDashboardStats = async (req, res) => {
     };
 
     const mergedByPlan = new Map();
-    for (const stat of [...partnerStats, ...userStats]) {
+    for (const stat of [...(modernSubStats || []), ...partnerStats, ...userStats]) {
       const key = String(stat._id);
       const existing = mergedByPlan.get(key);
       if (existing) {
@@ -1278,6 +1297,71 @@ export const getUserDetails = async (req, res) => {
     const user = await User.findById(id).populate('subscription.planId');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
+    // Fetch user's subscriptions from Subscription collection
+    const subscriptions = await Subscription.find({ userId: id })
+      .populate('planId')
+      .populate('propertyIds', 'propertyName coverImage address transactionType status')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const now = new Date();
+    const activeSubs = subscriptions.filter(
+      s => s.status === 'active' && s.expiryDate && new Date(s.expiryDate) > now
+    );
+    const activeSub = activeSubs[0] || null;
+
+    const userObj = user.toObject ? user.toObject() : { ...user };
+
+    // If an active subscription exists in Subscription model, ensure userObj.subscription reflects it
+    if (activeSub) {
+      const snap = activeSub.entitlementSnapshot || {};
+      const maxProps = snap.propertyLimit != null
+        ? snap.propertyLimit
+        : (activeSub.planId?.maxProperties ?? activeSub.planId?.propertiesPerPurchase ?? 1);
+      const leadLimit = snap.leadLimit != null
+        ? snap.leadLimit
+        : (activeSub.planId?.leadCap ?? 0);
+
+      userObj.subscription = {
+        planId: {
+          _id: activeSub.planId?._id || activeSub.planId,
+          name: activeSub.planName || activeSub.planId?.name || 'Active Plan',
+          maxProperties: maxProps,
+          leadCap: leadLimit,
+          planTier: activeSub.planTier,
+          mode: activeSub.mode
+        },
+        planName: activeSub.planName || activeSub.planId?.name,
+        planTier: activeSub.planTier,
+        mode: activeSub.mode,
+        subscriptionId: activeSub.subscriptionId,
+        status: 'active',
+        startDate: activeSub.startDate,
+        expiryDate: activeSub.expiryDate,
+        propertiesAdded: activeSub.propertyIds?.length || 0,
+        leadsUsedThisMonth: activeSub.usage?.leadsUsed || 0,
+        isPaused: false,
+        entitlementSnapshot: snap
+      };
+
+      // Also sync back to User document in DB if it was outdated/inactive
+      if (!user.subscription?.planId || user.subscription?.status !== 'active') {
+        User.findByIdAndUpdate(id, {
+          $set: {
+            'subscription.planId': activeSub.planId?._id || activeSub.planId,
+            'subscription.status': 'active',
+            'subscription.startDate': activeSub.startDate,
+            'subscription.expiryDate': activeSub.expiryDate,
+            'subscription.propertiesAdded': activeSub.propertyIds?.length || 0,
+            'subscription.leadsUsedThisMonth': activeSub.usage?.leadsUsed || 0,
+            'subscription.isPaused': false
+          }
+        }).catch(err => console.error('Error syncing user subscription:', err));
+      }
+    } else if (user.subscription?.status === 'active' && user.subscription?.expiryDate && new Date(user.subscription.expiryDate) <= now) {
+      userObj.subscription.status = 'expired';
+    }
+
     const bookings = await Booking.find({ userId: id })
       .populate('propertyId', 'propertyName name address')
       .sort({ createdAt: -1 })
@@ -1308,7 +1392,17 @@ export const getUserDetails = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    res.status(200).json({ success: true, user, bookings, wallet, transactions, properties });
+    res.status(200).json({
+      success: true,
+      user: userObj,
+      bookings,
+      wallet,
+      transactions,
+      properties,
+      subscriptions,
+      activeSubscription: activeSub,
+      activeSubscriptions: activeSubs
+    });
   } catch (error) {
     console.error('Get User Details Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching user details' });
@@ -1321,8 +1415,77 @@ export const getPartnerDetails = async (req, res) => {
     const partner = await Partner.findById(id).populate('subscription.planId');
     if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
 
+    const subscriptions = await Subscription.find({ userId: id })
+      .populate('planId')
+      .populate('propertyIds', 'propertyName coverImage address transactionType status')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const now = new Date();
+    const activeSubs = subscriptions.filter(
+      s => s.status === 'active' && s.expiryDate && new Date(s.expiryDate) > now
+    );
+    const activeSub = activeSubs[0] || null;
+
+    const partnerObj = partner.toObject ? partner.toObject() : { ...partner };
+
+    if (activeSub) {
+      const snap = activeSub.entitlementSnapshot || {};
+      const maxProps = snap.propertyLimit != null
+        ? snap.propertyLimit
+        : (activeSub.planId?.maxProperties ?? activeSub.planId?.propertiesPerPurchase ?? 1);
+      const leadLimit = snap.leadLimit != null
+        ? snap.leadLimit
+        : (activeSub.planId?.leadCap ?? 0);
+
+      partnerObj.subscription = {
+        planId: {
+          _id: activeSub.planId?._id || activeSub.planId,
+          name: activeSub.planName || activeSub.planId?.name || 'Active Plan',
+          maxProperties: maxProps,
+          leadCap: leadLimit,
+          planTier: activeSub.planTier,
+          mode: activeSub.mode
+        },
+        planName: activeSub.planName || activeSub.planId?.name,
+        planTier: activeSub.planTier,
+        mode: activeSub.mode,
+        subscriptionId: activeSub.subscriptionId,
+        status: 'active',
+        startDate: activeSub.startDate,
+        expiryDate: activeSub.expiryDate,
+        propertiesAdded: activeSub.propertyIds?.length || 0,
+        leadsUsedThisMonth: activeSub.usage?.leadsUsed || 0,
+        isPaused: false,
+        entitlementSnapshot: snap
+      };
+
+      if (!partner.subscription?.planId || partner.subscription?.status !== 'active') {
+        Partner.findByIdAndUpdate(id, {
+          $set: {
+            'subscription.planId': activeSub.planId?._id || activeSub.planId,
+            'subscription.status': 'active',
+            'subscription.startDate': activeSub.startDate,
+            'subscription.expiryDate': activeSub.expiryDate,
+            'subscription.propertiesAdded': activeSub.propertyIds?.length || 0,
+            'subscription.leadsUsedThisMonth': activeSub.usage?.leadsUsed || 0,
+            'subscription.isPaused': false
+          }
+        }).catch(err => console.error('Error syncing partner subscription:', err));
+      }
+    } else if (partner.subscription?.status === 'active' && partner.subscription?.expiryDate && new Date(partner.subscription.expiryDate) <= now) {
+      partnerObj.subscription.status = 'expired';
+    }
+
     const properties = await Property.find({ userId: id });
-    res.status(200).json({ success: true, partner, properties });
+    res.status(200).json({
+      success: true,
+      partner: partnerObj,
+      properties,
+      subscriptions,
+      activeSubscription: activeSub,
+      activeSubscriptions: activeSubs
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching partner details' });
   }

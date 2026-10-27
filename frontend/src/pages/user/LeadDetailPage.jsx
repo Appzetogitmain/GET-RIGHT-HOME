@@ -242,6 +242,16 @@ const LeadDetailPage = () => {
                             <p className="text-xs text-slate-400 mt-0.5">{fmtDateTime(enquiry.createdAt)}</p>
                         </div>
                     </div>
+                    {enquiry.preferredDate && (
+                        <div className="bg-blue-50/70 border border-blue-200/60 rounded p-3 text-sm text-slate-800 space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-[#1A73E8] uppercase">
+                                <Calendar size={14} /> Scheduled Site Visit
+                            </div>
+                            <p><span className="text-slate-500 font-medium">Preferred Date:</span> <strong className="text-slate-900">{new Date(enquiry.preferredDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</strong></p>
+                            {enquiry.timeSlot && <p><span className="text-slate-500 font-medium">Time Slot:</span> <strong className="text-slate-900">{enquiry.timeSlot}</strong></p>}
+                            {enquiry.adminNotes && <p className="whitespace-pre-wrap"><span className="text-slate-500 font-medium">Notes:</span> {enquiry.adminNotes}</p>}
+                        </div>
+                    )}
                     {message && (
                         <div className="bg-slate-50 rounded p-3 text-sm text-slate-700 space-y-1">
                             <p className="text-xs font-bold text-[#1A73E8] uppercase">{parsed.type}</p>

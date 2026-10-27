@@ -18,6 +18,8 @@ import Subscription, { generateSubscriptionId } from '../models/Subscription.js'
 import SubscriptionOrder from '../models/SubscriptionOrder.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import Property from '../models/Property.js';
+import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import { recordAudit } from '../models/SubscriptionAudit.js';
 import { createNotification } from '../controllers/notificationControllers/notificationController.js';
 import {
@@ -202,6 +204,19 @@ export const activateSubscription = async ({
         createdByAdmin,
     });
 
+    const Model = subject.model === 'Partner' ? Partner : User;
+    await Model.findByIdAndUpdate(subject._id, {
+        $set: {
+            'subscription.planId': plan._id,
+            'subscription.status': 'active',
+            'subscription.startDate': start,
+            'subscription.expiryDate': end,
+            'subscription.propertiesAdded': propertyIds.length,
+            'subscription.leadsUsedThisMonth': 0,
+            'subscription.isPaused': false
+        }
+    }).catch(e => console.error('[Subscription] model sync failed:', e.message));
+
     await applyPromotionToProperties(subscription);
 
     await createNotification({
@@ -321,6 +336,20 @@ export const expireSubscription = async (subscription, { reason = 'Validity ende
         priority: 'high',
         pushData: { type: 'subscription_expired', link: '/my-subscriptions' },
     }).catch(() => {});
+
+    // Check if user has any other active subscriptions
+    const otherActive = await Subscription.findOne({
+        userId: subscription.userId,
+        _id: { $ne: subscription._id },
+        status: SUBSCRIPTION_STATUS.ACTIVE,
+        expiryDate: { $gt: new Date() }
+    });
+    if (!otherActive) {
+        const Model = subscription.userModel === 'Partner' ? Partner : User;
+        await Model.findByIdAndUpdate(subscription.userId, {
+            $set: { 'subscription.status': 'expired' }
+        }).catch(() => {});
+    }
 
     return subscription;
 };

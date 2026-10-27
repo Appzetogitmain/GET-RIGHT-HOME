@@ -4,8 +4,8 @@ const typeMap = {
   call: { label: '📞 Call', className: 'bg-blue-50 text-blue-700 border-blue-100' },
   whatsapp: { label: '💬 WhatsApp', className: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
   callback: { label: '🔔 Callback', className: 'bg-amber-50 text-amber-700 border-amber-100' },
-  contact_owner: { label: '📩 Enquiry', className: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
-  visit: { label: '🏠 Visit', className: 'bg-purple-50 text-purple-700 border-purple-100' },
+  visit: { label: '🏠 Visit', className: 'bg-blue-50 text-[#1A73E8] border-blue-200' },
+  schedule_visit: { label: '📅 Scheduled Visit', className: 'bg-blue-50 text-[#1A73E8] border-blue-200' },
 };
 
 const LeadTypeBadge = ({ type }) => {
