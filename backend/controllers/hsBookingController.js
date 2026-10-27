@@ -14,6 +14,7 @@ import Plan from '../models/Plan.js';
 import Settings from '../models/Settings.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import Transaction from '../models/Transaction.js';
+import Wallet from '../models/Wallet.js';
 import Review from '../models/Review.js';
 import { validationResult } from 'express-validator';
 import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
@@ -1155,41 +1156,43 @@ const cancelBooking = async (req, res) => {
 
     // Update User Wallet
     if (refundAmount > 0 || penaltyToAdd > 0) {
-
       const user = await User.findById(userId);
 
-      // 1. Process Refund
-      if (refundAmount > 0) {
-        user.wallet.balance = (user.wallet.balance || 0) + refundAmount;
+      if (user) {
+        if (!user.wallet) {
+          user.wallet = { balance: 0, penalty: 0 };
+        }
 
-        await Transaction.create({
-          userId: user._id,
-          type: 'refund',
-          amount: refundAmount,
-          status: 'completed',
-          paymentMethod: 'wallet',
-          description: `Refund for booking #${booking.bookingNumber}`,
-          bookingId: booking._id,
-          balanceAfter: user.wallet.balance
-        });
+        // 1. Process Refund
+        if (refundAmount > 0) {
+          let userWalletDoc = await Wallet.findOne({ partnerId: user._id, role: 'user' });
+          if (!userWalletDoc) {
+            userWalletDoc = await Wallet.create({
+              partnerId: user._id,
+              role: 'user',
+              balance: 0
+            });
+          }
 
-        booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
+          await userWalletDoc.credit(
+            refundAmount,
+            `Refund for booking #${booking.bookingNumber}`,
+            booking._id,
+            'refund'
+          );
+
+          user.wallet.balance = userWalletDoc.balance;
+          booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
+        }
+
+        // 2. Process Cancellation Fee (Add to Penalty Bucket if Unpaid)
+        if (penaltyToAdd > 0) {
+          user.wallet.penalty = (user.wallet.penalty || 0) + penaltyToAdd;
+          console.log(`[CancelBooking] Added penalty of ₹${penaltyToAdd} to user ${userId}. Total Penalty: ${user.wallet.penalty}`);
+        }
+
+        await user.save();
       }
-
-      // 2. Process Cancellation Fee (Add to Penalty Bucket if Unpaid)
-      if (penaltyToAdd > 0) {
-        // Use wallet.penalty bucket
-        user.wallet.penalty = (user.wallet.penalty || 0) + penaltyToAdd;
-        // Do NOT create a 'debit' transaction yet, as money hasn't left. 
-        // Or create a 'penalty_added' transaction?
-        // User didn't ask for transaction record logic, just functionality.
-        // We will skip transaction for penalty addition to keep it simple, 
-        // as the actual CHARGE happens on next booking creation.
-
-        console.log(`[CancelBooking] Added penalty of ₹${penaltyToAdd} to user ${userId}. Total Penalty: ${user.wallet.penalty}`);
-      }
-
-      await user.save();
     }
 
     // Update booking status
@@ -1215,10 +1218,12 @@ const cancelBooking = async (req, res) => {
       
       for (const req of pendingRequests) {
         // Emit cancellation to worker so their alert modal disappears
-        io.to(`worker_${req.workerId}`).emit('job_cancelled', {
-          bookingId: booking._id.toString(),
-          message: 'Booking cancelled by customer'
-        });
+        if (io && req.workerId) {
+          io.to(`worker_${req.workerId}`).emit('job_cancelled', {
+            bookingId: booking._id.toString(),
+            message: 'Booking cancelled by customer'
+          });
+        }
       }
 
       // Mark these requests as cancelled

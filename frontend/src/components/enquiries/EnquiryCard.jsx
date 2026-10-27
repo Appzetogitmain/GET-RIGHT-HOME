@@ -39,11 +39,30 @@ const EnquiryCard = ({ item, enquiryCount = 1, onViewDetail }) => {
 
     const blocked = () => toast('Subscribe to view contact details');
 
+    const status = (item.status || '').toLowerCase();
+    const isScheduled = status === 'scheduled' || !!item.preferredDate;
+
     return (
         <div className="bg-white border border-[#E0E0E0] rounded">
             <div className="p-4">
                 <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-xl font-bold text-slate-900 leading-tight truncate">{name}</h3>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-xl font-bold text-slate-900 leading-tight truncate">{name}</h3>
+                            {isScheduled && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-50 text-[#1A73E8] border border-blue-200">
+                                    Visit Scheduled
+                                </span>
+                            )}
+                        </div>
+                        {isScheduled && item.preferredDate && (
+                            <p className="text-xs text-[#1A73E8] font-semibold mt-1 flex items-center gap-1">
+                                <span>📅</span>
+                                <span>{new Date(item.preferredDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                {item.timeSlot && <span className="text-slate-600 font-normal">({item.timeSlot})</span>}
+                            </p>
+                        )}
+                    </div>
                     <span className="text-sm text-slate-500 shrink-0 pt-1">{fmtRelDate(item.createdAt)}</span>
                 </div>
 

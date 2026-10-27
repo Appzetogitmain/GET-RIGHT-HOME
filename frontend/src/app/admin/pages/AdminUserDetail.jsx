@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     User, Mail, Phone, Calendar, MapPin, Shield, CreditCard,
     History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2, ArrowDownLeft, ArrowUpRight,
-    MessageSquare, Clock, FileText, Home
+    MessageSquare, Clock, FileText, Home, ShieldCheck, Package
 } from 'lucide-react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -66,7 +66,7 @@ const EnqStatusBadge = ({ status }) => {
     const cls = {
         new: 'bg-blue-50 text-blue-700 border-blue-100',
         contacted: 'bg-amber-50 text-amber-700 border-amber-100',
-        scheduled: 'bg-purple-50 text-purple-700 border-purple-100',
+        scheduled: 'bg-blue-50 text-[#1A73E8] border-blue-200',
         closed: 'bg-green-50 text-green-700 border-green-100',
         dropped: 'bg-red-50 text-red-700 border-red-100',
     };
@@ -114,12 +114,15 @@ const UserEnquiriesTab = ({ enquiries }) => (
                                 </span>
                             </td>
                             <td className="p-4 text-[11px] font-bold text-gray-600">
-                                {enq.inquiryMetadata?.preferredDate
-                                    ? new Date(enq.inquiryMetadata.preferredDate).toLocaleDateString()
+                                {enq.preferredDate || enq.inquiryMetadata?.preferredDate
+                                    ? new Date(enq.preferredDate || enq.inquiryMetadata.preferredDate).toLocaleDateString()
                                     : '—'}
+                                {enq.timeSlot && (
+                                    <span className="block text-[10px] text-gray-400 font-normal mt-0.5">{enq.timeSlot}</span>
+                                )}
                             </td>
                             <td className="p-4">
-                                <EnqStatusBadge status={enq.inquiryMetadata?.status} />
+                                <EnqStatusBadge status={enq.status || enq.inquiryMetadata?.status} />
                             </td>
                         </tr>
                     ))
@@ -202,7 +205,125 @@ const UserTransactionsTab = ({ wallet, transactions }) => (
     </div>
 );
 
-
+const UserSubscriptionsTab = ({ subscriptions, basePath }) => (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div>
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Subscription History</h3>
+                <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">All packages and plans assigned to or purchased by this user</p>
+            </div>
+            <Link
+                to={`${basePath}/subscriptions`}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-black text-white rounded-lg text-[10px] font-bold uppercase hover:bg-gray-800 transition-colors"
+            >
+                <ShieldCheck size={12} /> Manage Plans
+            </Link>
+        </div>
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
+                    <tr>
+                        <th className="p-4">Subscription ID</th>
+                        <th className="p-4">Plan & Tier</th>
+                        <th className="p-4">Mode / Scope</th>
+                        <th className="p-4">Amount</th>
+                        <th className="p-4">Duration & Validity</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4">Properties Covered</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                    {subscriptions && subscriptions.length > 0 ? (
+                        subscriptions.map((sub, i) => {
+                            const isAct = sub.status === 'active' && sub.expiryDate && new Date(sub.expiryDate) > new Date();
+                            const daysLeft = sub.expiryDate ? Math.max(0, Math.ceil((new Date(sub.expiryDate) - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+                            return (
+                                <tr key={sub._id || i} className="hover:bg-gray-50 font-medium">
+                                    <td className="p-4 font-mono text-xs font-bold text-gray-700">
+                                        #{sub.subscriptionId || sub._id?.slice(-8).toUpperCase()}
+                                        <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                            {new Date(sub.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </p>
+                                    </td>
+                                    <td className="p-4">
+                                        <p className="font-bold text-gray-900 text-sm">{sub.planName || sub.planId?.name || 'Custom Plan'}</p>
+                                        <span className="inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-100">
+                                            {sub.planTier ? sub.planTier.replace('_', ' ') : 'Standard'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 uppercase text-xs font-bold text-gray-600">
+                                        <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] font-bold">
+                                            {sub.mode || 'Sale'}
+                                        </span>
+                                        <p className="text-[10px] text-gray-400 mt-1 capitalize font-medium">{sub.scope || 'Property'}-level</p>
+                                    </td>
+                                    <td className="p-4 font-bold text-gray-900">
+                                        ₹{(sub.amount || 0).toLocaleString('en-IN')}
+                                        <p className="text-[9px] text-gray-400 uppercase font-semibold mt-0.5">
+                                            {sub.paymentType || 'Online'}
+                                        </p>
+                                    </td>
+                                    <td className="p-4 text-xs font-bold text-gray-600">
+                                        <div>
+                                            <span>{sub.startDate ? new Date(sub.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</span>
+                                            <span className="mx-1 text-gray-400">→</span>
+                                            <span className={isAct ? 'text-emerald-700 font-black' : 'text-gray-600'}>
+                                                {sub.expiryDate ? new Date(sub.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                            </span>
+                                        </div>
+                                        {isAct && (
+                                            <span className="inline-block mt-1 text-[10px] font-bold text-emerald-600">
+                                                {daysLeft} days remaining
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border ${
+                                            isAct ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                            sub.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
+                                            sub.status === 'expired' ? 'bg-gray-100 text-gray-600 border-gray-200' :
+                                            'bg-amber-50 text-amber-700 border-amber-200'
+                                        }`}>
+                                            {isAct ? 'ACTIVE' : (sub.status || 'INACTIVE')}
+                                        </span>
+                                        {sub.cancelReason && (
+                                            <p className="text-[9px] text-red-500 font-semibold mt-1 max-w-[160px] truncate" title={sub.cancelReason}>
+                                                {sub.cancelReason}
+                                            </p>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-xs font-bold text-gray-700">
+                                        {sub.propertyIds && sub.propertyIds.length > 0 ? (
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] text-gray-500 uppercase">{sub.propertyIds.length} listing{sub.propertyIds.length > 1 ? 's' : ''}:</span>
+                                                {sub.propertyIds.slice(0, 2).map((p, idx) => (
+                                                    <p key={idx} className="truncate max-w-[150px] text-gray-900 font-bold text-[11px]">
+                                                        • {p.propertyName || p._id || p}
+                                                    </p>
+                                                ))}
+                                                {sub.propertyIds.length > 2 && (
+                                                    <span className="text-[10px] text-gray-400 font-bold">+{sub.propertyIds.length - 2} more</span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400 text-xs italic">No listings assigned</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })
+                    ) : (
+                        <tr>
+                            <td colSpan="7" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">
+                                No subscriptions found for this user
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
+    </div>
+);
 
 const AdminUserDetail = () => {
     const location = useLocation();
@@ -214,6 +335,8 @@ const AdminUserDetail = () => {
     const [wallet, setWallet] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [enquiries, setEnquiries] = useState([]);
+    const [subscriptions, setSubscriptions] = useState([]);
+    const [activeSubscription, setActiveSubscription] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('enquiries');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
@@ -231,6 +354,8 @@ const AdminUserDetail = () => {
                 setProperties(userRes.properties || []);
                 setWallet(userRes.wallet);
                 setTransactions(userRes.transactions);
+                setSubscriptions(userRes.subscriptions || []);
+                setActiveSubscription(userRes.activeSubscription || null);
             }
             if (enqRes.success) {
                 // Filter enquiries that belong to this user
@@ -295,9 +420,45 @@ const AdminUserDetail = () => {
         );
     }
 
+    const activePlanInfo = React.useMemo(() => {
+        const sub = activeSubscription || (
+            user?.subscription?.status === 'active' &&
+            (user?.subscription?.planId || user?.subscription?.planName) &&
+            (!user?.subscription?.expiryDate || new Date(user.subscription.expiryDate) > new Date())
+                ? user.subscription
+                : null
+        );
+        if (!sub) return null;
+
+        const planName = sub.planName || sub.planId?.name || (typeof sub.planId === 'string' ? sub.planId : 'Active Plan');
+        const snap = sub.entitlementSnapshot || {};
+        const maxProperties = snap.propertyLimit != null
+            ? snap.propertyLimit
+            : (sub.planId?.maxProperties ?? sub.planId?.propertiesPerPurchase ?? 1);
+        const rawCap = snap.leadLimit != null ? snap.leadLimit : sub.planId?.leadCap;
+        const leadCap = (rawCap === 0 || rawCap === null || rawCap === undefined) ? '∞' : rawCap;
+        const propertiesAdded = sub.propertyIds?.length ?? sub.propertiesAdded ?? 0;
+        const leadsUsed = sub.usage?.leadsUsed ?? sub.leadsUsedThisMonth ?? 0;
+        const expiryDate = sub.expiryDate;
+        const daysLeft = expiryDate ? Math.max(0, Math.ceil((new Date(expiryDate) - new Date()) / (1000 * 60 * 60 * 24))) : null;
+
+        return {
+            planName,
+            planTier: sub.planTier || sub.planId?.planTier,
+            mode: sub.mode,
+            maxProperties,
+            leadCap,
+            propertiesAdded,
+            leadsUsed,
+            expiryDate,
+            daysLeft
+        };
+    }, [user, activeSubscription]);
+
     const tabs = [
         { id: 'enquiries', label: `Enquiries (${enquiries.length})`, icon: MessageSquare },
         { id: 'properties', label: `Properties (${properties.length})`, icon: Home },
+        { id: 'subscriptions', label: `Subscriptions (${subscriptions.length})`, icon: ShieldCheck },
         { id: 'transactions', label: 'Transactions', icon: CreditCard },
     ];
 
@@ -354,31 +515,46 @@ const AdminUserDetail = () => {
                             <span className="text-[10px] text-gray-500 uppercase font-bold">Total Properties</span>
                             <span className="text-lg font-bold text-gray-900">{properties.length}</span>
                         </div>
-                        <div className="p-3 bg-white/50 rounded-lg border border-gray-200/50 flex flex-col gap-1.5">
-                            <div className="flex justify-between items-center">
+                        <div className={`p-3 rounded-lg border flex flex-col gap-1.5 transition-colors ${
+                            activePlanInfo ? 'bg-amber-50/40 border-amber-200/70' : 'bg-white/50 border-gray-200/50'
+                        }`}>
+                            <div className="flex justify-between items-center gap-2">
                                 <span className="text-[10px] text-gray-500 uppercase font-bold">Active Plan</span>
-                                <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-full ${user.subscription?.planId ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-400'}`}>
-                                    {user.subscription?.planId?.name || 'No Active Plan'}
+                                <span className={`text-xs font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                    activePlanInfo ? 'bg-amber-100 text-amber-800 border border-amber-300/50' : 'bg-gray-100 text-gray-400'
+                                }`}>
+                                    {activePlanInfo ? activePlanInfo.planName : 'No Active Plan'}
                                 </span>
                             </div>
-                            {user.subscription?.planId && (
-                                <div className="mt-1 pt-1.5 border-t border-gray-100 flex flex-col gap-1 text-[9px] font-bold text-gray-400 uppercase">
+                            {activePlanInfo && (
+                                <div className="mt-1 pt-1.5 border-t border-amber-100/80 flex flex-col gap-1 text-[9px] font-bold text-gray-500 uppercase">
+                                    {activePlanInfo.mode && (
+                                        <div className="flex justify-between">
+                                            <span>Mode / Tier:</span>
+                                            <span className="text-gray-900 font-black">
+                                                {activePlanInfo.mode} {activePlanInfo.planTier ? `• ${activePlanInfo.planTier.replace('_', ' ')}` : ''}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between">
                                         <span>Expires:</span>
-                                        <span className="text-gray-700">
-                                            {new Date(user.subscription.expiryDate).toLocaleDateString()}
+                                        <span className="text-gray-900 font-black">
+                                            {activePlanInfo.expiryDate ? new Date(activePlanInfo.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                            {activePlanInfo.daysLeft !== null && (
+                                                <span className="text-emerald-700 ml-1">({activePlanInfo.daysLeft}d left)</span>
+                                            )}
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Properties:</span>
-                                        <span className="text-gray-700">
-                                            {user.subscription.propertiesAdded || 0}/{user.subscription.planId.maxProperties}
+                                        <span className="text-gray-900 font-black">
+                                            {activePlanInfo.propertiesAdded}/{activePlanInfo.maxProperties}
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Leads:</span>
-                                        <span className="text-gray-700">
-                                            {user.subscription.leadsUsedThisMonth || 0}/{user.subscription.planId.leadCap || '∞'}
+                                        <span className="text-gray-900 font-black">
+                                            {activePlanInfo.leadsUsed}/{activePlanInfo.leadCap}
                                         </span>
                                     </div>
                                 </div>
@@ -433,6 +609,7 @@ const AdminUserDetail = () => {
                     >
                         {activeTab === 'enquiries' && <UserEnquiriesTab enquiries={enquiries} />}
                         {activeTab === 'properties' && <UserPropertiesTab properties={properties} />}
+                        {activeTab === 'subscriptions' && <UserSubscriptionsTab subscriptions={subscriptions} basePath={basePath} />}
                         {activeTab === 'transactions' && <UserTransactionsTab wallet={wallet} transactions={transactions} />}
                     </motion.div>
                 </AnimatePresence>

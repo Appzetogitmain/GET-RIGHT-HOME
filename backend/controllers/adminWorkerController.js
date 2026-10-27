@@ -3,6 +3,7 @@ import Settings from '../models/Settings.js';
 import Worker from '../models/Worker.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Transaction from '../models/Transaction.js';
+import Wallet from '../models/Wallet.js';
 import Withdrawal from '../models/Withdrawal.js';
 import User from '../models/User.js';
 import VendorBill from '../models/VendorBill.js';
@@ -1411,19 +1412,29 @@ export const adminCancelBooking = async (req, res) => {
     if (isPaid && isPrepaid && booking.finalAmount > 0) {
       const user = await User.findById(booking.userId);
       if (user) {
+        if (!user.wallet) {
+          user.wallet = { balance: 0, penalty: 0 };
+        }
         refundAmount = booking.finalAmount;
-        user.wallet.balance = (user.wallet.balance || 0) + refundAmount;
+
+        let userWalletDoc = await Wallet.findOne({ partnerId: user._id, role: 'user' });
+        if (!userWalletDoc) {
+          userWalletDoc = await Wallet.create({
+            partnerId: user._id,
+            role: 'user',
+            balance: 0
+          });
+        }
+
+        await userWalletDoc.credit(
+          refundAmount,
+          `Refund for booking #${booking.bookingNumber} (cancelled by admin)`,
+          booking._id,
+          'refund'
+        );
+
+        user.wallet.balance = userWalletDoc.balance;
         await user.save();
-        await Transaction.create({
-          userId: user._id,
-          type: 'refund',
-          amount: refundAmount,
-          status: 'completed',
-          paymentMethod: 'wallet',
-          description: `Refund for booking #${booking.bookingNumber} (cancelled by admin)`,
-          bookingId: booking._id,
-          balanceAfter: user.wallet.balance
-        });
         booking.paymentStatus = PAYMENT_STATUS.REFUNDED;
       }
     }
