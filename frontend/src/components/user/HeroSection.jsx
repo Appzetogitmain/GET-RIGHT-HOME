@@ -360,13 +360,9 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
                         key={`${chip.label}-${idx}`}
                         type="button"
                         onClick={() => handleChipClick(chip)}
-                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-medium shadow-xs active:scale-95 transition-all ${
-                            chip.isRecent
-                                ? 'border-blue-200/80 bg-blue-50/40 text-gray-800 hover:border-blue-300'
-                                : 'border-gray-200 bg-white text-gray-700'
-                        }`}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-[12px] font-medium text-gray-700 shadow-sm active:scale-95 transition-transform"
                     >
-                        {chip.isRecent && <Clock size={12} className="text-[#005B9F] shrink-0" />}
+                        {chip.isRecent && <Clock size={12} className="text-gray-400 shrink-0" />}
                         <span className="truncate max-w-[200px]">{chip.label}</span>
                     </button>
                 ))}
