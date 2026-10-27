@@ -417,7 +417,11 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
   const clearFilters = () => { setTypes([]); setBhks([]); setStatus([]); setPostedBy([]); setRange([0, null]); };
 
   return createPortal(
-    <div className="fixed inset-0 z-[400] flex flex-col bg-gray-50 lg:hidden">
+    <div
+      data-lenis-prevent="true"
+      className="fixed inset-0 z-[400] flex flex-col h-[100dvh] max-h-[100dvh] bg-gray-50 lg:hidden overflow-hidden"
+      style={{ touchAction: 'pan-y' }}
+    >
       <style>{`
         .dual-range{-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;position:absolute;left:0;right:0;width:100%;height:28px;margin:0}
         .dual-range::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;height:22px;width:22px;border-radius:50%;background:#fff;border:2px solid ${BRAND};box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
@@ -447,7 +451,11 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
         </div>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-y-auto pb-28">
+      <div
+        data-lenis-prevent="true"
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8 touch-pan-y"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {/* Search card: chips + input */}
         <div className="relative z-20 -mt-0 bg-white px-4 pb-3 pt-3 shadow-sm">
           <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) addPlace(text); }}>
@@ -476,7 +484,11 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
 
           {/* Suggestions */}
           {text.trim() && (
-            <ul className="absolute inset-x-4 top-full z-30 mt-1 max-h-[55vh] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+            <ul
+              data-lenis-prevent="true"
+              className="absolute inset-x-4 top-full z-30 mt-1 max-h-[55vh] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white shadow-xl touch-pan-y"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
               {sugLoading && suggestions.length === 0 && (
                 <li className="flex items-center gap-2 px-4 py-3 text-[13px] text-gray-400"><Loader2 size={14} className="animate-spin" /> Searching…</li>
               )}
@@ -658,7 +670,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
       </div>
 
       {/* Search / Cancel */}
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white px-4 py-3">
+      <div className="shrink-0 flex items-center gap-3 border-t border-gray-200 bg-white px-4 py-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
         <button type="button" onClick={onClose} className="px-3 py-3 text-[14px] font-semibold" style={{ color: BRAND }}>Cancel</button>
         <button type="button" onClick={search} className="flex-1 rounded-xl py-3.5 text-[15px] font-bold text-white shadow-lg active:scale-[0.99]" style={{ backgroundColor: ACCENT }}>
           Search{filterCount > 0 ? ` (${filterCount} filter${filterCount > 1 ? 's' : ''})` : ''}

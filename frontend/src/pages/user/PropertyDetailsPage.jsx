@@ -2726,6 +2726,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
               onClick={(e) => e.stopPropagation()}
+              data-lenis-prevent="true"
               className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden pb-8"
             >
               <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 shrink-0" />
@@ -2737,7 +2738,11 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                 </button>
               </div>
 
-              <div className="p-5 overflow-y-auto">
+              <div
+                data-lenis-prevent="true"
+                className="p-5 overflow-y-auto overscroll-contain touch-pan-y"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
                 <form onSubmit={handleReviewSubmit} className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-2">How would you rate this property?</label>
@@ -2780,13 +2785,21 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
       {/* OFFERS / PRICE BREAKDOWN MODAL */}
       {showOffersModal && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowOffersModal(false)}>
-          <div className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+          <div
+            data-lenis-prevent="true"
+            className="bg-white w-full max-w-xl rounded-t-[2rem] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden p-5 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-bold text-base text-gray-900">Price Details Breakdown</h3>
               <button onClick={() => setShowOffersModal(false)} className="p-1 bg-slate-100 rounded-full text-slate-500">✕</button>
             </div>
 
-            <div className="mt-4 space-y-3 overflow-y-auto max-h-[50vh] text-xs font-semibold text-slate-700">
+            <div
+              data-lenis-prevent="true"
+              className="mt-4 space-y-3 overflow-y-auto max-h-[50vh] text-xs font-semibold text-slate-700 overscroll-contain touch-pan-y"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
               <div className="flex justify-between">
                 <span>Asking Base Price</span>
                 <span className="font-extrabold text-slate-900">{formatPriceLakhCrore(bookingBarPrice)}</span>
