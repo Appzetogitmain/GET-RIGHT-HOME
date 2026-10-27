@@ -16,9 +16,9 @@ const FeatureRoute = ({ flag, children }) => {
 // Worker routes only need a local token check. The shared guards also import
 // the complete admin Zustand/auth stack, which is irrelevant here and greatly
 // expands the worker app's cold-start module graph.
-const hasWorkerSession = () => Boolean(
-  (localStorage.getItem('workerAccessToken') || sessionStorage.getItem('workerAccessToken')) &&
-  (localStorage.getItem('workerData') || sessionStorage.getItem('workerData'))
+// Worker routes only need a valid local token check.
+export const hasWorkerSession = () => Boolean(
+  localStorage.getItem('workerAccessToken') || sessionStorage.getItem('workerAccessToken')
 );
 
 const WorkerProtectedRoute = ({ children }) => (
@@ -28,6 +28,7 @@ const WorkerProtectedRoute = ({ children }) => (
 const WorkerPublicRoute = ({ children }) => (
   hasWorkerSession() ? <Navigate to="/worker/dashboard" replace /> : children
 );
+
 
 // Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {

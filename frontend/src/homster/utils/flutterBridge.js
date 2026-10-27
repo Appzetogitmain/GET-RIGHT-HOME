@@ -82,9 +82,12 @@ class FlutterBridge {
   ================================== */
   async getCurrentLocation() {
     try {
-      const result = await this.callHandler("getLocation");
+      let result = await this.callHandler("getLocation");
+      if (!result || !result.success) {
+        result = await this.callHandler("getCurrentLocation");
+      }
 
-      if (result && result.success) {
+      if (result && (result.success || (result.latitude && result.longitude))) {
         return {
           latitude: result.latitude,
           longitude: result.longitude,

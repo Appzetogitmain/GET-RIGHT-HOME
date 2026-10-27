@@ -929,6 +929,9 @@ const SearchPage = () => {
                             query={searchInputValue}
                             open={suggestionsOpen}
                             onClose={() => setSuggestionsOpen(false)}
+                            tab={searchParams.get('tab') || undefined}
+                            transactionType={searchParams.get('transactionType') || undefined}
+                            propertyCategory={searchParams.get('propertyCategory') || undefined}
                             onSelect={(item) => {
                                 setSuggestionsOpen(false);
                                 setSearchInputValue(item.label);

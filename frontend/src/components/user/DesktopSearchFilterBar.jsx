@@ -334,6 +334,9 @@ const DesktopSearchFilterBar = ({ theme, selectedType, selectedCity }) => {
                         query={searchText}
                         open={suggestionsOpen}
                         onClose={() => setSuggestionsOpen(false)}
+                        tab={activeTab}
+                        transactionType={transactionTypeForTab(activeTab)}
+                        propertyCategory={propertyCategory}
                         onSelect={(item) => {
                             setSuggestionsOpen(false);
                             setSearchText(item.label);

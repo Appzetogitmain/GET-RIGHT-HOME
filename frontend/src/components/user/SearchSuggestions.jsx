@@ -18,7 +18,7 @@ import { getPreferredCity } from '../../utils/locationPreference';
 
 const DEBOUNCE_MS = 300;
 
-const SearchSuggestions = ({ query, open, onSelect, onClose, className = '' }) => {
+const SearchSuggestions = ({ query, open, onSelect, onClose, tab, transactionType, propertyCategory, className = '' }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -50,7 +50,14 @@ const SearchSuggestions = ({ query, open, onSelect, onClose, className = '' }) =
     const timer = setTimeout(async () => {
       try {
         const res = await api.get('/properties/suggestions', {
-          params: { q: term, limit: 12, city: getPreferredCity() || undefined }
+          params: {
+            q: term,
+            limit: 12,
+            city: getPreferredCity() || undefined,
+            tab: tab || undefined,
+            transactionType: transactionType || undefined,
+            propertyCategory: propertyCategory || undefined
+          }
         });
         if (requestId !== requestIdRef.current) return; // superseded
         setSuggestions(res.data?.suggestions || []);
@@ -62,7 +69,7 @@ const SearchSuggestions = ({ query, open, onSelect, onClose, className = '' }) =
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [query, open]);
+  }, [query, open, tab, transactionType, propertyCategory]);
 
   // Close when focus moves away from the box + list together.
   useEffect(() => {

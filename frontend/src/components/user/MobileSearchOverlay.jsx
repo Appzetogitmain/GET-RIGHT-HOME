@@ -21,11 +21,11 @@ const BRAND = '#005B9F';
 const ACCENT = '#F97316';
 
 const TABS = [
-  { key: 'buy', label: 'Buy', params: { transactionType: 'sell' } },
-  { key: 'rent', label: 'Rent', params: { transactionType: 'rent' } },
-  { key: 'pg', label: 'PG', params: { transactionType: 'pg' } },
-  { key: 'commercial', label: 'Commercial', params: { propertyCategory: 'Commercial' } },
-  { key: 'plots', label: 'Plots/Land', params: { transactionType: 'sell' } }
+  { key: 'buy', label: 'Buy', params: { tab: 'buy', transactionType: 'sell' } },
+  { key: 'rent', label: 'Rent', params: { tab: 'rent', transactionType: 'rent' } },
+  { key: 'pg', label: 'PG', params: { tab: 'pg', transactionType: 'pg', propertyCategory: 'pg' } },
+  { key: 'commercial', label: 'Commercial', params: { tab: 'commercial', propertyCategory: 'Commercial' } },
+  { key: 'plots', label: 'Plots/Land', params: { tab: 'plots', transactionType: 'sell', propertyType: 'Plot / Land', subType: 'Plot / Land' } }
 ];
 
 const TYPES = {

@@ -92,7 +92,7 @@ export const SocketProvider = ({ children }) => {
 
     let token = null;
     if (userType === 'worker') {
-      token = localStorage.getItem('workerAccessToken') || localStorage.getItem('workerToken');
+      token = localStorage.getItem('workerAccessToken') || sessionStorage.getItem('workerAccessToken') || localStorage.getItem('workerToken');
     } else if (userType === 'admin') {
       token = localStorage.getItem('adminAccessToken') || localStorage.getItem('adminToken') || sessionStorage.getItem('adminAccessToken') || sessionStorage.getItem('adminToken');
     } else {
@@ -100,7 +100,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     const hasAdminAuth = userType === 'admin' && (token || localStorage.getItem('adminData') || localStorage.getItem('adminUser') || sessionStorage.getItem('adminData'));
-    const hasWorkerAuth = userType === 'worker' && (token || localStorage.getItem('workerData'));
+    const hasWorkerAuth = userType === 'worker' && (token || localStorage.getItem('workerData') || sessionStorage.getItem('workerData'));
     const hasUserAuth = userType === 'user' && (token || localStorage.getItem('user') || localStorage.getItem('userData'));
 
     // If no token and no auth for this role, we don't connect
@@ -178,7 +178,7 @@ export const SocketProvider = ({ children }) => {
 
 
       if (userType === 'worker') {
-        const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+        const workerData = JSON.parse(localStorage.getItem('workerData') || sessionStorage.getItem('workerData') || '{}');
         const workerId = workerData.id || workerData._id;
         if (workerId) {
           console.log(`[Socket] WORKER joining room: worker_${workerId}`);

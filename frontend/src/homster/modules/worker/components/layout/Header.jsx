@@ -75,8 +75,10 @@ const Header = ({
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else {
+    } else if (window.history.length > 2) {
       navigate(-1);
+    } else {
+      navigate('/worker/dashboard');
     }
   };
 

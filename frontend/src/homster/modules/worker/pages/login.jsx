@@ -42,8 +42,9 @@ const WorkerLogin = () => {
   // Auto-focus logic
   useEffect(() => {
     // Redirect if already logged in
-    if (localStorage.getItem('workerAccessToken')) {
-      navigate('/worker', { replace: true });
+    const token = localStorage.getItem('workerAccessToken') || sessionStorage.getItem('workerAccessToken');
+    if (token) {
+      navigate('/worker/dashboard', { replace: true });
       return;
     }
 
@@ -149,7 +150,7 @@ const WorkerLogin = () => {
             </div>,
             { icon: <FiCheckCircle className="text-green-500" /> }
           );
-          navigate('/worker', { replace: true });
+          navigate('/worker/dashboard', { replace: true });
         }
       } else {
         setIsLoading(false);

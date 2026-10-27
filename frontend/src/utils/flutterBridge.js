@@ -195,18 +195,38 @@ export const pickVideo = async (onSuccess, onError) => {
 };
 
 /**
+ * Open native app settings (Flutter)
+ */
+export const openAppSettings = async () => {
+  if (isFlutterApp() && window.flutter_inappwebview) {
+    try {
+      await window.flutter_inappwebview.callHandler('openSettings');
+    } catch {
+      try {
+        await window.flutter_inappwebview.callHandler('openAppSettings');
+      } catch (e) {
+        console.warn('Failed to open app settings via bridge:', e);
+      }
+    }
+  }
+};
+
+/**
  * Get current location coordinates
  * @returns {Promise<Object>} {latitude, longitude}
  */
 export const getCurrentLocation = async () => {
   if (isFlutterApp() && window.flutter_inappwebview) {
     try {
-      const result = await window.flutter_inappwebview.callHandler('getCurrentLocation');
+      let result = await window.flutter_inappwebview.callHandler('getCurrentLocation');
+      if (!result || !result.latitude) {
+        result = await window.flutter_inappwebview.callHandler('getLocation');
+      }
       if (result && result.latitude && result.longitude) {
         return result;
       }
     } catch (e) {
-      console.warn('Flutter getCurrentLocation handler failed, falling back to browser:', e);
+      console.warn('Flutter location handler failed, falling back to browser:', e);
     }
   }
 
@@ -226,7 +246,7 @@ export const getCurrentLocation = async () => {
       (error) => {
         reject(error);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
     );
   });
 };
@@ -238,5 +258,8 @@ export default {
   uploadBase64Image,
   pickImage,
   pickVideo,
-  getCurrentLocation
+  getCurrentLocation,
+  openAppSettings,
+  openSettings: openAppSettings
 };
+

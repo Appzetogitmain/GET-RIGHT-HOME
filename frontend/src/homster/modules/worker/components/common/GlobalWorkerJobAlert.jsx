@@ -243,59 +243,47 @@ export default function GlobalWorkerJobAlert() {
   // runs on mount and again whenever the tab regains focus/network.
   const rejectedTokenRef = useRef(null);
   const fetchPending = useCallback(async () => {
-    {
-      // Only a logged-in worker has offers. Polling on the login/signup pages (or
-      // with another role's token) only produced 403s and extra server load.
-      const path = window.location.pathname;
-      if (path.startsWith('/worker/login') || path.startsWith('/worker/signup')) return;
-      const token = sessionStorage.getItem('workerAccessToken') || localStorage.getItem('workerAccessToken');
-      if (!token || token === rejectedTokenRef.current) return;
-      try {
-        const res = await workerService.getPendingRequests();
-        if (!res?.success) return;
+    // Only a logged-in worker has offers. Polling on the login/signup pages (or
+    // with another role's token) only produced 403s and extra server load.
+    const path = window.location.pathname;
+    if (path.startsWith('/worker/login') || path.startsWith('/worker/signup')) return;
+    const token = sessionStorage.getItem('workerAccessToken') || localStorage.getItem('workerAccessToken');
+    if (!token || token === rejectedTokenRef.current) return;
+    try {
+      const res = await workerService.getPendingRequests();
+      if (!res?.success) return;
 
-        localStorage.setItem('workerIsBusy', res.isBusy ? 'true' : 'false');
-        if (res.isBusy) {
-          localStorage.setItem('workerPendingJobs', '[]');
-          setActiveAlerts([]);
-          stopAlertRing();
-          return;
-        }
-        const currentActiveRequests = res.data || [];
-        const activeRequestIds = new Set(currentActiveRequests.map(b => String(b.bookingId || b.id || b._id)));
-
-        setActiveAlerts((prev) => {
-          // Filter out alerts that have been cancelled, expired or taken by others
-          const validPrev = prev.filter(b => activeRequestIds.has(String(b.id || b._id)));
-
-          const known = new Set(validPrev.map((b) => String(b.id || b._id)));
-          const missed = currentActiveRequests
-            .map(mapPendingRequestToJob)
-            .filter((job) => !known.has(String(job.id)));
-
-          if (missed.length > 0) {
-            playAlertRing(true);
-            return [...missed, ...validPrev];
-          }
-          return validPrev;
-        });
-      } catch (err) {
-        // Wrong role / expired token: don't retry that token; a fresh login works again.
-        if ([401, 403].includes(err?.response?.status)) rejectedToken = token;
+      localStorage.setItem('workerIsBusy', res.isBusy ? 'true' : 'false');
+      if (res.isBusy) {
+        localStorage.setItem('workerPendingJobs', '[]');
+        setActiveAlerts([]);
+        stopAlertRing();
+        return;
       }
-    };
+      const currentActiveRequests = res.data || [];
+      const activeRequestIds = new Set(currentActiveRequests.map(b => String(b.bookingId || b.id || b._id)));
 
-    fetchPending();
-    const interval = setInterval(fetchPending, 4000); // 4-second fail-safe background sync
-    window.addEventListener('focus', fetchPending);
-    window.addEventListener('online', fetchPending);
-    window.addEventListener('workerJobsUpdated', fetchPending);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', fetchPending);
-      window.removeEventListener('online', fetchPending);
-      window.removeEventListener('workerJobsUpdated', fetchPending);
-    };
+      setActiveAlerts((prev) => {
+        // Filter out alerts that have been cancelled, expired or taken by others
+        const validPrev = prev.filter(b => activeRequestIds.has(String(b.id || b._id)));
+
+        const known = new Set(validPrev.map((b) => String(b.id || b._id)));
+        const missed = currentActiveRequests
+          .map(mapPendingRequestToJob)
+          .filter((job) => !known.has(String(job.id)));
+
+        if (missed.length > 0) {
+          playAlertRing(true);
+          return [...missed, ...validPrev];
+        }
+        return validPrev;
+      });
+    } catch (err) {
+      // Wrong role / expired token: don't retry that token; a fresh login works again.
+      if ([401, 403].includes(err?.response?.status)) {
+        rejectedTokenRef.current = token;
+      }
+    }
   }, []);
 
   // Socket delivers live alerts; this only syncs on (re)connect, focus and

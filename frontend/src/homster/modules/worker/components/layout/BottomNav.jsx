@@ -116,6 +116,12 @@ const BottomNav = memo(() => {
                   gsap.to(e.currentTarget, { scale: 1.0, duration: 0.2 });
                 }
               }}
+              onTouchEnd={(e) => {
+                if (!isActive) {
+                  gsap.to(e.currentTarget, { scale: 1.0, duration: 0.15 });
+                }
+              }}
+
             >
               {/* Active Indicator Bar - Gradient Accent */}
               {isActive && (

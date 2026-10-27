@@ -8,6 +8,7 @@ import BannerCarousel from './BannerCarousel';
 import toast from 'react-hot-toast';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
 import MobileSearchOverlay from './MobileSearchOverlay';
+import { api } from '../../services/apiService';
 import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
 import { addRecentSearch, getRecentSearches } from '../../utils/recentActivity';
 import { parseSearchText } from '../../utils/parseSearchText';
@@ -30,6 +31,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     const searchBoxRef = useRef(null);
 
     const [recentSearches, setRecentSearches] = useState([]);
+    const [liveSuggestions, setLiveSuggestions] = useState([]);
 
     useEffect(() => {
         const loadRecents = () => {
@@ -44,21 +46,34 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         };
     }, [searchOpen]);
 
-    const defaultPlaceholders = useMemo(() => [
-        `"Farm house in Bengaluru"`,
-        `"3BHK Flats in Bengaluru South"`,
-        `"PG for Girls in Yelahanka"`,
-        `"Plot in Devanahalli"`,
-        `"2BHK Apartment for Rent"`
-    ], []);
+    // Fetch dynamic live property suggestions from MongoDB for the selected city
+    useEffect(() => {
+        let cancel = false;
+        api.get('/properties/suggestions', { params: { city: selectedCity, limit: 6 } })
+            .then((res) => {
+                if (!cancel && res.data?.suggestions) {
+                    setLiveSuggestions(res.data.suggestions);
+                }
+            })
+            .catch(() => {});
+        return () => { cancel = true; };
+    }, [selectedCity]);
 
     const placeholders = useMemo(() => {
         if (recentSearches.length > 0) {
-            const fromRecent = recentSearches.map((r) => `"${r.label}"`);
-            return [...fromRecent, ...defaultPlaceholders].slice(0, 5);
+            return recentSearches.slice(0, 5).map((r) => `"${r.label}"`);
         }
-        return defaultPlaceholders;
-    }, [recentSearches, defaultPlaceholders]);
+        if (liveSuggestions.length > 0) {
+            return liveSuggestions.slice(0, 5).map((s) => `"${s.label}"`);
+        }
+        const city = selectedCity || 'your city';
+        return [
+            `"Properties in ${city}"`,
+            `"Apartments in ${city}"`,
+            `"Plots in ${city}"`,
+            `"Commercial spaces in ${city}"`
+        ];
+    }, [recentSearches, liveSuggestions, selectedCity]);
 
     // Placeholder Rotation
     useEffect(() => {
@@ -109,14 +124,6 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         navigate(url);
     };
 
-    const defaultKeywords = useMemo(() => [
-        'Farm house in Bengaluru',
-        '3BHK Flats in Bengaluru South',
-        'PG for Girls in Yelahanka',
-        'Plot in Devanahalli',
-        '2BHK Apartment for Rent',
-    ], []);
-
     const displayChips = useMemo(() => {
         const chips = [];
         const seen = new Set();
@@ -137,23 +144,33 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             }
         });
 
-        // 2. Pad with default keywords if fewer than 5
-        if (chips.length < 5) {
-            defaultKeywords.forEach((kw) => {
-                const key = kw.toLowerCase();
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    chips.push({
-                        isRecent: false,
-                        label: kw,
-                        keyword: kw
-                    });
-                }
-            });
+        // 2. Add real live inventory suggestions from MongoDB for the selected city
+        liveSuggestions.forEach((s) => {
+            const label = (s.label || '').trim();
+            if (!label) return;
+            const key = label.toLowerCase();
+            if (!seen.has(key)) {
+                seen.add(key);
+                chips.push({
+                    isRecent: false,
+                    label,
+                    url: s.url
+                });
+            }
+        });
+
+        // Fallback only if no recent searches and live suggestions are loading
+        if (chips.length === 0) {
+            const city = selectedCity || 'Indore';
+            return [
+                { isRecent: false, label: `Apartments in ${city}`, url: `/search?areas=${encodeURIComponent(city)}&subType=Apartment` },
+                { isRecent: false, label: `Commercial in ${city}`, url: `/search?areas=${encodeURIComponent(city)}&propertyCategory=Commercial` },
+                { isRecent: false, label: `Plots in ${city}`, url: `/search?areas=${encodeURIComponent(city)}&propertyType=Plot+/+Land` }
+            ];
         }
 
         return chips.slice(0, 6);
-    }, [recentSearches, defaultKeywords]);
+    }, [recentSearches, liveSuggestions, selectedCity]);
 
     const handleKeywordClick = (keyword) => {
         const parsed = parseSearchText(keyword);
