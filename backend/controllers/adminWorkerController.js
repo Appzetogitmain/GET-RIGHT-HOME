@@ -11,6 +11,7 @@ import { createNotification } from './notificationControllers/notificationContro
 import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants.js';
 import { findWorkerIneligibility } from '../services/locationService.js';
 import { computeSplit, splitConfig } from '../utils/settlement.js';
+import { notifyWhatsApp } from '../services/whatsappService.js';
 import { creditedAdvance } from '../utils/vipAndAdvance.js';
 import { safeRegex } from '../utils/escapeRegex.js';
 import { findWorkerConflict, findWorkerUnavailability, getBufferMinutes, describeConflict } from '../utils/slotAvailability.js';
@@ -1113,6 +1114,8 @@ export const completeWorkerWithdrawal = async (req, res) => {
     );
     await notifyWorker(withdrawal.workerId, 'withdrawal_completed', 'Withdrawal Paid 💸',
       `₹${withdrawal.amount} has been sent to you. UTR: ${utrNumber}`, withdrawal._id);
+    Worker.findById(withdrawal.workerId).select('name phone').lean()
+      .then((w) => w && notifyWhatsApp('withdrawal_paid', w.phone, [w.name, withdrawal.amount, utrNumber]));
     res.json({ success: true, message: 'Marked as paid', data: withdrawal });
   } catch (error) {
     console.error('Complete Withdrawal Error:', error);
@@ -1493,6 +1496,9 @@ export const adminCancelBooking = async (req, res) => {
       relatedType: 'booking',
       pushData: { type: 'booking_cancelled', bookingId: booking._id.toString(), link: `/user/booking/${booking._id}` }
     });
+
+    User.findById(booking.userId).select('name phone').lean()
+      .then((u) => u && notifyWhatsApp('booking_cancelled', u.phone, [u.name, booking.bookingNumber, reason]));
 
     res.json({
       success: true,
