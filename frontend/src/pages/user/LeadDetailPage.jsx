@@ -147,8 +147,8 @@ const LeadDetailPage = () => {
     const focus = [bhkNum ? `${bhkNum}BHK` : '', budget, place].filter(Boolean).join(', ');
 
     const parsed = parseEnquiryMessage(message);
-    const siteVisit = ['visit', 'schedule_visit'].includes(enquiry.actionType || enquiry.enquiryType) || enquiry.preferredDate
-        ? 'Yes' : EMPTY;
+    const isVisit = enquiry.status === 'scheduled' || ['visit', 'schedule_visit'].includes(enquiry.actionType || enquiry.enquiryType);
+    const siteVisit = isVisit ? 'Yes' : EMPTY;
     const sourceLabel = humanize(enquiry.actionType || enquiry.enquiryType || enquiry.sourceContext);
 
     return (
@@ -242,7 +242,7 @@ const LeadDetailPage = () => {
                             <p className="text-xs text-slate-400 mt-0.5">{fmtDateTime(enquiry.createdAt)}</p>
                         </div>
                     </div>
-                    {enquiry.preferredDate && (
+                    {isVisit && enquiry.preferredDate && (
                         <div className="bg-blue-50/70 border border-blue-200/60 rounded p-3 text-sm text-slate-800 space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-[#1A73E8] uppercase">
                                 <Calendar size={14} /> Scheduled Site Visit

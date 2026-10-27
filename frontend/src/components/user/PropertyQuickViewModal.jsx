@@ -205,7 +205,7 @@ const PropertyQuickViewModal = ({ isOpen, onClose, property, initialShowEnquiry 
         propertyId: _id,
         enquiryType: 'contact_owner',
         message: formData.message,
-        preferredDate: formData.preferredDate ? new Date(formData.preferredDate) : new Date(),
+        preferredDate: formData.preferredDate ? new Date(formData.preferredDate) : null,
         budget: rawPrice || 0
       });
 

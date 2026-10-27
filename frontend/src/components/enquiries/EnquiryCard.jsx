@@ -6,7 +6,7 @@ import LeadScoreStars from './LeadScoreStars';
 import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 import {
     fmtRelDate, getLeadScore, getListingTitle, getBuyerName, getBuyerPhone,
-    getBuyerType, getEnquiryMessage, humanize
+    getBuyerType, getEnquiryMessage, humanize, parseEnquiryMessage
 } from './enquiryUtils';
 
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
@@ -39,8 +39,18 @@ const EnquiryCard = ({ item, enquiryCount = 1, onViewDetail }) => {
 
     const blocked = () => toast('Subscribe to view contact details');
 
+    const parsed = React.useMemo(() => parseEnquiryMessage(message), [message]);
+    const displayDate = item.preferredDate
+        ? new Date(item.preferredDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : parsed.date;
+    const displaySlot = item.timeSlot || parsed.timeSlot;
+
     const status = (item.status || '').toLowerCase();
-    const isScheduled = status === 'scheduled' || !!item.preferredDate;
+    const actionType = (item.actionType || item.enquiryType || '').toLowerCase();
+    const hasScheduleData = status === 'scheduled' || !!displaySlot || ['visit', 'schedule_visit'].includes(actionType);
+    const isScheduled = hasScheduleData &&
+        !['closed', 'dropped', 'sold', 'rented'].includes(status) &&
+        (!!item.preferredDate || !!displayDate);
 
     return (
         <div className="bg-white border border-[#E0E0E0] rounded">
@@ -55,11 +65,11 @@ const EnquiryCard = ({ item, enquiryCount = 1, onViewDetail }) => {
                                 </span>
                             )}
                         </div>
-                        {isScheduled && item.preferredDate && (
-                            <p className="text-xs text-[#1A73E8] font-semibold mt-1 flex items-center gap-1">
+                        {isScheduled && (displayDate || displaySlot) && (
+                            <p className="text-xs text-[#1A73E8] font-semibold mt-1 flex items-center gap-1 flex-wrap">
                                 <span>📅</span>
-                                <span>{new Date(item.preferredDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                {item.timeSlot && <span className="text-slate-600 font-normal">({item.timeSlot})</span>}
+                                {displayDate && <span>{displayDate}</span>}
+                                {displaySlot && <span className="text-slate-600 font-normal">({displaySlot})</span>}
                             </p>
                         )}
                     </div>

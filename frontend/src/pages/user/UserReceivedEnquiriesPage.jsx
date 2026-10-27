@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, MessageSquare, Users } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageSquare, Users, RotateCw } from 'lucide-react';
 import { enquiryService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 import EnquiryCard from '../../components/enquiries/EnquiryCard';
@@ -45,22 +45,36 @@ const UserReceivedEnquiriesPage = () => {
     const scrollByTab = useRef({ responses: 0, respondents: 0 });
     const sentinelRef = useRef(null);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const res = await enquiryService.getReceived();
-                if (res.success) {
-                    setResponses(res.allEnquiries || res.enquiries || []);
-                    setRespondents(res.respondents || []);
-                }
-            } catch (err) {
-                console.error('Load received enquiries error:', err);
-                toast.error('Failed to load enquiries data');
-            } finally {
-                setLoading(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadData = useCallback(async (showFullLoading = true) => {
+        if (showFullLoading) setLoading(true);
+        else setRefreshing(true);
+        try {
+            const res = await enquiryService.getReceived();
+            if (res.success) {
+                setResponses(res.allEnquiries || res.enquiries || []);
+                setRespondents(res.respondents || []);
             }
-        })();
+        } catch (err) {
+            console.error('Load received enquiries error:', err);
+            toast.error('Failed to load enquiries data');
+        } finally {
+            if (showFullLoading) setLoading(false);
+            setRefreshing(false);
+        }
     }, []);
+
+    useEffect(() => {
+        loadData(true);
+    }, [loadData]);
+
+    // Auto-refresh when user returns to this tab / window after scheduling a visit
+    useEffect(() => {
+        const handleFocus = () => loadData(false);
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [loadData]);
 
     // Newest first, one card per enquiry.
     const sortedResponses = useMemo(() => [...responses].sort(byNewest), [responses]);
@@ -119,7 +133,16 @@ const UserReceivedEnquiriesPage = () => {
                     >
                         <ArrowLeft size={17} className="text-slate-700" />
                     </button>
-                    <h1 className="text-base font-black text-slate-900">Enquiry Dashboard</h1>
+                    <h1 className="text-base font-black text-slate-900 flex-1">Enquiry Dashboard</h1>
+                    <button
+                        onClick={() => loadData(false)}
+                        disabled={refreshing}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                        aria-label="Refresh"
+                        title="Refresh enquiries"
+                    >
+                        <RotateCw size={15} className={`text-slate-700 ${refreshing ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
                 <TabSwitcher
                     active={tab}
