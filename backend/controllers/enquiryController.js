@@ -218,7 +218,11 @@ export const createEnquiry = async (req, res) => {
             if (effectiveBudget) update.budget = effectiveBudget;
             if (preferredDate) update.preferredDate = new Date(preferredDate);
             if (timeSlot) update.timeSlot = timeSlot;
-            if (effectiveActionType === 'visit' && preferredDate) update.status = 'scheduled';
+            if ((effectiveActionType === 'visit' || effectiveActionType === 'schedule_visit' || timeSlot) && preferredDate) {
+                update.status = 'scheduled';
+                update.actionType = 'visit';
+                update.enquiryType = 'visit';
+            }
             else if (existingLead.status === 'dropped') update.status = 'new';
 
             const refreshed = await Enquiry.findByIdAndUpdate(
@@ -254,7 +258,7 @@ export const createEnquiry = async (req, res) => {
             preferredDate: preferredDate ? new Date(preferredDate) : null,
             timeSlot: timeSlot || '',
             budget: effectiveBudget,
-            status: (effectiveActionType === 'visit' && preferredDate) ? 'scheduled' : 'new'
+            status: ((effectiveActionType === 'visit' || effectiveActionType === 'schedule_visit' || timeSlot) && preferredDate) ? 'scheduled' : 'new'
         });
 
         await enquiry.save();

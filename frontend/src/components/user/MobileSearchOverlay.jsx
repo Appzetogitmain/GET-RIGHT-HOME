@@ -6,7 +6,7 @@ import { X, Search, Crosshair, Plus, Loader2, ArrowUpLeft, Clock, ChevronDown, C
 import { useJsApiLoader } from '@react-google-maps/api';
 import { api } from '../../services/apiService';
 import { GOOGLE_MAPS_SCRIPT_ID, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
-import { addRecentSearch, getRecentSearches } from '../../utils/recentActivity';
+import { addRecentSearch, getRecentSearches, removeRecentSearch, clearRecentSearches } from '../../utils/recentActivity';
 import { parseSearchText } from '../../utils/parseSearchText';
 
 /**
@@ -109,7 +109,13 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
   const lastIdx = steps.length - 1;
   const [lo, hi] = [range[0], range[1] === null ? lastIdx : Math.min(range[1], lastIdx)];
   const budgetOn = lo > 0 || hi < lastIdx;
-  const recent = useMemo(() => (open ? getRecentSearches().slice(0, 3) : []), [open]);
+  const [recentSearches, setRecentSearches] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      setRecentSearches(getRecentSearches());
+    }
+  }, [open]);
 
   // Fill the sheet from the page we came from, so "edit search" starts where the user is.
   useEffect(() => {
@@ -312,8 +318,9 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
   const countFor = { types: types.length, bhk: bhks.length, status: status.length, posted: postedBy.length };
   const filterCount = types.length + bhks.length + status.length + postedBy.length + (budgetOn ? 1 : 0);
 
-  const buildUrl = () => {
-    const base = { ...TABS.find((t) => t.key === tab).params };
+  const buildSearchData = () => {
+    const tabObj = TABS.find((t) => t.key === tab) || TABS[0];
+    const base = { ...tabObj.params };
     const typed = text.trim();
     const rawPlaces = typed && !places.some((p) => p.toLowerCase() === typed.toLowerCase()) ? [...places, typed] : places;
 
@@ -337,25 +344,74 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
     if (allBhks.length) params.set('bhkType', allBhks.join(','));
     if (showStatus && status.length) params.set('availability', status.join(','));
     if (postedBy.length) params.set('postedBy', postedBy.join(','));
-    const min = steps[lo]; const max = steps[hi];
+    const min = steps[lo];
+    const max = steps[hi];
     if (min) params.set('minPrice', String(min));
     if (max) params.set('maxPrice', String(max));
-    const label = `${TABS.find((t) => t.key === tab).label}${allPlaces.length ? ` in ${allPlaces.join(', ')}` : ''}${bhks.length ? ` · ${bhks.join(', ')}` : ''}`;
-    return { url: `/search?${params.toString()}`, label };
+
+    const label = `${tabObj.label}${allPlaces.length ? ` in ${allPlaces.join(', ')}` : ' Properties'}`;
+
+    const subParts = [];
+    if (allBhks.length) subParts.push(allBhks.map((b) => b.replace(/BHK/i, ' BHK')).join(', '));
+    if (min || max) {
+      if (min && max) subParts.push(`₹${money(min)} - ₹${money(max)}`);
+      else if (max) subParts.push(`Under ₹${money(max)}`);
+      else if (min) subParts.push(`₹${money(min)}+`);
+    }
+    if (chosenTypes.length) {
+      subParts.push(chosenTypes.slice(0, 2).join(', ') + (chosenTypes.length > 2 ? ` +${chosenTypes.length - 2}` : ''));
+    }
+    if (showStatus && status.length) subParts.push(status.join(', '));
+    if (postedBy.length) subParts.push(postedBy.join(', '));
+    const subLabel = subParts.length ? subParts.join(' • ') : 'All Property Types • Any Budget';
+
+    const url = `/search?${params.toString()}`;
+    const id = `${tab}-${allPlaces.join('-')}-${allBhks.join('-')}-${chosenTypes.join('-')}-${min || 0}-${max || 0}`.toLowerCase().replace(/[^a-z0-9-]/g, '_');
+
+    return {
+      id,
+      tab,
+      places: allPlaces,
+      city: allPlaces[0] || '',
+      label,
+      subLabel,
+      filters: {
+        types: chosenTypes,
+        bhks: allBhks,
+        status: showStatus ? status : [],
+        postedBy,
+        budget: [min || 0, max || null]
+      },
+      url,
+      timestamp: Date.now()
+    };
   };
 
   const search = () => {
-    const { url, label } = buildUrl();
-    addRecentSearch({ label, url });
+    const data = buildSearchData();
+    addRecentSearch(data);
     poppedRef.current = true;
     onClose?.();
-    navigate(url, { replace: true });
+    navigate(data.url, { replace: true });
   };
 
   const openRecent = (r) => {
+    addRecentSearch(r);
     poppedRef.current = true;
     onClose?.();
     navigate(r.url, { replace: true });
+  };
+
+  const handleRemoveRecent = (e, r) => {
+    e.stopPropagation();
+    const updated = removeRecentSearch(r.id || r.label || r.url);
+    setRecentSearches(updated);
+  };
+
+  const handleClearAllRecent = (e) => {
+    e.stopPropagation();
+    clearRecentSearches();
+    setRecentSearches([]);
   };
 
   const clearFilters = () => { setTypes([]); setBhks([]); setStatus([]); setPostedBy([]); setRange([0, null]); };
@@ -445,16 +501,75 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
             </ul>
           )}
 
-          {recent.length > 0 && !text.trim() && (
-            <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 no-scrollbar">
-              {recent.map((r, i) => (
-                <button key={`${r.label}-${i}`} type="button" onClick={() => openRecent(r)} className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] text-gray-600">
-                  <Clock size={12} className="text-gray-400" /> <span className="max-w-[180px] truncate">{r.label}</span>
-                </button>
+        </div>
+
+        {/* 99acres-Style Recent Searches Section */}
+        {!text.trim() && recentSearches.length > 0 && (
+          <div className="mt-2.5 bg-white px-4 py-3.5 shadow-sm">
+            <div className="mb-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-[#005B9F]">
+                  <Clock size={13} className="text-[#005B9F]" />
+                </div>
+                <span className="text-[13px] font-semibold tracking-tight text-gray-800">
+                  Recent Searches
+                  <span className="ml-1.5 text-[11px] font-normal text-gray-400">({recentSearches.length})</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearAllRecent}
+                className="text-[12px] font-semibold text-[#005B9F] hover:text-red-600 transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {recentSearches.map((r, i) => (
+                <div
+                  key={r.id || `${r.label}-${i}`}
+                  onClick={() => openRecent(r)}
+                  role="button"
+                  tabIndex={0}
+                  className="group flex items-center justify-between gap-3 py-3 first:pt-1 last:pb-1 cursor-pointer active:bg-gray-50/80 -mx-1 px-1 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#005B9F] group-hover:bg-[#005B9F] group-hover:text-white transition-colors">
+                      <Clock size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-[13.5px] font-medium text-gray-800 group-hover:text-[#005B9F] transition-colors">
+                          {r.label}
+                        </span>
+                        {r.tab && (
+                          <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                            {r.tab}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 truncate text-[11.5px] font-medium text-gray-500">
+                        {r.subLabel || 'All Property Types • Any Budget'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveRecent(e, r)}
+                      aria-label={`Remove search ${r.label}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:scale-90 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Popular localities of the chosen city */}
         {!text.trim() && localityCity && (

@@ -1109,7 +1109,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
         phone: leadPhone,
         email: leadEmail,
         message: messageBody,
-        preferredDate: new Date(),
+        preferredDate: null,
         timeSlot: '',
         budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
       });
@@ -1134,6 +1134,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
     try {
       const response = await enquiryService.create({
         propertyId: property._id,
+        actionType: 'visit',
         enquiryType: 'visit',
         name: leadName,
         phone: leadPhone,
@@ -1210,7 +1211,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
           phone: leadPhone,
           email: leadEmail,
           message: messageBody,
-          preferredDate: new Date(),
+          preferredDate: null,
           timeSlot: '',
           budget: property.buyDetails?.expectedPrice || property.plotDetails?.expectedPrice || property.rentDetails?.monthlyRent || 0
         });
