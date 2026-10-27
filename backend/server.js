@@ -140,6 +140,7 @@ import userRoutes from './routes/userRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import compression from 'compression';
 import adminDevRoutes from './routes/adminDevRoutes.js';
+import whatsappRoutes from './routes/whatsappRoutes.js';
 import zoneCatalogRoutes from './routes/zoneCatalogRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
@@ -193,6 +194,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin/estimates', adminEstimateRoutes);
 app.use('/api/admin/movers', adminMoverRoutes); // before the generic /api/admin router
 app.use('/api/admin/zone-catalog', zoneCatalogRoutes); // admin-only; must precede the generic /api/admin router
+app.use('/api/whatsapp', whatsappRoutes); // webhook from the WhatsApp platform (public, no login)
 app.use('/api/admin/dev', adminDevRoutes); // superadmin-only; must precede the generic /api/admin router
 app.use('/api/admin', adminRoutes);
 app.use('/api/zones', zoneRoutes);
