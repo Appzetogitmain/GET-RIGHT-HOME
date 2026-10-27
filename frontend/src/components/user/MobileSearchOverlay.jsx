@@ -105,6 +105,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
   const [range, setRange] = useState([0, null]);         // [minIndex, maxIndex] into steps
   const [panel, setPanel] = useState('');                // which filter is open
   const [locating, setLocating] = useState(false);
+  const freeTyped = useRef(new Set());                   // lower-case chips the user typed by hand
 
   const steps = tab === 'rent' || tab === 'pg' ? RENT_STEPS : BUY_STEPS;
   const lastIdx = steps.length - 1;
@@ -185,9 +186,13 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
   if (!open) return null;
 
   const toggle = (list, setList, v) => setList(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const addPlace = (name) => {
+  // typed = the user wrote it themselves (Enter), so "2 bhk pg" may hide filters in it.
+  // Listing names picked from suggestions are kept verbatim: parsing would cut "PG",
+  // "Villa", "Plot"... out of a name like "Sunshine Executive PG & Co-living".
+  const addPlace = (name, typed = false) => {
     const n = String(name || '').trim();
     if (!n) return;
+    if (typed) freeTyped.current.add(n.toLowerCase());
     setPlaces((p) => (p.some((x) => x.toLowerCase() === n.toLowerCase()) ? p : [...p, n]));
     setText(''); setSuggestions([]);
     inputRef.current?.focus();
@@ -221,13 +226,14 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
     const base = { ...tabObj.params };
     const typed = text.trim();
     const rawPlaces = typed && !places.some((p) => p.toLowerCase() === typed.toLowerCase()) ? [...places, typed] : places;
+    const isFreeText = (p) => p === typed || freeTyped.current.has(p.toLowerCase());
 
-    // "2 bhk", "rent", "farmhouse" typed as chips are filters, not locations.
+    // "2 bhk", "rent", "farmhouse" typed by hand are filters, not locations.
     const allPlaces = [];
     const parsedBhks = [];
     const parsedTypes = [];
     rawPlaces.forEach((p) => {
-      const parsed = parseSearchText(p);
+      const parsed = isFreeText(p) ? parseSearchText(p) : { places: [p], bhks: [], subTypes: [] };
       parsed.places.forEach((n) => { if (!allPlaces.some((x) => x.toLowerCase() === n.toLowerCase())) allPlaces.push(n); });
       parsed.bhks.forEach((b) => { if (!parsedBhks.includes(b)) parsedBhks.push(b); });
       parsed.subTypes.forEach((s) => { if (!parsedTypes.includes(s)) parsedTypes.push(s); });
@@ -356,7 +362,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
       >
         {/* Search card: chips + input */}
         <div className="relative z-20 -mt-0 bg-white px-4 pb-3 pt-3 shadow-sm">
-          <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) addPlace(text); }}>
+          <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) addPlace(text, true); }}>
             <div className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 focus-within:border-[#005B9F]">
               <Search size={16} className="shrink-0 text-gray-400" />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
@@ -401,7 +407,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
                   <button
                     type="button"
                     // Picking a listing adds it as a search chip; Search then opens the results list.
-                    onClick={() => addPlace(s.name)}
+                    onClick={() => addPlace(s.term || s.name)}
                     className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50"
                   >
                     <Building2 size={15} className="shrink-0 text-gray-400" />
