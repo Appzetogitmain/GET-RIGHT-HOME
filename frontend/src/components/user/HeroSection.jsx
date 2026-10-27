@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, Menu } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, Menu, Clock } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileMenu from '../../components/ui/MobileMenu';
@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import DesktopSearchFilterBar from './DesktopSearchFilterBar';
 import MobileSearchOverlay from './MobileSearchOverlay';
 import { getPreferredCity, setPreferredCity, onPreferredCityChange } from '../../utils/locationPreference';
-import { addRecentSearch } from '../../utils/recentActivity';
+import { addRecentSearch, getRecentSearches } from '../../utils/recentActivity';
 import { parseSearchText } from '../../utils/parseSearchText';
 
 
@@ -29,13 +29,36 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
     // Track the Y position where the search box sits to trigger sticky correctly
     const searchBoxRef = useRef(null);
 
-    const placeholders = [
+    const [recentSearches, setRecentSearches] = useState([]);
+
+    useEffect(() => {
+        const loadRecents = () => {
+            setRecentSearches(getRecentSearches());
+        };
+        loadRecents();
+        window.addEventListener('focus', loadRecents);
+        window.addEventListener('storage', loadRecents);
+        return () => {
+            window.removeEventListener('focus', loadRecents);
+            window.removeEventListener('storage', loadRecents);
+        };
+    }, [searchOpen]);
+
+    const defaultPlaceholders = useMemo(() => [
         `"Farm house in Bengaluru"`,
         `"3BHK Flats in Bengaluru South"`,
         `"PG for Girls in Yelahanka"`,
         `"Plot in Devanahalli"`,
         `"2BHK Apartment for Rent"`
-    ];
+    ], []);
+
+    const placeholders = useMemo(() => {
+        if (recentSearches.length > 0) {
+            const fromRecent = recentSearches.map((r) => `"${r.label}"`);
+            return [...fromRecent, ...defaultPlaceholders].slice(0, 5);
+        }
+        return defaultPlaceholders;
+    }, [recentSearches, defaultPlaceholders]);
 
     // Placeholder Rotation
     useEffect(() => {
@@ -43,7 +66,7 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
         }, 3000);
         return () => clearInterval(interval);
-    }, []);
+    }, [placeholders.length]);
 
     // The city pill shows "Bengaluru" by default — actually filter the page
     // to Bengaluru from the first render too, instead of leaving it
@@ -86,13 +109,51 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         navigate(url);
     };
 
-    const quickKeywords = [
+    const defaultKeywords = useMemo(() => [
         'Farm house in Bengaluru',
         '3BHK Flats in Bengaluru South',
         'PG for Girls in Yelahanka',
         'Plot in Devanahalli',
         '2BHK Apartment for Rent',
-    ];
+    ], []);
+
+    const displayChips = useMemo(() => {
+        const chips = [];
+        const seen = new Set();
+
+        // 1. Show user's actual recent searches first
+        recentSearches.forEach((r) => {
+            const label = (r.label || '').trim();
+            if (!label) return;
+            const key = label.toLowerCase();
+            if (!seen.has(key)) {
+                seen.add(key);
+                chips.push({
+                    isRecent: true,
+                    label,
+                    url: r.url,
+                    raw: r
+                });
+            }
+        });
+
+        // 2. Pad with default keywords if fewer than 5
+        if (chips.length < 5) {
+            defaultKeywords.forEach((kw) => {
+                const key = kw.toLowerCase();
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    chips.push({
+                        isRecent: false,
+                        label: kw,
+                        keyword: kw
+                    });
+                }
+            });
+        }
+
+        return chips.slice(0, 6);
+    }, [recentSearches, defaultKeywords]);
 
     const handleKeywordClick = (keyword) => {
         const parsed = parseSearchText(keyword);
@@ -104,6 +165,15 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
         const url = `/search?${queryParams.toString()}`;
         addRecentSearch({ label: keyword, url });
         navigate(url);
+    };
+
+    const handleChipClick = (chip) => {
+        if (chip.isRecent && chip.url) {
+            addRecentSearch(chip.raw || { label: chip.label, url: chip.url });
+            navigate(chip.url);
+        } else {
+            handleKeywordClick(chip.keyword || chip.label);
+        }
     };
 
     const handleCitySelect =({ city, district }) => {
@@ -283,16 +353,21 @@ const HeroSection = ({ theme, selectedType, onSearch, hideGetStarted = false }) 
             {/* On mobile only the bottom 24px of the search box sits below the banner, so 48px leaves a ~24px gap above the title. */}
             <div className="h-[34px] lg:h-[188px]" />
 
-            {/* ─── Quick keyword chips (mobile/tablet) ─── */}
-            <div className="lg:hidden flex gap-2 overflow-x-auto px-4 pt-1 pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
-                {quickKeywords.map((keyword) => (
+            {/* ─── Quick keyword / Recent search chips (mobile/tablet) ─── */}
+            <div className="lg:hidden flex items-center gap-2 overflow-x-auto px-4 pt-1 pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                {displayChips.map((chip, idx) => (
                     <button
-                        key={keyword}
+                        key={`${chip.label}-${idx}`}
                         type="button"
-                        onClick={() => handleKeywordClick(keyword)}
-                        className="shrink-0 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-[12px] font-medium text-gray-700 shadow-sm active:scale-95 transition-transform"
+                        onClick={() => handleChipClick(chip)}
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-medium shadow-xs active:scale-95 transition-all ${
+                            chip.isRecent
+                                ? 'border-blue-200/80 bg-blue-50/40 text-gray-800 hover:border-blue-300'
+                                : 'border-gray-200 bg-white text-gray-700'
+                        }`}
                     >
-                        {keyword}
+                        {chip.isRecent && <Clock size={12} className="text-[#005B9F] shrink-0" />}
+                        <span className="truncate max-w-[200px]">{chip.label}</span>
                     </button>
                 ))}
             </div>
