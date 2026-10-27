@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, Clock, Search } from 'lucide-react';
 import { api } from '../../services/apiService';
 import { getRecentSearches } from '../../utils/recentActivity';
+import { getPreferredCity } from '../../utils/locationPreference';
 
 /**
  * Portal-style search suggestions.
@@ -48,7 +49,9 @@ const SearchSuggestions = ({ query, open, onSelect, onClose, className = '' }) =
     // Debounced so typing doesn't fire a request per keystroke.
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get('/properties/suggestions', { params: { q: term, limit: 12 } });
+        const res = await api.get('/properties/suggestions', {
+          params: { q: term, limit: 12, city: getPreferredCity() || undefined }
+        });
         if (requestId !== requestIdRef.current) return; // superseded
         setSuggestions(res.data?.suggestions || []);
       } catch {

@@ -154,9 +154,15 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
     let live = true;
     const t = setTimeout(async () => {
       const preferredCity = getPreferredCity();
+      const tabObj = TABS.find((t) => t.key === tab) || TABS[0];
+      const tabParams = {
+        tab,
+        transactionType: tabObj.params?.transactionType,
+        propertyCategory: tabObj.params?.propertyCategory
+      };
       const [oursRes, portalRes] = await Promise.allSettled([
-        api.get('/properties/locations', { params: { q, limit: 10, city: preferredCity || undefined } }),
-        api.get('/properties/suggestions', { params: { q, limit: 4, city: preferredCity || undefined } })
+        api.get('/properties/locations', { params: { q, limit: 10, city: preferredCity || undefined, ...tabParams } }),
+        api.get('/properties/suggestions', { params: { q, limit: 4, city: preferredCity || undefined, ...tabParams } })
       ]);
 
       const ours = oursRes.status === 'fulfilled' ? (oursRes.value?.data?.suggestions || []) : [];
@@ -229,7 +235,7 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
       setSugLoading(false);
     }, 250);
     return () => { live = false; clearTimeout(t); };
-  }, [text, open, mapsReady]);
+  }, [text, open, mapsReady, tab]);
 
   // Popular localities around each city chip (like 99acres): areas that have listings with
   // us first, then well-known localities from Google, so any city gets suggestions.
