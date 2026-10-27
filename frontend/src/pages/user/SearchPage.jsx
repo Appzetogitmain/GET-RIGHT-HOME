@@ -277,6 +277,7 @@ const SearchPage = () => {
 
         return {
             search: searchParams.get('search') || '',
+            tab: searchParams.get('tab') || '',
             type: typeVal,
             propertyCategory: pCategory || 'Residential',
             categoryTab,
@@ -632,10 +633,10 @@ const SearchPage = () => {
             } else if (targetFilters.categoryTab === 'All') {
                 params.type = 'all';
             } else {
-                const isPlot = targetFilters.propertyTypes && (
-                    targetFilters.propertyTypes.includes('Plot / Land') ||
-                    targetFilters.propertyTypes.includes('Plot')
-                );
+                const pTypes = Array.isArray(targetFilters.propertyTypes)
+                    ? targetFilters.propertyTypes
+                    : String(targetFilters.propertyTypes || '').split(',');
+                const isPlot = pTypes.some((t) => /\b(plots?|land)\b/i.test(t));
                 if (isPlot) {
                     const plotIdObj = propertyTypes.find(t => t.label === 'Plot');
                     params.type = plotIdObj && plotIdObj.id !== 'plot' ? plotIdObj.id : 'plot';
@@ -759,6 +760,18 @@ const SearchPage = () => {
         
         const targetProjects = Array.isArray(targetFilters.projects) ? targetFilters.projects : (typeof targetFilters.projects === 'string' ? targetFilters.projects.split(',').filter(Boolean) : []);
         if (targetProjects.length > 0) params.projects = targetProjects.join(',');
+
+        // The search sheet's tab (buy / rent / pg / commercial / plots) keeps results to
+        // listings posted under that tab. Carried only while it still agrees with the
+        // category chosen on this page, so switching category here drops it.
+        const tabMatches = {
+            buy: params.transactionType === 'sell' && !params.propertyCategory,
+            plots: params.transactionType === 'sell',
+            rent: params.transactionType === 'rent',
+            pg: params.transactionType === 'pg',
+            commercial: params.propertyCategory === 'Commercial'
+        };
+        if (targetFilters.tab && tabMatches[targetFilters.tab]) params.tab = targetFilters.tab;
 
         return params;
     };

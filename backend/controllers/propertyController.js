@@ -870,7 +870,8 @@ export const getPublicProperties = async (req, res) => {
       facing,
       floor,
       projectArea,
-      projectDensity
+      projectDensity,
+      tab
     } = req.query;
 
     const pipeline = [];
@@ -1248,20 +1249,33 @@ export const getPublicProperties = async (req, res) => {
     if (transactionType && transactionType !== 'all') {
       const tokens = transactionType.split(',').map(t => t.trim().toLowerCase());
       const txnRegexes = [];
+      // Older listings carry no transactionType; the deal lives in propertyType
+      // ("buy" / "plot" / "rent" / "pg"), so match those too or they never show.
+      const legacyTypes = [];
       tokens.forEach(t => {
         if (t === 'sell' || t === 'buy') {
           txnRegexes.push(/Sell|Buy/i);
+          legacyTypes.push(/^(buy|sell|plots?|plot\s*\/\s*land)$/i);
         } else if (t === 'rent' || t === 'lease') {
           txnRegexes.push(/Rent|Lease/i);
+          legacyTypes.push(/^rent$/i);
         } else if (t === 'pg' || t === 'paying guest') {
           txnRegexes.push(/Paying Guest|PG/i);
+          legacyTypes.push(/^(pg|hostel|paying guest|co-living)$/i);
         } else if (t) {
           txnRegexes.push(new RegExp('^' + t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i'));
         }
       });
 
       if (txnRegexes.length > 0) {
-        const txnMatch = { transactionType: { $in: txnRegexes } };
+        const txnMatch = legacyTypes.length
+          ? {
+              $or: [
+                { transactionType: { $in: txnRegexes } },
+                { transactionType: { $in: [null, ''] }, propertyType: { $in: legacyTypes } }
+              ]
+            }
+          : { transactionType: { $in: txnRegexes } };
         if (matchConditions.$and) {
           matchConditions.$and.push(txnMatch);
         } else if (matchConditions.$or) {
@@ -1269,7 +1283,7 @@ export const getPublicProperties = async (req, res) => {
           delete matchConditions.$or;
           matchConditions.$and = [{ $or: existingOr }, txnMatch];
         } else {
-          matchConditions.transactionType = { $in: txnRegexes };
+          matchConditions.$and = [txnMatch];
         }
       }
     }
@@ -1282,6 +1296,8 @@ export const getPublicProperties = async (req, res) => {
       const subTypeList = subType.split(',').map(s => s.trim()).filter(Boolean);
       if (subTypeList.length > 0) {
         const subTypeRegexes = subTypeList.map(s => {
+          // Plots are stored both as "Plot / Land" (form) and bare "plot" (older listings)
+          if (/^plots?(\s*\/\s*land)?$/i.test(s)) return /^(plots?|plot\s*\/\s*land)$/i;
           const escaped = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
           // Replace escaped slash with flexible spacing regex
           const flexSlash = escaped.replace(/\\\/|\\s\*\\\/\\s\*/g, '\\s*\\/\\s*');
@@ -1660,6 +1676,13 @@ export const getPublicProperties = async (req, res) => {
       if (mongoose.Types.ObjectId.isValid(userId)) {
         matchConditions.userId = new mongoose.Types.ObjectId(userId);
       }
+    }
+
+    // Search-sheet tab: only listings posted under that tab, using the same rule as
+    // the suggestions, so a suggestion never opens results from another tab.
+    if (tab) {
+      const tabFilter = buildTabFilter(tab);
+      if (Object.keys(tabFilter).length > 0) pushCondition(tabFilter);
     }
 
     if (Object.keys(matchConditions).length > 0) {
@@ -2315,8 +2338,13 @@ export const getPopularCities = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 12, 30);
 
+    // With a search tab, only cities that have listings of that kind (no hubs).
+    const { tab, transactionType, propertyCategory } = req.query;
+    const tabFilter = buildTabFilter(tab, transactionType, propertyCategory);
+    const listedOnly = Object.keys(tabFilter).length > 0;
+
     const rows = await Property.aggregate([
-      { $match: { status: 'approved', isLive: true } },
+      { $match: listedOnly ? { $and: [{ status: 'approved', isLive: true }, tabFilter] } : { status: 'approved', isLive: true } },
       { $project: { city: { $trim: { input: { $ifNull: ['$address.city', ''] } } } } },
       { $match: { city: { $ne: '' } } },
       // Group case-insensitively
@@ -2374,7 +2402,7 @@ export const getPopularCities = async (req, res) => {
     }
 
     // 2. Add other operating hubs
-    for (const hub of operatingCities) {
+    for (const hub of listedOnly ? [] : operatingCities) {
       if (!seen.has(hub.city.toLowerCase())) {
         resultCities.push({
           city: hub.city,
@@ -2410,19 +2438,28 @@ export const getPopularAreas = async (req, res) => {
 
     const cityRegex = safeRegex(rawCity, { exact: false });
 
+    // A search tab (buy / rent / pg / commercial / plots) narrows this to areas that
+    // have listings of that kind, and drops the curated extras below — callers that
+    // pass one only want places that really lead to results.
+    const { tab, transactionType, propertyCategory } = req.query;
+    const tabFilter = buildTabFilter(tab, transactionType, propertyCategory);
+    const listedOnly = Object.keys(tabFilter).length > 0;
+
+    const matchClauses = [
+      { status: 'approved', isLive: true },
+      {
+        $or: [
+          { 'address.city': cityRegex },
+          { 'address.district': cityRegex },
+          { 'address.fullAddress': cityRegex }
+        ]
+      }
+    ];
+    if (listedOnly) matchClauses.push(tabFilter);
+
     // 1. Fetch distinct areas from active properties in this city
     const propertyAreas = await Property.aggregate([
-      {
-        $match: {
-          status: 'approved',
-          isLive: true,
-          $or: [
-            { 'address.city': cityRegex },
-            { 'address.district': cityRegex },
-            { 'address.fullAddress': cityRegex }
-          ]
-        }
-      },
+      { $match: { $and: matchClauses } },
       {
         $project: {
           area: {
@@ -2467,7 +2504,7 @@ export const getPopularAreas = async (req, res) => {
     };
 
     const normCity = rawCity.toLowerCase().trim();
-    const curatedList = CURATED_CITY_AREAS[normCity] || [];
+    const curatedList = listedOnly ? [] : (CURATED_CITY_AREAS[normCity] || []);
 
     const finalAreas = [];
     const seenAreas = new Set();
@@ -2515,77 +2552,65 @@ export const getPopularAreas = async (req, res) => {
  * a normalised key before a suggestion is built — otherwise "Indore",
  * "INDORE " and "indore" would each produce their own entry.
  */
-export const buildTabFilter = (tab, transactionType, propertyCategory) => {
+// Every listing belongs to exactly one search tab. Tabs are tried in TAB_ORDER
+// and each one excludes every tab before it, so a commercial plot shows under
+// Commercial only, a PG never leaks into Rent, a plot never into Buy, etc.
+// Both listing shapes are covered: the form flow (transactionType "Sell" /
+// "Rent / Lease" + propertyCategory) and older ones whose propertyType is
+// itself "buy" / "rent" / "pg" / "plot".
+const TAB_MATCH = {
+  commercial: {
+    $or: [
+      { propertyCategory: /^Commercial$/i },
+      { propertyType: /office|retail|shop|commercial|co-working|warehouse|industrial|showroom/i }
+    ]
+  },
+  plots: {
+    $or: [
+      { propertyType: /plot|land/i },
+      { propertyCategory: /plot|land/i },
+      { 'buyDetails.subType': /plot|land/i }
+    ]
+  },
+  pg: {
+    $or: [
+      { transactionType: /PG|Paying Guest/i },
+      { propertyType: /pg|hostel|co-living|paying guest/i }
+    ]
+  },
+  rent: {
+    $or: [
+      { transactionType: /Rent|Lease/i },
+      { propertyType: /^rent$/i }
+    ]
+  },
+  buy: {
+    $or: [
+      { transactionType: /Sell|Buy/i },
+      // no transactionType (null also matches a missing field): a sale, unless it is a stay
+      { $and: [{ transactionType: { $in: [null, ''] } }, { propertyType: { $not: /hotel|resort|homestay|tent/i } }] }
+    ]
+  }
+};
+const TAB_ORDER = ['commercial', 'plots', 'pg', 'rent', 'buy'];
+
+const resolveTab = (tab, transactionType, propertyCategory) => {
   const normTab = String(tab || '').trim().toLowerCase();
   const normTxn = String(transactionType || '').trim().toLowerCase();
   const normCat = String(propertyCategory || '').trim().toLowerCase();
+  if (normTab === 'plots' || normTab === 'plot' || normCat.includes('plot') || normCat.includes('land')) return 'plots';
+  if (normTab === 'commercial' || normCat === 'commercial') return 'commercial';
+  if (normTab === 'pg' || normTxn === 'pg' || normCat === 'pg') return 'pg';
+  if (normTab === 'rent' || normTxn === 'rent' || normTxn === 'lease') return 'rent';
+  if (normTab === 'buy' || normTxn === 'sell' || normTxn === 'buy') return 'buy';
+  return '';
+};
 
-  // 1. PLOTS / LAND (Check first so 'sell' transactionType doesn't get treated as standard residential Buy)
-  if (normTab === 'plots' || normTab === 'plot' || normCat.includes('plot') || normCat.includes('land')) {
-    return {
-      $or: [
-        { propertyType: /plot|land/i },
-        { propertyCategory: /plot|land/i },
-        { 'buyDetails.subType': /plot|land/i }
-      ]
-    };
-  }
-
-  // 2. COMMERCIAL (Check before generic sell/rent so commercial shops/offices stay in commercial)
-  if (normTab === 'commercial' || normCat === 'commercial') {
-    return {
-      $or: [
-        { propertyCategory: /^Commercial$/i },
-        { propertyType: /office|retail|shop|commercial|co-working|warehouse|industrial|showroom/i }
-      ]
-    };
-  }
-
-  // 3. PG / HOSTEL / CO-LIVING
-  if (normTab === 'pg' || normTxn === 'pg' || normCat === 'pg') {
-    return {
-      $or: [
-        { transactionType: /PG|Paying Guest/i },
-        { propertyType: /pg|hostel|co-living|paying guest/i }
-      ]
-    };
-  }
-
-  // 4. RENT / LEASE (Residential)
-  if (normTab === 'rent' || normTxn === 'rent' || normTxn === 'lease') {
-    return {
-      $and: [
-        {
-          $or: [
-            { transactionType: /Rent|Lease/i },
-            { propertyType: /^rent$/i }
-          ]
-        },
-        { propertyCategory: { $not: /^Commercial$/i } },
-        { propertyType: { $not: /pg|hostel|hotel|paying guest|co-living|plot|land/i } }
-      ]
-    };
-  }
-
-  // 5. BUY / SELL (Residential properties for sale)
-  if (normTab === 'buy' || normTxn === 'sell' || normTxn === 'buy') {
-    return {
-      $and: [
-        {
-          $or: [
-            { transactionType: /Sell|Buy/i },
-            { $and: [{ transactionType: { $exists: false } }, { propertyType: { $not: /rent|pg|hostel|hotel|plot|land/i } }] },
-            { $and: [{ transactionType: null }, { propertyType: { $not: /rent|pg|hostel|hotel|plot|land/i } }] },
-            { $and: [{ transactionType: '' }, { propertyType: { $not: /rent|pg|hostel|hotel|plot|land/i } }] }
-          ]
-        },
-        { propertyCategory: { $not: /^Commercial$/i } },
-        { propertyType: { $not: /plot|land|pg|hostel|hotel|paying guest|^rent$/i } }
-      ]
-    };
-  }
-
-  return {};
+export const buildTabFilter = (tab, transactionType, propertyCategory) => {
+  const key = resolveTab(tab, transactionType, propertyCategory);
+  if (!key) return {};
+  const earlier = TAB_ORDER.slice(0, TAB_ORDER.indexOf(key)).map((k) => TAB_MATCH[k]);
+  return earlier.length ? { $and: [TAB_MATCH[key], { $nor: earlier }] } : TAB_MATCH[key];
 };
 
 /**
@@ -2750,6 +2775,66 @@ export const getLocationSuggestions = async (req, res) => {
   }
 };
 
+/**
+ * Search-sheet autocomplete that suggests listings only — never a bare city or
+ * locality. Every row is one approved, live property of the requested tab whose
+ * name, society, area or city has a word starting with what was typed.
+ *
+ * @route GET /api/properties/listing-suggestions?q=g&tab=rent
+ */
+export const getListingSuggestions = async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(parseInt(req.query.limit, 10) || 12, 25);
+    if (!q) return res.json({ success: true, suggestions: [] });
+    const homeCity = String(req.query.city || '').trim().toLowerCase();
+    const { tab, transactionType, propertyCategory } = req.query;
+    const tabFilter = buildTabFilter(tab, transactionType, propertyCategory);
+
+    // Word-start match: "g" finds "Green Valley" and "Gachibowli", not "Begumpet".
+    const wordStart = new RegExp(`(^|[^a-z0-9])${escapeRegex(q)}`, 'i');
+    const fields = ['propertyName', 'propertyTitle', 'title', 'rentDetails.societyName', 'buyDetails.societyName',
+      'address.area', 'address.locality', 'dynamicData.locality', 'address.city', 'dynamicData.city'];
+
+    const clauses = [{ status: 'approved', isLive: true }, { $or: fields.map((f) => ({ [f]: wordStart })) }];
+    if (Object.keys(tabFilter).length > 0) clauses.push(tabFilter);
+
+    const rows = await Property.find({ $and: clauses })
+      .select('propertyName propertyTitle title slug propertyType transactionType rentDetails.societyName buyDetails.societyName rentDetails.type buyDetails.bhkType dynamicData.bhkType dynamicData.locality dynamicData.city address.area address.locality address.city createdAt')
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
+
+    const lower = q.toLowerCase();
+    const suggestions = rows.map((p) => {
+      const society = p.rentDetails?.societyName || p.buyDetails?.societyName || '';
+      const type = displayPropertyType(p.propertyType);
+      const bhk = displayBhk(p.dynamicData?.bhkType || p.buyDetails?.bhkType || p.rentDetails?.type);
+      const name = String(p.propertyName || p.propertyTitle || p.title || society || [bhk, type].filter(Boolean).join(' ') || 'Property').trim();
+      const area = titleCaseCity(p.address?.area || p.address?.locality || p.dynamicData?.locality || '');
+      const city = titleCaseCity(p.address?.city || p.dynamicData?.city || '');
+      const where = [area, city].filter((v, i, a) => v && a.findIndex((x) => x.toLowerCase() === v.toLowerCase()) === i).join(', ');
+      // A hit on the listing's own name beats one on its address.
+      const nm = name.toLowerCase();
+      const rank = nm.startsWith(lower) ? 0 : wordStart.test(name) ? 1 : wordStart.test(society) ? 2 : 3;
+      return {
+        id: String(p._id),
+        name,
+        where,
+        type: [bhk && !name.includes(bhk) ? bhk : '', type].filter(Boolean).join(' '),
+        city,
+        rank,
+        home: homeCity && city.toLowerCase().includes(homeCity) ? 0 : 1
+      };
+    });
+    suggestions.sort((a, b) => a.home - b.home || a.rank - b.rank);
+
+    res.json({ success: true, suggestions: suggestions.slice(0, limit).map(({ rank, home, ...s }) => s) });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
 export const getSearchSuggestions = async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
@@ -2758,13 +2843,11 @@ export const getSearchSuggestions = async (req, res) => {
     const { tab, transactionType, propertyCategory } = req.query;
     const tabFilter = buildTabFilter(tab, transactionType, propertyCategory);
 
-    const matchClauses = [{ status: 'approved', isLive: true }];
-    if (homeCity) matchClauses.push({ 'address.city': safeRegex(homeCity, { exact: false }) });
-    if (tabFilter && Object.keys(tabFilter).length > 0) matchClauses.push(tabFilter);
-    const matchStage = matchClauses.length === 1 ? matchClauses[0] : { $and: matchClauses };
+    const tabClauses = [{ status: 'approved', isLive: true }];
+    if (tabFilter && Object.keys(tabFilter).length > 0) tabClauses.push(tabFilter);
 
-    let buckets = await Property.aggregate([
-      { $match: matchStage },
+    const bucketsFor = (clauses) => Property.aggregate([
+      { $match: clauses.length === 1 ? clauses[0] : { $and: clauses } },
       {
         $project: {
           city: {
@@ -2803,58 +2886,24 @@ export const getSearchSuggestions = async (req, res) => {
       { $limit: 400 }
     ]);
 
-    // If no buckets matched in the home city (e.g. user typed another city like "Bengaluru"):
-    if (buckets.length === 0 && homeCity) {
-      const allCityClauses = [{ status: 'approved', isLive: true }];
-      if (tabFilter && Object.keys(tabFilter).length > 0) allCityClauses.push(tabFilter);
-      buckets = await Property.aggregate([
-        { $match: allCityClauses.length === 1 ? allCityClauses[0] : { $and: allCityClauses } },
-        {
-          $project: {
-            city: { $trim: { input: { $ifNull: ['$address.city', ''] } } },
-            propertyType: { $ifNull: ['$propertyType', ''] },
-            transactionType: { $ifNull: ['$transactionType', ''] },
-            availability: { $ifNull: ['$availability', { $ifNull: ['$dynamicData.availability', ''] }] },
-            bhk: {
-              $ifNull: ['$dynamicData.bhkType',
-                { $ifNull: ['$dynamicData.bhk',
-                  { $ifNull: ['$buyDetails.bhkType',
-                    { $ifNull: ['$buyDetails.type',
-                      { $ifNull: ['$rentDetails.type', ''] }] }] }] }]
-            }
-          }
-        },
-        { $match: { city: { $ne: '' }, propertyType: { $ne: '' } } },
-        {
-          $group: {
-            _id: {
-              cityKey: { $toLower: '$city' },
-              propertyType: { $toLower: '$propertyType' },
-              availability: '$availability',
-              bhk: '$bhk',
-              transactionType: '$transactionType'
-            },
-            city: { $first: '$city' },
-            propertyType: { $first: '$propertyType' },
-            count: { $sum: 1 }
-          }
-        },
-        { $sort: { count: -1 } },
-        { $limit: 400 }
-      ]);
-    }
-
-
-    const normalised = buckets.map((b) => ({
+    const suggest = (buckets) => rankSuggestions(buckets.map((b) => ({
       city: titleCaseCity(b.city),
       propertyType: displayPropertyType(b.propertyType),
+      rawType: b.propertyType,
       availability: displayAvailability(b._id?.availability),
       bhk: displayBhk(b._id?.bhk),
       transactionType: b._id?.transactionType || '',
       count: b.count
-    }));
+    })), q, limit);
 
-    res.json({ success: true, query: q, suggestions: rankSuggestions(normalised, q, limit) });
+    // The user's own city first; if nothing there matches what was typed (e.g. they
+    // typed another city like "Bengaluru"), look across every city.
+    let suggestions = homeCity
+      ? suggest(await bucketsFor([...tabClauses, { 'address.city': safeRegex(homeCity, { exact: false }) }]))
+      : [];
+    if (suggestions.length === 0) suggestions = suggest(await bucketsFor(tabClauses));
+
+    res.json({ success: true, query: q, suggestions });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }

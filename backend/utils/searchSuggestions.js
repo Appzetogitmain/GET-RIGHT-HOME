@@ -100,7 +100,7 @@ export const displayBhk = (value) => {
  * Shape mirrors what the search page already understands, so selecting a
  * suggestion is just a navigation — no extra parsing on the client.
  */
-const buildSuggestion = ({ city, propertyType, availability, bhk, transactionType, count }) => {
+const buildSuggestion = ({ city, propertyType, rawType, availability, bhk, transactionType, count }) => {
   // Without a property type there's no noun to search for — "Ready to Move in
   // Indore" isn't a useful suggestion.
   if (!propertyType || !city) return null;
@@ -116,12 +116,20 @@ const buildSuggestion = ({ city, propertyType, availability, bhk, transactionTyp
 
   const params = new URLSearchParams();
   params.set('areas', city);
-  if (propertyType) params.set('subType', propertyType);
   if (availability) params.set('availability', availability);
   if (bhk) params.set('bhkType', bhk);
   if (transactionType) params.set('transactionType', transactionType);
 
-  return { label, url: `/search?${params.toString()}`, count };
+  // The search page matches subType exactly against the stored propertyType, so
+  // the URL carries the stored spellings ("Independent House / Villa"), not the
+  // display noun ("Villa") that would find nothing.
+  return { label, params, types: [rawType || propertyType], count };
+};
+
+const withUrl = ({ params, types, ...rest }) => {
+  const p = new URLSearchParams(params);
+  p.set('subType', types.join(','));
+  return { ...rest, url: `/search?${p.toString()}` };
 };
 
 /**
@@ -163,22 +171,31 @@ export const rankSuggestions = (buckets, query, limit = 12) => {
     })
     .filter((t) => t.length > 0);
 
-  const seen = new Set();
+  const seen = new Map();
   const scored = [];
 
   for (const bucket of buckets) {
     const suggestion = buildSuggestion(bucket);
     if (!suggestion) continue;
-    if (seen.has(suggestion.label)) continue;
-    seen.add(suggestion.label);
+    const prev = seen.get(suggestion.label);
+    if (prev) {
+      // Same label from another stored spelling ("Villa" / "Independent House / Villa"):
+      // keep one row, but let it search for both.
+      const t = suggestion.types[0];
+      if (!prev.types.some((x) => x.toLowerCase() === t.toLowerCase())) prev.types.push(t);
+      prev.count += suggestion.count || 0;
+      continue;
+    }
+    seen.set(suggestion.label, suggestion);
 
     const score = tokens.length === 0 ? 0 : scoreSuggestion(suggestion.label, tokens);
     if (score < 0) continue;
 
     // Inventory depth breaks ties, so busier combinations surface first.
-    scored.push({ ...suggestion, score: score + Math.min(bucket.count || 0, 5) });
+    suggestion.score = score + Math.min(bucket.count || 0, 5);
+    scored.push(suggestion);
   }
 
   scored.sort((a, b) => b.score - a.score || b.count - a.count || a.label.localeCompare(b.label));
-  return scored.slice(0, limit).map(({ score, ...rest }) => rest);
+  return scored.slice(0, limit).map(({ score, ...rest }) => withUrl(rest));
 };
