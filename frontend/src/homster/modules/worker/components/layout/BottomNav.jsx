@@ -1,17 +1,22 @@
-import React, { useRef, useEffect, useState, memo, useMemo } from 'react';
+import React, { useRef, useEffect, useState, memo, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiHome, FiBriefcase, FiUser, FiDollarSign, FiUsers } from 'react-icons/fi';
 import { HiHome, HiBriefcase, HiUser } from 'react-icons/hi';
 import { gsap } from 'gsap';
-import { workerTheme as themeColors } from '../../../../theme';
-import api from '../../../../services/api';
+import workerService from '../../../../services/workerService';
 
 const BottomNav = memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const iconRefs = useRef({});
-  const activeAnimations = useRef({});
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
+
+  const prefetchJobs = useCallback(() => {
+    // Warm both the route chunk and its data so tapping Jobs is instant even
+    // on a slower WebView/network. Service-level dedupe prevents extra calls.
+    import('../../pages/AssignedJobs').catch(() => {});
+    workerService.prefetchJobs();
+  }, []);
 
   // Load counts
   useEffect(() => {
@@ -38,6 +43,11 @@ const BottomNav = memo(() => {
       window.removeEventListener('workerJobsUpdated', updatePendingCount);
     };
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(prefetchJobs, 700);
+    return () => window.clearTimeout(timer);
+  }, [prefetchJobs]);
 
   const navItems = useMemo(() => {
     return [
@@ -93,14 +103,13 @@ const BottomNav = memo(() => {
             <button
               key={item.path}
               onClick={() => handleNavClick(item.path)}
+              onPointerDown={item.path === '/worker/jobs' ? prefetchJobs : undefined}
+              onMouseEnter={item.path === '/worker/jobs' ? prefetchJobs : (e) => {
+                if (!isActive) gsap.to(e.currentTarget, { scale: 1.05, duration: 0.2 });
+              }}
               className="flex flex-col items-center justify-center relative w-16 h-14 rounded-xl transition-all duration-300 group"
               style={{
                 // No inline background here
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  gsap.to(e.currentTarget, { scale: 1.05, duration: 0.2 });
-                }
               }}
               onMouseLeave={(e) => {
                 if (!isActive) {

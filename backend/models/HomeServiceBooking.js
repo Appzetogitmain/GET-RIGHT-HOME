@@ -552,6 +552,15 @@ const bookingSchema = new mongoose.Schema({
     address: String,
     verifiedAt: Date
   },
+  // Captured only after the customer shares the arrival OTP. Aadhaar details
+  // are private by default and must never leak into normal
+  // booking/job payloads.
+  customerArrivalVerification: {
+    aadhaarNumber: { type: String, select: false },
+    aadhaarPhoto: { type: String, select: false },
+    verifiedAt: { type: Date, default: null },
+    capturedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', select: false }
+  },
   workDoneDetails: {
     type: mongoose.Schema.Types.Mixed,
     default: {}

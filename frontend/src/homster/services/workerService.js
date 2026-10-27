@@ -1,5 +1,46 @@
 import api from './api';
 
+const JOBS_CACHE_TTL = 15000;
+const PERSISTED_JOBS_TTL = 5 * 60 * 1000;
+let assignedJobsCache = null;
+let pendingRequestsCache = null;
+let assignedJobsRequest = null;
+let pendingRequestsRequest = null;
+
+const isFresh = (entry) => entry && Date.now() - entry.savedAt < JOBS_CACHE_TTL;
+const getCurrentWorkerId = () => {
+  try {
+    const raw = localStorage.getItem('workerData') || sessionStorage.getItem('workerData');
+    const worker = JSON.parse(raw || 'null');
+    return String(worker?._id || worker?.id || '');
+  } catch {
+    return '';
+  }
+};
+
+const getPersistedAssignedJobs = () => {
+  try {
+    const jobs = JSON.parse(localStorage.getItem('workerAssignedJobs') || 'null');
+    const meta = JSON.parse(localStorage.getItem('workerAssignedJobsMeta') || 'null');
+    const workerId = getCurrentWorkerId();
+    if (!Array.isArray(jobs) || !workerId || meta?.workerId !== workerId) return null;
+    if (Date.now() - Number(meta.savedAt || 0) > PERSISTED_JOBS_TTL) return null;
+    return { success: true, data: jobs };
+  } catch {
+    return null;
+  }
+};
+const clearJobsCache = () => {
+  assignedJobsCache = null;
+  pendingRequestsCache = null;
+};
+
+// Socket/dashboard events mean server state changed; never serve a still-fresh
+// cache entry after such an event.
+if (typeof window !== 'undefined') {
+  window.addEventListener('workerJobsUpdated', clearJobsCache);
+}
+
 const workerService = {
   // Profile
   getProfile: async (params) => {
@@ -87,8 +128,20 @@ const workerService = {
 
   // Jobs
   getAssignedJobs: async (params) => {
-    const response = await api.get('/workers/jobs', { params });
-    return response.data;
+    if (isFresh(assignedJobsCache)) return assignedJobsCache.data;
+    if (assignedJobsRequest) return assignedJobsRequest;
+    assignedJobsRequest = api.get('/workers/jobs', { params }).then((response) => {
+      assignedJobsCache = { data: response.data, savedAt: Date.now() };
+      try {
+        localStorage.setItem('workerAssignedJobs', JSON.stringify(response.data?.data || []));
+        localStorage.setItem('workerAssignedJobsMeta', JSON.stringify({
+          workerId: getCurrentWorkerId(),
+          savedAt: Date.now()
+        }));
+      } catch { /* ignore */ }
+      return response.data;
+    }).finally(() => { assignedJobsRequest = null; });
+    return assignedJobsRequest;
   },
 
   getJobById: async (id) => {
@@ -100,9 +153,26 @@ const workerService = {
   // real-time 'new_booking_request'/'new_job_assigned' socket alert, in case
   // the app wasn't connected yet when it was sent).
   getPendingRequests: async () => {
-    const response = await api.get('/workers/jobs/pending-requests');
-    return response.data;
+    if (isFresh(pendingRequestsCache)) return pendingRequestsCache.data;
+    if (pendingRequestsRequest) return pendingRequestsRequest;
+    pendingRequestsRequest = api.get('/workers/jobs/pending-requests').then((response) => {
+      pendingRequestsCache = { data: response.data, savedAt: Date.now() };
+      return response.data;
+    }).finally(() => { pendingRequestsRequest = null; });
+    return pendingRequestsRequest;
   },
+
+  getCachedJobs: () => ({
+    assigned: assignedJobsCache?.data || getPersistedAssignedJobs(),
+    pending: pendingRequestsCache?.data || null
+  }),
+
+  invalidateJobsCache: clearJobsCache,
+
+  prefetchJobs: () => Promise.allSettled([
+    workerService.getAssignedJobs({ limit: 100, includeTotal: false }),
+    workerService.getPendingRequests()
+  ]),
 
   // Pre-job reminder handshake
   getJobReminders: async () => {
@@ -123,16 +193,19 @@ const workerService = {
 
   releaseJob: async (id, reason = '') => {
     const response = await api.post(`/workers/jobs/${id}/release`, { reason });
+    clearJobsCache();
     return response.data;
   },
 
   updateJobStatus: async (id, status, data = {}) => {
     const response = await api.put(`/workers/jobs/${id}/status`, { status, ...data });
+    clearJobsCache();
     return response.data;
   },
 
   startJob: async (id) => {
     const response = await api.post(`/workers/jobs/${id}/start`);
+    clearJobsCache();
     return response.data;
   },
 
@@ -143,11 +216,13 @@ const workerService = {
 
   completeJob: async (id, data = {}) => {
     const response = await api.post(`/workers/jobs/${id}/complete`, data);
+    clearJobsCache();
     return response.data;
   },
 
-  verifyVisit: async (id, otp, location) => {
-    const response = await api.post(`/workers/jobs/${id}/visit/verify`, { otp, location });
+  verifyVisit: async (id, otp, location, verification = {}) => {
+    const response = await api.post(`/workers/jobs/${id}/visit/verify`, { otp, location, ...verification });
+    clearJobsCache();
     return response.data;
   },
 
@@ -201,6 +276,7 @@ const workerService = {
 
   respondToJob: async (id, status) => {
     const response = await api.put(`/workers/jobs/${id}/respond`, { status });
+    clearJobsCache();
     return response.data;
   },
 

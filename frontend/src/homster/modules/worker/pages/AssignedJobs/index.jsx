@@ -7,9 +7,12 @@ import { SkeletonList } from '../../../../components/common/SkeletonLoaders';
 
 const AssignedJobs = () => {
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const cachedAtMount = workerService.getCachedJobs();
+  const cachedAssigned = cachedAtMount.assigned?.data || [];
+  const cachedOffers = (cachedAtMount.pending?.data || []).map((o) => ({ ...o, _id: o.bookingId, status: 'pending_offer', isPendingOffer: true }));
+  const cachedAssignedIds = new Set(cachedAssigned.map((job) => String(job._id)));
+  const [jobs, setJobs] = useState(() => [...cachedOffers.filter((o) => !cachedAssignedIds.has(String(o._id))), ...cachedAssigned]);
+  const [loading, setLoading] = useState(!cachedAtMount.assigned);
   const [filter, setFilter] = useState('all'); // all, confirmed, in_progress, completed
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
@@ -33,20 +36,24 @@ const AssignedJobs = () => {
 
   const fetchJobs = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       // Assigned jobs and open offers are two different things and were only
       // ever fetched separately: getAssignedJobs filters on { workerId }, so a
       // pending OFFER (workerId still null) could never appear here. Offers
       // existed solely inside the transient popup alert, so a worker who
       // missed or dismissed it had nowhere to find the job. Fetch both.
-      const [assignedRes, pendingRes] = await Promise.all([
-        workerService.getAssignedJobs({ limit: 100 }),
-        workerService.getPendingRequests().catch(() => null)
-      ]);
+      // Start both calls together, but do not hold the whole page hostage to
+      // the more expensive pending-offers check. Assigned jobs render as soon
+      // as their own response arrives; offers merge in afterwards.
+      const assignedRequest = workerService.getAssignedJobs({ limit: 100, includeTotal: false });
+      const pendingRequest = workerService.getPendingRequests().catch(() => null);
+      const assignedRes = await assignedRequest;
 
       const assigned = assignedRes?.success ? (assignedRes.data || []) : [];
+
+      setJobs(assigned);
+      setLoading(false);
+
+      const pendingRes = await pendingRequest;
 
       // Offers use a different shape (bookingId, not _id) — normalise so the
       // list can render them, and flag them so the UI can show Accept/Reject.
@@ -61,16 +68,14 @@ const AssignedJobs = () => {
       const assignedIds = new Set(assigned.map((j) => String(j._id)));
       setJobs([...offers.filter((o) => !assignedIds.has(String(o._id))), ...assigned]);
 
-      setLoading(false);
     } catch (err) {
       console.error('Fetch jobs error:', err);
-      setError('Failed to load assigned jobs');
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchJobs();
+    const initialFetch = window.setTimeout(fetchJobs, 0);
 
     const handleUpdate = () => {
       fetchJobs();
@@ -78,6 +83,7 @@ const AssignedJobs = () => {
     window.addEventListener('workerJobsUpdated', handleUpdate);
 
     return () => {
+      window.clearTimeout(initialFetch);
       window.removeEventListener('workerJobsUpdated', handleUpdate);
     };
   }, []);
