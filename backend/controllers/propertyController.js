@@ -1417,11 +1417,19 @@ export const getPublicProperties = async (req, res) => {
       const areaQueries = areas.split(',').map(a => {
         const escaped = a.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         const regex = new RegExp(escaped, 'i');
+        // Same name / place fields the search-sheet suggestions read, so every
+        // suggested listing is found again here.
         return {
           $or: [
             { 'address.area': regex },
+            { 'address.locality': regex },
             { propertyName: regex },
+            { propertyTitle: regex },
+            { title: regex },
             { 'rentDetails.societyName': regex },
+            { 'buyDetails.societyName': regex },
+            { 'dynamicData.locality': regex },
+            { 'dynamicData.city': regex },
             { 'address.city': regex },
             { 'address.district': regex },
             { 'address.state': regex },
@@ -2817,9 +2825,14 @@ export const getListingSuggestions = async (req, res) => {
       // A hit on the listing's own name beats one on its address.
       const nm = name.toLowerCase();
       const rank = nm.startsWith(lower) ? 0 : wordStart.test(name) ? 1 : wordStart.test(society) ? 2 : 3;
+      // What the search page should look for to land on this listing: a stored field
+      // the `areas` filter reads. Cut at the first comma, since `areas` is comma-separated.
+      const stored = String(p.propertyName || p.propertyTitle || p.title || society || area || city).trim();
+      const term = stored.split(',')[0].trim() || stored;
       return {
         id: String(p._id),
         name,
+        term,
         where,
         type: [bhk && !name.includes(bhk) ? bhk : '', type].filter(Boolean).join(' '),
         city,
