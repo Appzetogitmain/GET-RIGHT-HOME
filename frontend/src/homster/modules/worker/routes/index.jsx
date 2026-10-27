@@ -1,13 +1,10 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';
 import ErrorBoundary from '../components/common/ErrorBoundary';
-import ProtectedRoute from '../../../components/auth/ProtectedRoute';
-import PublicRoute from '../../../components/auth/PublicRoute';
 import useFeatureFlags from '../../../hooks/useFeatureFlags';
-import useAppNotifications from '../../../hooks/useAppNotifications.jsx';
 // Removed SocketProvider import since it's now global
 
 // Redirects away from a page whose admin feature switch is OFF.
@@ -15,6 +12,22 @@ const FeatureRoute = ({ flag, children }) => {
   const flags = useFeatureFlags();
   return flags[flag] === false ? <Navigate to="/worker/dashboard" replace /> : children;
 };
+
+// Worker routes only need a local token check. The shared guards also import
+// the complete admin Zustand/auth stack, which is irrelevant here and greatly
+// expands the worker app's cold-start module graph.
+const hasWorkerSession = () => Boolean(
+  (localStorage.getItem('workerAccessToken') || sessionStorage.getItem('workerAccessToken')) &&
+  (localStorage.getItem('workerData') || sessionStorage.getItem('workerData'))
+);
+
+const WorkerProtectedRoute = ({ children }) => (
+  hasWorkerSession() ? children : <Navigate to="/worker/login" replace />
+);
+
+const WorkerPublicRoute = ({ children }) => (
+  hasWorkerSession() ? <Navigate to="/worker/dashboard" replace /> : children
+);
 
 // Lazy load wrapper with error handling
 const lazyLoad = (importFunc) => {
@@ -75,9 +88,13 @@ const LoadingFallback = () => (
   <LogoLoader />
 );
 
-import GlobalWorkerJobAlert from '../components/common/GlobalWorkerJobAlert';
-import JobReminderModal from '../components/common/JobReminderModal';
 import WorkerLocationGuard from '../components/common/WorkerLocationGuard';
+
+// Background overlays are not required to paint the current page. Keeping
+// them lazy prevents their notification/audio/modal dependency trees from
+// delaying worker navigation.
+const GlobalWorkerJobAlert = lazyLoad(() => import('../components/common/GlobalWorkerJobAlert'));
+const JobReminderModal = lazyLoad(() => import('../components/common/JobReminderModal'));
 
 const WorkerRoutes = () => {
   const location = useLocation();
@@ -87,7 +104,9 @@ const WorkerRoutes = () => {
   // useAppNotifications('worker');
 
   // Check if current route should hide bottom nav
-  const isAuthenticated = !!localStorage.getItem('workerAccessToken');
+  const isAuthenticated = Boolean(
+    localStorage.getItem('workerAccessToken') || sessionStorage.getItem('workerAccessToken')
+  );
   const shouldHideBottomNav =
     !isAuthenticated ||
     location.pathname === '/worker/login' ||
@@ -106,30 +125,30 @@ const WorkerRoutes = () => {
             <PageTransition>
               <Routes>
                 {/* Public routes */}
-                <Route path="/login" element={<PublicRoute userType="worker"><Login /></PublicRoute>} />
-                <Route path="/signup" element={<PublicRoute userType="worker"><Signup /></PublicRoute>} />
+                <Route path="/login" element={<WorkerPublicRoute><Login /></WorkerPublicRoute>} />
+                <Route path="/signup" element={<WorkerPublicRoute><Signup /></WorkerPublicRoute>} />
 
                 {/* Protected routes (auth required) */}
-                <Route path="/" element={<ProtectedRoute userType="worker"><Navigate to="dashboard" replace /></ProtectedRoute>} />
-                <Route path="/dashboard" element={<ProtectedRoute userType="worker"><Dashboard /></ProtectedRoute>} />
-                <Route path="/availability" element={<ProtectedRoute userType="worker"><Availability /></ProtectedRoute>} />
-                <Route path="/jobs" element={<ProtectedRoute userType="worker"><AssignedJobs /></ProtectedRoute>} />
-                <Route path="/job/:id" element={<ProtectedRoute userType="worker"><JobDetails /></ProtectedRoute>} />
-                <Route path="/job/:id/map" element={<ProtectedRoute userType="worker"><JobMap /></ProtectedRoute>} />
-                <Route path="/job/:id/timeline" element={<ProtectedRoute userType="worker"><JobTimeline /></ProtectedRoute>} />
-                <Route path="/job/:id/billing" element={<ProtectedRoute userType="worker"><BillingPage /></ProtectedRoute>} />
-                <Route path="/profile" element={<ProtectedRoute userType="worker"><Profile /></ProtectedRoute>} />
-                <Route path="/profile/edit" element={<ProtectedRoute userType="worker"><EditProfile /></ProtectedRoute>} />
-                <Route path="/documents" element={<ProtectedRoute userType="worker"><Documents /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute userType="worker"><Settings /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute userType="worker"><Notifications /></ProtectedRoute>} />
-                <Route path="/wallet" element={<ProtectedRoute userType="worker"><Wallet /></ProtectedRoute>} />
-                <Route path="/subscription" element={<ProtectedRoute userType="worker"><FeatureRoute flag="workerSubscription"><Subscription /></FeatureRoute></ProtectedRoute>} />
-                <Route path="/training" element={<ProtectedRoute userType="worker"><Training /></ProtectedRoute>} />
+                <Route path="/" element={<WorkerProtectedRoute><Navigate to="dashboard" replace /></WorkerProtectedRoute>} />
+                <Route path="/dashboard" element={<WorkerProtectedRoute><Dashboard /></WorkerProtectedRoute>} />
+                <Route path="/availability" element={<WorkerProtectedRoute><Availability /></WorkerProtectedRoute>} />
+                <Route path="/jobs" element={<WorkerProtectedRoute><AssignedJobs /></WorkerProtectedRoute>} />
+                <Route path="/job/:id" element={<WorkerProtectedRoute><JobDetails /></WorkerProtectedRoute>} />
+                <Route path="/job/:id/map" element={<WorkerProtectedRoute><JobMap /></WorkerProtectedRoute>} />
+                <Route path="/job/:id/timeline" element={<WorkerProtectedRoute><JobTimeline /></WorkerProtectedRoute>} />
+                <Route path="/job/:id/billing" element={<WorkerProtectedRoute><BillingPage /></WorkerProtectedRoute>} />
+                <Route path="/profile" element={<WorkerProtectedRoute><Profile /></WorkerProtectedRoute>} />
+                <Route path="/profile/edit" element={<WorkerProtectedRoute><EditProfile /></WorkerProtectedRoute>} />
+                <Route path="/documents" element={<WorkerProtectedRoute><Documents /></WorkerProtectedRoute>} />
+                <Route path="/settings" element={<WorkerProtectedRoute><Settings /></WorkerProtectedRoute>} />
+                <Route path="/notifications" element={<WorkerProtectedRoute><Notifications /></WorkerProtectedRoute>} />
+                <Route path="/wallet" element={<WorkerProtectedRoute><Wallet /></WorkerProtectedRoute>} />
+                <Route path="/subscription" element={<WorkerProtectedRoute><FeatureRoute flag="workerSubscription"><Subscription /></FeatureRoute></WorkerProtectedRoute>} />
+                <Route path="/training" element={<WorkerProtectedRoute><Training /></WorkerProtectedRoute>} />
                 <Route path="/support" element={<Support />} />
-                <Route path="/referrals" element={<ProtectedRoute userType="worker"><Referrals /></ProtectedRoute>} />
-                <Route path="/complaints" element={<ProtectedRoute userType="worker"><Complaints /></ProtectedRoute>} />
-                <Route path="/digital-id" element={<ProtectedRoute userType="worker"><DigitalId /></ProtectedRoute>} />
+                <Route path="/referrals" element={<WorkerProtectedRoute><Referrals /></WorkerProtectedRoute>} />
+                <Route path="/complaints" element={<WorkerProtectedRoute><Complaints /></WorkerProtectedRoute>} />
+                <Route path="/digital-id" element={<WorkerProtectedRoute><DigitalId /></WorkerProtectedRoute>} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/privacy" element={<LegalDocument type="privacy" />} />
                 <Route path="/terms" element={<LegalDocument type="terms" />} />
@@ -141,10 +160,10 @@ const WorkerRoutes = () => {
         {/* BottomNav is OUTSIDE Suspense so it persists during page loads */}
         {shouldShowBottomNav && <BottomNav />}
 
-        <GlobalWorkerJobAlert />
+        <Suspense fallback={null}><GlobalWorkerJobAlert /></Suspense>
         {/* Logged-in workers must keep device location on */}
         {isAuthenticated && !['/worker/login', '/worker/signup'].includes(location.pathname) && <WorkerLocationGuard />}
-        <JobReminderModal />
+        <Suspense fallback={null}><JobReminderModal /></Suspense>
       </ErrorBoundary>
 
   );

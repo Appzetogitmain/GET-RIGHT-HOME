@@ -64,7 +64,9 @@ const recordAssignmentOutcome = (booking, workerId, outcome, reason = '') => {
 const getAssignedJobs = async (req, res) => {
   try {
     const workerId = req.user.id;
-    const { status, page = 1, limit = 100 } = req.query;
+    const { status, page = 1, limit = 100, includeTotal = 'true' } = req.query;
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 100);
 
     // Jobs I lead, plus jobs where admin added me as a helper.
     const query = {
@@ -78,10 +80,11 @@ const getAssignedJobs = async (req, res) => {
     }
 
     // Pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
 
-    // Get bookings
-    const bookings = await HomeServiceBooking.find(query)
+    // Fetch rows and count together. `.lean()` avoids hydrating up to 100 large
+    // Mongoose documents just to immediately turn them back into plain objects.
+    const bookingsQuery = HomeServiceBooking.find(query)
       .select('-serviceImages -requirementImages -workPhotos -reviewImages +helpers +helperRequests')
       .populate('userId', 'name phone email')
       .populate('vendorId', 'name businessName phone')
@@ -90,10 +93,16 @@ const getAssignedJobs = async (req, res) => {
       .populate('helpers.workerId', 'name phone profilePhoto')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNumber)
+      .lean();
 
-    // Get total count
-    const total = await HomeServiceBooking.countDocuments(query);
+    // The worker app renders a single bounded list and does not use a total.
+    // Let that client skip a second database query on every Jobs navigation.
+    const shouldCount = includeTotal !== 'false';
+    const [bookings, total] = await Promise.all([
+      bookingsQuery,
+      shouldCount ? HomeServiceBooking.countDocuments(query) : Promise.resolve(null)
+    ]);
 
     // Worker booking screens show the customer-facing amount. Net payout is
     // deliberately kept in the settlement/wallet flow.
@@ -107,11 +116,11 @@ const getAssignedJobs = async (req, res) => {
     const workerBookings = bookings.map(b => {
       // Helper view: no money anywhere, read-only.
       if (String(b.workerId || '') !== String(workerId)) {
-        const asHelper = b.toObject();
+        const asHelper = { ...b };
         asHelper.workerId = leadById.get(String(b.workerId)) || asHelper.workerId;
         return sanitizeBookingForHelper(asHelper, workerId);
       }
-      const obj = b.toObject();
+      const obj = { ...b };
       // Booking screens show the customer's bill. Net earning is calculated
       // separately at settlement time and credited to the worker wallet.
       delete obj.workerAmount;
@@ -122,10 +131,10 @@ const getAssignedJobs = async (req, res) => {
       success: true,
       data: workerBookings,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNumber,
+        limit: limitNumber,
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        pages: total === null ? null : Math.ceil(total / limitNumber)
       }
     });
   } catch (error) {
@@ -194,11 +203,13 @@ const getPendingRequests = async (req, res) => {
     // already hold a job inside the slot buffer.
     const bufferMinutes = await getBufferMinutes();
     const offerable = [];
-    for (const b of bookings) {
-      if (activeJob && await isImmediateBooking(b)) continue;
+    const eligibility = await Promise.all(bookings.map(async (b) => {
+      if (activeJob && await isImmediateBooking(b)) return null;
       const adminOffered = b.adminAssignedWorkerId && String(b.adminAssignedWorkerId) === String(workerId);
-      if (adminOffered || !(await findWorkerConflict(workerId, b, { bufferMinutes }))) offerable.push(b);
-    }
+      if (adminOffered || !(await findWorkerConflict(workerId, b, { bufferMinutes }))) return b;
+      return null;
+    }));
+    offerable.push(...eligibility.filter(Boolean));
     const bookingMap = new Map(offerable.map(b => [String(b._id), b]));
 
     // The worker's response window is Settings.waveDuration, counted from when
@@ -609,7 +620,19 @@ const verifyVisit = async (req, res) => {
   try {
     const workerId = req.user.id;
     const { id } = req.params;
-    const { otp, location } = req.body;
+    const { otp, location, aadhaarNumber, aadhaarPhoto } = req.body;
+
+    const normalizedAadhaar = String(aadhaarNumber || '').replace(/[\s-]/g, '');
+    if (!/^\d{12}$/.test(normalizedAadhaar)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid 12-digit customer Aadhaar number' });
+    }
+    if (typeof aadhaarPhoto !== 'string' || !aadhaarPhoto.startsWith('data:image/')) {
+      return res.status(400).json({ success: false, message: 'Aadhaar card photo is required' });
+    }
+    // Keep JSON/base64 payloads bounded before attempting an external upload.
+    if (aadhaarPhoto.length > 8 * 1024 * 1024) {
+      return res.status(413).json({ success: false, message: 'Aadhaar card photo is too large' });
+    }
 
     // Use query to select visitOtp which is usually hidden
     const booking = await HomeServiceBooking.findOne({ _id: id, workerId }).select('+visitOtp');
@@ -631,6 +654,22 @@ const verifyVisit = async (req, res) => {
     booking.visitedAt = new Date();
     booking.startedAt = new Date(); // Legacy compatibility
     booking.visitOtp = undefined; // Clear OTP
+    const [storedAadhaarPhoto] = await offloadImages(
+      [aadhaarPhoto],
+      'bookings/customer-aadhaar-verification'
+    );
+    if (typeof storedAadhaarPhoto !== 'string' || storedAadhaarPhoto.startsWith('data:')) {
+      return res.status(503).json({
+        success: false,
+        message: 'Aadhaar card photo upload failed. Please try again.'
+      });
+    }
+    booking.customerArrivalVerification = {
+      aadhaarNumber: normalizedAadhaar,
+      aadhaarPhoto: storedAadhaarPhoto,
+      verifiedAt: new Date(),
+      capturedBy: workerId
+    };
     if (location) {
       booking.visitLocation = {
         ...location,
@@ -671,7 +710,11 @@ const verifyVisit = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Site visit verified successfully',
-      data: booking
+      data: {
+        _id: booking._id,
+        status: booking.status,
+        visitedAt: booking.visitedAt
+      }
     });
   } catch (error) {
     console.error('Verify visit error:', error);

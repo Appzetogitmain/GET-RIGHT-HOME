@@ -1,4 +1,4 @@
-import React, { useEffect, useState, cloneElement } from 'react';
+import React, { cloneElement } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /**
@@ -7,33 +7,10 @@ import { useLocation } from 'react-router-dom';
  */
 const PageTransition = ({ children }) => {
   const location = useLocation();
-  const [displayLocation, setDisplayLocation] = useState(location);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  useEffect(() => {
-    if (location.pathname !== displayLocation.pathname) {
-      // Start transition immediately
-      setIsTransitioning(true);
-
-      // Quick fade out then swap content
-      const timeout = setTimeout(() => {
-        setDisplayLocation(location);
-        setIsTransitioning(false);
-      }, 100); // Very quick transition (100ms)
-
-      return () => clearTimeout(timeout);
-    }
-  }, [location.pathname, displayLocation.pathname]);
 
   return (
-    <div
-      style={{
-        opacity: isTransitioning ? 0.7 : 1,
-        transition: 'opacity 100ms ease-out',
-        willChange: isTransitioning ? 'opacity' : 'auto',
-      }}
-    >
-      {cloneElement(children, { location: displayLocation })}
+    <div>
+      {cloneElement(children, { location })}
     </div>
   );
 };
