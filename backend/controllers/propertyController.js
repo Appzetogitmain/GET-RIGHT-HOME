@@ -2525,6 +2525,7 @@ export const getLocationSuggestions = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 20);
     if (q.length < 1) return res.json({ success: true, suggestions: [] });
     const rx = safeRegex(q, { exact: false });
+    const homeCity = String(req.query.city || '').trim();
 
     const rows = await Property.aggregate([
       { $match: { status: 'approved', isLive: true } },
@@ -2556,29 +2557,99 @@ export const getLocationSuggestions = async (req, res) => {
         places.push({ type: 'Locality', name: area, city, label: city ? `${area}, ${city}` : area, count: r.count });
       }
     });
+    // Detect if q has a BHK query (e.g. "2bhk", "2 bhk", "3bhk", "1bhk", etc.)
+    const bhkMatch = q.match(/(\d)\s*(?:\+)?\s*(?:bhk|rk)/i);
+    const bhkFilter = bhkMatch ? new RegExp(`${bhkMatch[1]}\\s*bhk`, 'i') : null;
+
+    // Detect property types, e.g. "villa", "apartment", "flat", "plot", "house", "pg", "commercial"
+    const typeMatch = q.match(/\b(villa|apartment|flat|builder\s*floor|plot|farm\s*house|pg|hostel|office|retail)\b/i);
+    const typeFilter = typeMatch ? new RegExp(typeMatch[1], 'i') : null;
+
     // Projects / buildings by name. Repeated letters are forgiven so "appartment" finds "Apartment".
     const loose = Array.from(q.replace(/[^a-zA-Z0-9 ]/g, '').replace(/(.)\1+/gi, '$1'))
       .map((ch) => (ch === ' ' ? '\\s+' : `${ch}+`)).join('');
     let projects = [];
-    if (loose.length >= 3) {
-      const prx = new RegExp(loose, 'i');
-      const nameMatch = { $or: [{ propertyName: prx }, { 'rentDetails.societyName': prx }] };
-      const pick = 'propertyName address.area address.city rentDetails.societyName';
-      const homeCity = String(req.query.city || '').trim();
-      // The user's own city first, then everywhere else.
-      const [mine, others] = await Promise.all([
-        homeCity ? Property.find({ status: 'approved', isLive: true, 'address.city': safeRegex(homeCity, { exact: false }), ...nameMatch }).select(pick).limit(20).lean() : [],
-        Property.find({ status: 'approved', isLive: true, ...nameMatch }).select(pick).limit(60).lean()
-      ]);
+    if (loose.length >= 2 || bhkFilter || typeFilter) {
+      const prx = loose.length >= 2 ? new RegExp(loose, 'i') : null;
+      const conds = [];
+      if (prx) {
+        conds.push(
+          { propertyName: prx },
+          { propertyTitle: prx },
+          { title: prx },
+          { 'rentDetails.societyName': prx },
+          { 'buyDetails.societyName': prx }
+        );
+      }
+      if (bhkFilter) {
+        conds.push(
+          { 'dynamicData.bhkType': bhkFilter },
+          { 'dynamicData.bhk': bhkFilter },
+          { 'buyDetails.bhkType': bhkFilter },
+          { 'buyDetails.type': bhkFilter },
+          { 'rentDetails.type': bhkFilter },
+          { propertyName: bhkFilter },
+          { propertyTitle: bhkFilter }
+        );
+      }
+      if (typeFilter) {
+        conds.push({ propertyType: typeFilter });
+      }
+
+      const nameMatch = conds.length > 0 ? { $or: conds } : {};
+      const pick = 'propertyName propertyTitle title address.area address.locality address.city rentDetails.societyName buyDetails.societyName dynamicData.bhkType buyDetails.bhkType rentDetails.type';
+
+      // The user's own city first. If homeCity is present, do not mix other cities if mine has matches.
+      let mine = [];
+      if (homeCity) {
+        mine = await Property.find({
+          status: 'approved',
+          isLive: true,
+          'address.city': safeRegex(homeCity, { exact: false }),
+          ...nameMatch
+        }).select(pick).limit(limit).lean();
+      }
+
+      let others = [];
+      if (!homeCity) {
+        others = await Property.find({
+          status: 'approved',
+          isLive: true,
+          ...nameMatch
+        }).select(pick).limit(limit).lean();
+      } else if (mine.length === 0) {
+        others = await Property.find({
+          status: 'approved',
+          isLive: true,
+          'address.city': { $not: safeRegex(homeCity, { exact: false }) },
+          ...nameMatch
+        }).select(pick).limit(limit).lean();
+      }
+
       const props = [...mine, ...others];
       const seenP = new Set();
       props.forEach((p) => {
-        const nm = String(prx.test(p.propertyName || '') ? p.propertyName : (p.rentDetails?.societyName || p.propertyName || '')).trim();
-        const where = [titleCaseCity(p.address?.area || ''), titleCaseCity(p.address?.city || '')].filter(Boolean).join(', ');
+        const nm = String(
+          p.propertyName ||
+          p.propertyTitle ||
+          p.title ||
+          p.rentDetails?.societyName ||
+          p.buyDetails?.societyName ||
+          'Property'
+        ).trim();
+        const area = titleCaseCity(p.address?.locality || p.address?.area || '');
+        const city = titleCaseCity(p.address?.city || '');
+        const where = [area, city].filter(Boolean).join(', ');
         const key = `${nm.toLowerCase()}|${where.toLowerCase()}`;
         if (!nm || seenP.has(key)) return;
         seenP.add(key);
-        projects.push({ type: 'Project', name: nm, city: p.address?.city || '', label: where ? `${nm}, ${where}` : nm, count: 1 });
+        projects.push({
+          type: 'Project',
+          name: nm,
+          city: p.address?.city || '',
+          label: where ? `${nm}, ${where}` : nm,
+          count: 1
+        });
       });
     }
     const list = [
@@ -2586,8 +2657,17 @@ export const getLocationSuggestions = async (req, res) => {
       ...places,
       ...projects.slice(0, 25)
     ];
-    const rank = (x) => (x.name.toLowerCase() === lower ? 0 : x.name.toLowerCase().startsWith(lower) ? 1 : 2);
-    list.sort((a, b) => rank(a) - rank(b) || b.count - a.count);
+    const isMyCity = (x) => (homeCity && (x.city || '').toLowerCase() === homeCity.toLowerCase() ? 0 : 1);
+    const cleanQ = lower.replace(/\s+/g, '');
+    const rank = (x) => {
+      const nm = (x.name || '').toLowerCase();
+      const cleanNm = nm.replace(/\s+/g, '');
+      if (nm === lower || cleanNm === cleanQ) return 0;
+      if (nm.startsWith(lower) || cleanNm.startsWith(cleanQ)) return 1;
+      if (nm.includes(lower) || cleanNm.includes(cleanQ)) return 2;
+      return 3;
+    };
+    list.sort((a, b) => isMyCity(a) - isMyCity(b) || rank(a) - rank(b) || b.count - a.count);
     res.json({ success: true, suggestions: list.slice(0, limit) });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -2598,9 +2678,15 @@ export const getSearchSuggestions = async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     const limit = Math.min(parseInt(req.query.limit, 10) || 12, 25);
+    const homeCity = String(req.query.city || '').trim();
 
-    const buckets = await Property.aggregate([
-      { $match: { status: 'approved', isLive: true } },
+    const matchStage = { status: 'approved', isLive: true };
+    if (homeCity) {
+      matchStage['address.city'] = safeRegex(homeCity, { exact: false });
+    }
+
+    let buckets = await Property.aggregate([
+      { $match: matchStage },
       {
         $project: {
           city: {
@@ -2611,8 +2697,6 @@ export const getSearchSuggestions = async (req, res) => {
           availability: {
             $ifNull: ['$availability', { $ifNull: ['$dynamicData.availability', ''] }]
           },
-          // BHK is written to whichever sub-document the listing flow used, so
-          // fall back across all of them (same set the bhkType filter checks).
           bhk: {
             $ifNull: ['$dynamicData.bhkType',
               { $ifNull: ['$dynamicData.bhk',
@@ -2638,10 +2722,47 @@ export const getSearchSuggestions = async (req, res) => {
         }
       },
       { $sort: { count: -1 } },
-      // Guard against an unbounded fan-out as inventory grows; ranking happens
-      // over this shortlist, which is far more than the handful shown.
       { $limit: 400 }
     ]);
+
+    // Fall back to all cities if user's city had no buckets
+    if (buckets.length === 0 && homeCity) {
+      buckets = await Property.aggregate([
+        { $match: { status: 'approved', isLive: true } },
+        {
+          $project: {
+            city: { $trim: { input: { $ifNull: ['$address.city', ''] } } },
+            propertyType: { $ifNull: ['$propertyType', ''] },
+            transactionType: { $ifNull: ['$transactionType', ''] },
+            availability: { $ifNull: ['$availability', { $ifNull: ['$dynamicData.availability', ''] }] },
+            bhk: {
+              $ifNull: ['$dynamicData.bhkType',
+                { $ifNull: ['$dynamicData.bhk',
+                  { $ifNull: ['$buyDetails.bhkType',
+                    { $ifNull: ['$buyDetails.type',
+                      { $ifNull: ['$rentDetails.type', ''] }] }] }] }]
+            }
+          }
+        },
+        { $match: { city: { $ne: '' }, propertyType: { $ne: '' } } },
+        {
+          $group: {
+            _id: {
+              cityKey: { $toLower: '$city' },
+              propertyType: { $toLower: '$propertyType' },
+              availability: '$availability',
+              bhk: '$bhk',
+              transactionType: '$transactionType'
+            },
+            city: { $first: '$city' },
+            propertyType: { $first: '$propertyType' },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { count: -1 } },
+        { $limit: 400 }
+      ]);
+    }
 
     const normalised = buckets.map((b) => ({
       city: titleCaseCity(b.city),

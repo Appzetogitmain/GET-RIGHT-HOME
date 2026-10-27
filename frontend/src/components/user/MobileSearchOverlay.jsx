@@ -153,9 +153,20 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
     setSugLoading(true);
     let live = true;
     const t = setTimeout(async () => {
-      const ours = await api.get('/properties/locations', { params: { q, limit: 6, city: getPreferredCity() || undefined } })
-        .then((res) => res.data?.suggestions || [])
-        .catch(() => []);
+      const preferredCity = getPreferredCity();
+      const [oursRes, portalRes] = await Promise.allSettled([
+        api.get('/properties/locations', { params: { q, limit: 10, city: preferredCity || undefined } }),
+        api.get('/properties/suggestions', { params: { q, limit: 4, city: preferredCity || undefined } })
+      ]);
+
+      const ours = oursRes.status === 'fulfilled' ? (oursRes.value?.data?.suggestions || []) : [];
+      const portalSug = portalRes.status === 'fulfilled' ? (portalRes.value?.data?.suggestions || []).map((p) => ({
+        type: 'Explore',
+        name: p.label,
+        label: p.label,
+        url: p.url,
+        city: preferredCity || ''
+      })) : [];
 
       // Typing a city lists that city's localities too (listings first, then well-known ones).
       let localities = [];
@@ -170,22 +181,24 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
           .catch(() => []);
       }
 
+      // Check if real inventory matches exist (properties, projects, portal suggestions)
+      const hasRealInventory = ours.length > 0 || portalSug.length > 0;
+
       let google = [];
-      if (window.google?.maps?.places) {
+      // Only consult Google Places when our database has zero matches (e.g. typing an unlisted locality name)
+      // And strictly restrict to regions/localities, never unfiltered POIs (which returns diners, clubs, bars)
+      if (!hasRealInventory && window.google?.maps?.places) {
         const svc = new window.google.maps.places.AutocompleteService();
-        const ask = (extra) => new Promise((resolve) => {
+        const preds = await new Promise((resolve) => {
           svc.getPlacePredictions(
-            { input: q, componentRestrictions: { country: 'in' }, ...extra },
-            (preds, status) => resolve(status === 'OK' && preds ? preds : [])
+            { input: q, componentRestrictions: { country: 'in' }, types: ['(regions)'] },
+            (res, status) => resolve(status === 'OK' && res ? res : [])
           );
         });
-        // Regions (cities, localities) and buildings / projects, like a property portal.
-        const [regions, buildings] = await Promise.all([ask({ types: ['(regions)'] }), ask({})]);
-        google = [...regions, ...buildings].map((p) => {
+        google = preds.map((p) => {
           const types = p.types || [];
           const type = types.includes('locality') || types.includes('administrative_area_level_2') ? 'City'
-            : types.some((x) => x.startsWith('sublocality') || x === 'neighborhood') ? 'Locality'
-              : types.some((x) => ['establishment', 'premise', 'point_of_interest', 'real_estate_agency'].includes(x)) ? 'Project' : 'Place';
+            : types.some((x) => x.startsWith('sublocality') || x === 'neighborhood') ? 'Locality' : 'Place';
           return {
             type,
             name: p.structured_formatting?.main_text || p.description,
@@ -198,18 +211,18 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
       if (!live) return;
       const merged = [];
       const seen = new Set();
-      [...ours, ...localities, ...google].forEach((item) => {
-        const key = item.type === 'Project' ? `${item.label.toLowerCase()}|project` : `${item.name.toLowerCase()}|${item.type === 'City' ? 'city' : 'place'}`;
+      [...ours, ...portalSug, ...localities, ...google].forEach((item) => {
+        const key = item.url ? `url|${item.url}` : item.type === 'Project' ? `${item.label.toLowerCase()}|project` : `${item.name.toLowerCase()}|${item.type === 'City' ? 'city' : 'place'}`;
         const plain = item.name.toLowerCase();
         if (seen.has(key) || (item.fromGoogle && seen.has(`${plain}|city`) && item.type === 'City')) return;
         seen.add(key);
         merged.push(item);
       });
       // Things in the user's own (live-location) city come first, the rest of India after.
-      const home = String(getPreferredCity() || '').trim().toLowerCase();
+      const home = String(preferredCity || '').trim().toLowerCase();
       if (home) {
         const names = /^(bengaluru|bangalore)$/.test(home) ? ['bengaluru', 'bangalore'] : [home];
-        const near = (x) => names.some((n) => (x.label || '').toLowerCase().includes(n)) ? 0 : 1;
+        const near = (x) => names.some((n) => (x.label || '').toLowerCase().includes(n) || (x.city || '').toLowerCase().includes(n)) ? 0 : 1;
         merged.sort((a, b) => near(a) - near(b));   // stable: order inside each group is kept
       }
       setSuggestions(merged.slice(0, 14));
@@ -500,8 +513,32 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
                 </li>
               )}
               {suggestions.map((s) => (
-                <li key={`${s.type}-${s.label}`} className="border-b border-gray-50 last:border-0">
-                  <button type="button" onClick={() => addPlace(s.name, s.type === 'City')} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50">
+                <li key={`${s.type}-${s.label}-${s.url || ''}`} className="border-b border-gray-50 last:border-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (s.url) {
+                        const item = {
+                          id: `explore-${s.label}`.toLowerCase().replace(/[^a-z0-9-]/g, '_'),
+                          tab,
+                          places: [s.city || getPreferredCity() || 'Indore'],
+                          city: s.city || getPreferredCity() || 'Indore',
+                          label: s.label,
+                          subLabel: s.label,
+                          filters: {},
+                          url: s.url,
+                          timestamp: Date.now()
+                        };
+                        addRecentSearch(item);
+                        poppedRef.current = true;
+                        onClose?.();
+                        navigate(s.url, { replace: true });
+                      } else {
+                        addPlace(s.name, s.type === 'City');
+                      }
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50"
+                  >
                     <ArrowUpLeft size={15} className="shrink-0 text-gray-400" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-semibold text-gray-800">{s.label}</span>
