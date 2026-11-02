@@ -136,7 +136,7 @@ const RecommendInsights = ({ transactionType, city, themeColor = 'emerald' }) =>
 
                             {/* Circular Image */}
                             <div className="w-16 h-16 md:w-24 md:h-24 lg:w-32 lg:h-32 rounded-full border-[3px] border-white shadow-md overflow-hidden relative z-10 mb-3 group-hover:scale-105 transition-transform duration-300">
-                                <img 
+                                <img loading="lazy" decoding="async" 
                                     src={insight.coverImage} 
                                     alt={insight.locality}
                                     className="w-full h-full object-cover"

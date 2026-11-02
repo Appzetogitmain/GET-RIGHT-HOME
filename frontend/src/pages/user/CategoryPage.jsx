@@ -616,7 +616,7 @@ const CategoryPage = () => {
                     </button>
                     {category?.homeIconUrl && (
                         <div className="w-10 h-10 bg-gray-50 rounded-xl p-1.5 border border-gray-100 shrink-0">
-                            <img src={toAssetUrl(category.homeIconUrl)} alt="" className="w-full h-full object-contain" />
+                            <img loading="lazy" decoding="async" src={toAssetUrl(category.homeIconUrl)} alt="" className="w-full h-full object-contain" />
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -662,7 +662,7 @@ const CategoryPage = () => {
                                 className="flex flex-col items-center group"
                             >
                                 <div className="w-full aspect-square bg-gray-50 rounded-3xl flex items-center justify-center p-4 border border-gray-100 shadow-sm group-hover:shadow-md group-hover:border-emerald-100 transition-all mb-2 overflow-hidden">
-                                    <img src={toAssetUrl(sub.iconUrl || sub.imageUrl)} alt={sub.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
+                                    <img loading="lazy" decoding="async" src={toAssetUrl(sub.iconUrl || sub.imageUrl)} alt={sub.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
                                 </div>
                                 <span className="text-[10px] font-bold text-gray-800 text-center leading-tight line-clamp-2 px-1 uppercase tracking-tighter">
                                     {sub.title}
@@ -759,7 +759,7 @@ const CategoryPage = () => {
                                     <div key={service.id || service._id} className="flex gap-3 rounded-2xl border border-gray-200 p-3 items-center">
                                         <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">
                                             {(service.imageUrl || service.icon) && (
-                                                <img src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
+                                                <img loading="lazy" decoding="async" src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">

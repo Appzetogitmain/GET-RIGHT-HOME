@@ -68,7 +68,7 @@ const AdminReelAnalysis = () => {
     const [formCaption, setFormCaption] = useState('');
     const [formBhkSelections, setFormBhkSelections] = useState({});
 
-    const [formVideoType, setFormVideoType] = useState('url'); // 'file' or 'url'
+    const [formVideoType, setFormVideoType] = useState('file'); // 'file' only
     const [formVideoUrl, setFormVideoUrl] = useState('');
     const [formSelectedFile, setFormSelectedFile] = useState(null);
     const [formSelectedFileName, setFormSelectedFileName] = useState('');
@@ -142,7 +142,7 @@ const AdminReelAnalysis = () => {
         setFormContact('');
         setFormCaption('');
         setFormBhkSelections({});
-        setFormVideoType('url');
+        setFormVideoType('file');
         setFormVideoUrl('');
         setFormSelectedFile(null);
         setFormSelectedFileName('');
@@ -159,7 +159,7 @@ const AdminReelAnalysis = () => {
         setFormType(reel.propertyType || PROPERTY_TYPES[0]);
         setFormContact(reel.contactNumber || '');
         setFormCaption(reel.caption || '');
-        setFormVideoType(reel.videoType || 'url');
+        setFormVideoType(reel.videoType || 'file');
         setFormVideoUrl(reel.videoUrl || '');
         setFormSelectedFile(null);
         setFormSelectedFileName('');
@@ -196,12 +196,8 @@ const AdminReelAnalysis = () => {
     const handleReelSubmit = async (e) => {
         if (e) e.preventDefault();
 
-        if (!editingReel && formVideoType === 'file' && !formSelectedFile) {
+        if (!editingReel && !formSelectedFile) {
             toast.error('Please select a video file');
-            return;
-        }
-        if (formVideoType === 'url' && !formVideoUrl) {
-            toast.error('Please provide a video URL link');
             return;
         }
         if (!formTitle || !formAddress || !formContact) {
@@ -618,7 +614,7 @@ const AdminReelAnalysis = () => {
                                 <h3 className="text-lg font-bold text-gray-800">
                                     {editingReel ? 'Edit Reel Details' : 'Create New Reel'}
                                 </h3>
-                                <p className="text-xs text-gray-500">Enter the specifications and video link/file for the reel</p>
+                                <p className="text-xs text-gray-500">Enter the specifications and video file for the reel</p>
                             </div>
                             <button
                                 onClick={() => setModalOpen(false)}
@@ -629,81 +625,42 @@ const AdminReelAnalysis = () => {
                         </div>
 
                         <form onSubmit={handleReelSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                            {/* Video Source Type */}
+                            {/* Video File Upload */}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Video Source Type</label>
-                                <div className="flex border border-gray-200 rounded-xl overflow-hidden p-1 bg-gray-50">
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormVideoType('file')}
-                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                                            formVideoType === 'file' ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'
-                                        }`}
-                                    >
-                                        <Video size={13} />
-                                        <span>Upload File</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormVideoType('url')}
-                                        className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                                            formVideoType === 'url' ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'
-                                        }`}
-                                    >
-                                        <Link size={13} />
-                                        <span>Link URL</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {formVideoType === 'file' ? (
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Video File</label>
-                                    <div 
-                                        onClick={() => document.getElementById('adminFileInput')?.click()}
-                                        className="border border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all"
-                                    >
-                                        <Video className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                                        <span className="text-xs font-bold text-gray-700">
-                                            {formSelectedFileName ? 'Change Video File' : 'Select Video File (MP4/WebM)'}
+                                <label className="text-xs font-bold text-gray-500 uppercase">Video File (MP4/WebM) *</label>
+                                <div 
+                                    onClick={() => document.getElementById('adminFileInput')?.click()}
+                                    className="border border-dashed border-gray-300 rounded-xl p-6 text-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-all"
+                                >
+                                    <Video className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                    <span className="text-xs font-bold text-gray-700">
+                                        {formSelectedFileName ? 'Change Video File' : (editingReel ? 'Replace Video File (Optional)' : 'Select Video File (MP4/WebM)')}
+                                    </span>
+                                    <p className="text-[10px] text-gray-500 mt-1">Maximum size 30MB</p>
+                                    {formSelectedFileName && (
+                                        <span className="mt-2 inline-block text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-md max-w-xs truncate">
+                                            {formSelectedFileName}
                                         </span>
-                                        <p className="text-[10px] text-gray-500 mt-1">Maximum size 30MB</p>
-                                        {formSelectedFileName && (
-                                            <span className="mt-2 inline-block text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-md max-w-xs truncate">
-                                                {formSelectedFileName}
-                                            </span>
-                                        )}
-                                        <input
-                                            id="adminFileInput"
-                                            type="file"
-                                            accept="video/*"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    if (file.size > 30 * 1024 * 1024) {
-                                                        toast.error('Video must be under 30MB');
-                                                        return;
-                                                    }
-                                                    setFormSelectedFile(file);
-                                                    setFormSelectedFileName(file.name);
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Video link / Shorts URL</label>
+                                    )}
                                     <input
-                                        type="text"
-                                        value={formVideoUrl}
-                                        onChange={(e) => setFormVideoUrl(e.target.value)}
-                                        placeholder="e.g. https://www.instagram.com/reel/Code/"
-                                        className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 placeholder-gray-400 font-medium"
+                                        id="adminFileInput"
+                                        type="file"
+                                        accept="video/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                if (file.size > 30 * 1024 * 1024) {
+                                                    toast.error('Video must be under 30MB');
+                                                    return;
+                                                }
+                                                setFormSelectedFile(file);
+                                                setFormSelectedFileName(file.name);
+                                            }
+                                        }}
                                     />
                                 </div>
-                            )}
+                            </div>
 
                             {/* Title & Address */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

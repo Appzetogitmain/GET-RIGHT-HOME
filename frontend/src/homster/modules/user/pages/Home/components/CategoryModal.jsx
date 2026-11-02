@@ -202,7 +202,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                         </button>
                       ) : category?.homeIconUrl && (
                         <div className="w-10 h-10 bg-gray-50 rounded-xl p-1.5 border border-gray-100">
-                          <img src={toAssetUrl(category.homeIconUrl)} alt="" className="w-full h-full object-contain" />
+                          <img loading="lazy" decoding="async" src={toAssetUrl(category.homeIconUrl)} alt="" className="w-full h-full object-contain" />
                         </div>
                       )}
                       <div>
@@ -243,7 +243,7 @@ const CategoryModal = React.memo(({ isOpen, onClose, category, currentCity }) =>
                             className="flex flex-col items-center group"
                           >
                             <div className="w-full aspect-square bg-white rounded-2xl flex items-center justify-center p-3 border border-gray-200 shadow-sm transition-all mb-2 overflow-hidden">
-                              <img src={toAssetUrl(sub.iconUrl || sub.imageUrl)} alt={sub.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
+                              <img loading="lazy" decoding="async" src={toAssetUrl(sub.iconUrl || sub.imageUrl)} alt={sub.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
                             </div>
                             <span className="text-xs font-medium text-gray-800 text-center leading-tight line-clamp-2 px-1">
                               {sub.title}

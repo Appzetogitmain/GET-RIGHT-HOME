@@ -164,7 +164,7 @@ const PostedByChoice = ({ transactionType = 'buy', city, theme }) => {
                                 className="shrink-0 snap-center w-[160px] md:w-[200px] lg:w-[260px] xl:w-[320px] h-[190px] md:h-[230px] lg:h-[270px] xl:h-[310px] bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
                             >
                                 <div className="w-full h-[120px] md:h-[150px] lg:h-[180px] xl:h-[220px] bg-gray-100 overflow-hidden relative">
-                                    <img 
+                                    <img loading="lazy" decoding="async" 
                                         src={opt.image} 
                                         alt={opt.label} 
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 

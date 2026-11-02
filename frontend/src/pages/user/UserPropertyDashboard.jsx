@@ -163,7 +163,7 @@ const UserPropertyDashboard = () => {
             {/* Hero */}
             <div className="relative h-52 overflow-hidden">
                 {coverImage
-                    ? <img src={coverImage} alt={propertyName} className="w-full h-full object-cover" />
+                    ? <img loading="lazy" decoding="async" src={coverImage} alt={propertyName} className="w-full h-full object-cover" />
                     : <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-violet-800" />
                 }
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />

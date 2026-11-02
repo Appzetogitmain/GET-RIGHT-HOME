@@ -8,6 +8,11 @@ gsap.registerPlugin(ScrollTrigger);
 export const useLenis = (disabled = false) => {
     useEffect(() => {
         if (disabled) return;
+        // Smooth-scroll emulation (Lenis) re-implements scrolling in JS and makes touch
+        // devices feel heavy and laggy. Phones/tablets and reduced-motion users keep native scrolling.
+        const isTouch = window.matchMedia?.('(pointer: coarse)').matches || 'ontouchstart' in window;
+        const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (isTouch || reduceMotion) return;
 
         const lenis = new Lenis({
             duration: 1.2,

@@ -236,7 +236,7 @@ const BrokerProfilePage = () => {
                             <div className="relative shrink-0">
                                 <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full border-3 sm:border-4 border-white shadow-xl overflow-hidden bg-white flex items-center justify-center">
                                     {broker.profileImage ? (
-                                        <img 
+                                        <img loading="lazy" decoding="async" 
                                             src={broker.profileImage} 
                                             alt={broker.name} 
                                             className="w-full h-full object-cover" 
@@ -500,7 +500,7 @@ const BrokerProfilePage = () => {
 
                                 {/* Right 3D House Visual (Exact Figma Style) */}
                                 <div className="md:col-span-5 flex items-center justify-center">
-                                    <img 
+                                    <img loading="lazy" decoding="async" 
                                         src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=700&q=80" 
                                         alt="Property Architecture"
                                         className="w-full max-w-xs sm:max-w-sm h-48 sm:h-52 object-cover rounded-2xl shadow-md border border-gray-100"

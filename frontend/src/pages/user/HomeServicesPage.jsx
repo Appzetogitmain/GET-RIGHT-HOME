@@ -305,7 +305,7 @@ const HomeServicesPage = () => {
                                 id: 'default-promo-1',
                                 title: 'Instant Home Services & Repairs',
                                 subtitle: 'Expert technicians delivered to your door in 30 minutes',
-                                imageUrl: '/instant-service.png',
+                                imageUrl: '/instant-service.webp',
                                 features: ['30 Min Arrival', 'Verified Technicians', 'Satisfaction Guaranteed']
                             }
                         ]).map((promo) => (
@@ -314,7 +314,7 @@ const HomeServicesPage = () => {
                                 className="min-w-full snap-center h-full relative flex-shrink-0"
                             >
                                 <img
-                                    src={promo.imageUrl || promo.image || '/instant-service.png'}
+                                    src={promo.imageUrl || promo.image || '/instant-service.webp'}
                                     alt={promo.title || 'Home Service'}
                                     className="absolute inset-0 w-full h-full object-cover object-top sm:object-center"
                                 />
@@ -1140,7 +1140,7 @@ const HomeServicesPage = () => {
                                 className="min-w-[170px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 p-3 cursor-pointer"
                             >
                                 <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-3">
-                                    <img src={item.imageUrl || item.image} alt={item.title} className="w-full h-full object-contain" />
+                                    <img loading="lazy" decoding="async" src={item.imageUrl || item.image} alt={item.title} className="w-full h-full object-contain" />
                                 </div>
                                 <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 text-center px-1 h-8 leading-tight">
                                     {item.title}
@@ -1180,7 +1180,7 @@ const HomeServicesPage = () => {
                                 className="min-w-[165px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 overflow-hidden cursor-pointer"
                             >
                                 <div className="h-40 bg-gray-50 p-2 overflow-hidden">
-                                    <img src={service.imageUrl || service.image} alt={service.title} className="w-full h-full object-contain" />
+                                    <img loading="lazy" decoding="async" src={service.imageUrl || service.image} alt={service.title} className="w-full h-full object-contain" />
                                 </div>
                                 <div className="p-3 flex flex-col items-center">
                                     <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 mb-2 h-8 leading-tight text-center">
@@ -1243,7 +1243,7 @@ const HomeServicesPage = () => {
                                 className="min-w-[165px] bg-white rounded-[1.5rem] border border-gray-100 shadow-lg shadow-gray-200/30 overflow-hidden cursor-pointer"
                             >
                                 <div className="h-40 bg-gray-50 p-2 overflow-hidden">
-                                    <img src={card.imageUrl || card.image} alt={card.title} className="w-full h-full object-contain" />
+                                    <img loading="lazy" decoding="async" src={card.imageUrl || card.image} alt={card.title} className="w-full h-full object-contain" />
                                 </div>
                                 <div className="p-3 flex flex-col items-center">
                                     <h4 className="font-bold text-gray-800 text-[11px] line-clamp-2 mb-2 h-8 leading-tight text-center">

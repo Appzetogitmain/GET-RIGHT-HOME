@@ -225,7 +225,7 @@ const NotificationsPage = () => {
                                                 )}
 
                                                 {image ? (
-                                                    <img src={image} alt="" className="h-11 w-11 shrink-0 rounded-full bg-gray-100 object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                                    <img loading="lazy" decoding="async" src={image} alt="" className="h-11 w-11 shrink-0 rounded-full bg-gray-100 object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                                 ) : (
                                                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}1A`, color }}>
                                                         <Icon size={20} />

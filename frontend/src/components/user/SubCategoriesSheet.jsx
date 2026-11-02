@@ -80,7 +80,7 @@ const SubCategoriesSheet = ({ category, onClose, onPick }) => {
                     className="flex flex-col items-center text-center transition active:scale-95"
                   >
                     <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-2.5 shadow-sm">
-                      {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <Layers className="text-slate-300" />}
+                      {img ? <img loading="lazy" decoding="async" src={img} alt="" className="h-full w-full object-contain" /> : <Layers className="text-slate-300" />}
                     </div>
                     <span className="mt-2 line-clamp-2 text-xs font-medium leading-tight text-slate-700">{sub.title}</span>
                   </button>

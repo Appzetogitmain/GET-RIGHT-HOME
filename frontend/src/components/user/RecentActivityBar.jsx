@@ -68,7 +68,7 @@ const RecentActivityBar = () => {
                                     >
                                         <span className="w-6 h-6 rounded-full bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                                             {p.image ? (
-                                                <img src={p.image} alt="" className="w-full h-full object-cover" />
+                                                <img loading="lazy" decoding="async" src={p.image} alt="" className="w-full h-full object-cover" />
                                             ) : (
                                                 <Building2 size={12} className="text-gray-400" />
                                             )}

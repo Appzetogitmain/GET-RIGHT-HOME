@@ -63,8 +63,8 @@ const BeforeAfter = ({ before, after }) => {
   const [pos, setPos] = useState(50);
   return (
     <div className="relative aspect-[4/3] w-full select-none overflow-hidden rounded-t-3xl bg-slate-200">
-      <img src={after} alt="After" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
-      <img src={before} alt="Before" className="absolute inset-0 h-full w-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} draggable={false} />
+      <img loading="lazy" decoding="async" src={after} alt="After" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+      <img loading="lazy" decoding="async" src={before} alt="Before" className="absolute inset-0 h-full w-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} draggable={false} />
       <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white" style={{ left: `${pos}%` }} />
       <div className="pointer-events-none absolute top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow" style={{ left: `${pos}%` }}>
         <ChevronLeft className="h-3 w-3" /> Drag <ChevronRight className="h-3 w-3" />
@@ -96,7 +96,7 @@ const ColourVisualiser = ({ p }) => {
       )}
       <div className="mx-5 mt-5">
         <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-slate-200">
-          {group.image && <img src={toUrl(group.image)} alt="" className="h-full w-full object-cover" />}
+          {group.image && <img loading="lazy" decoding="async" src={toUrl(group.image)} alt="" className="h-full w-full object-cover" />}
           {/* Selected colour is tinted onto the photo so the customer can preview it. */}
           <div className="absolute inset-0 mix-blend-multiply transition-colors" style={{ backgroundColor: colour.hex, opacity: 0.45 }} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
@@ -231,7 +231,7 @@ const PremiumEstimatePage = () => {
 
       {/* Hero */}
       <div className="relative h-[420px] w-full overflow-hidden bg-slate-800">
-        {hero && <img src={hero} alt="" className="h-full w-full object-cover" />}
+        {hero && <img loading="lazy" decoding="async" src={hero} alt="" className="h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30" />
         <div className="absolute inset-x-0 bottom-0 mx-auto max-w-3xl px-5 pb-6 text-white">
           {rating > 0 && (

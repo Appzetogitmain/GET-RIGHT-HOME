@@ -764,7 +764,7 @@ const ProfileEdit = () => {
             >
               <div className="w-24 h-24 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg overflow-hidden border-4 border-white ring-1 ring-slate-100 group-hover:opacity-90 transition-opacity">
                 {formData.profileImage ? (
-                  <img src={formData.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={formData.profileImage} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   <User size={32} />
                 )}
@@ -1183,7 +1183,7 @@ const ProfileEdit = () => {
                     className="relative w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 group"
                   >
                     {formData.builderProfile?.brandLogo ? (
-                      <img src={formData.builderProfile.brandLogo} alt="Company logo" className="w-full h-full object-contain" />
+                      <img loading="lazy" decoding="async" src={formData.builderProfile.brandLogo} alt="Company logo" className="w-full h-full object-contain" />
                     ) : (
                       <Image size={22} className="text-slate-300" />
                     )}

@@ -175,7 +175,7 @@ const MoveInTimelineSection = ({ transactionType = 'buy', city, theme }) => {
                                 <div className="absolute bottom-0 left-0 right-0 h-[110px] md:h-[135px] lg:h-[160px] xl:h-[200px] mt-auto overflow-hidden rounded-b-2xl">
                                     {/* Gradient covering the top part of the image to blend it with the card background */}
                                     <div className={`absolute top-0 left-0 right-0 h-10 bg-gradient-to-b ${idx === 0 ? 'from-[#FFF7EB] via-[#FFF7EB]/80' : 'from-[#F0F9FF] via-[#F0F9FF]/80'} to-transparent z-10 pointer-events-none`}></div>
-                                    <img 
+                                    <img loading="lazy" decoding="async" 
                                         src={opt.image} 
                                         alt={opt.label} 
                                         className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" 

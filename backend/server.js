@@ -141,6 +141,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import compression from 'compression';
 import adminDevRoutes from './routes/adminDevRoutes.js';
 import whatsappRoutes from './routes/whatsappRoutes.js';
+import { microCache } from './utils/microCache.js';
 import zoneCatalogRoutes from './routes/zoneCatalogRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
@@ -184,7 +185,7 @@ import adminSupportRoutes from './routes/adminSupportRoutes.js';
 import loanLeadRoutes from './routes/loanLeadRoutes.js';
 import adminLoanLeadRoutes from './routes/adminLoanLeadRoutes.js';
 import { getPublicHomeContent } from './controllers/homeContentController.js';
-import { getPublicCategories, getPublicSubCategories, getPublicServices } from './controllers/homeServiceController.js';
+import { getPublicCategories, getPublicSubCategories, getPublicServices, getPublicHomeData } from './controllers/homeServiceController.js';
 import { getActiveCities } from './controllers/cityController.js';
 import { getPublicBuilderDetails, getPublicBuilders } from './controllers/builderController.js';
 import { seedAdminOnStartup } from './utils/adminSeeder.js';
@@ -193,6 +194,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin/estimates', adminEstimateRoutes);
 app.use('/api/admin/movers', adminMoverRoutes); // before the generic /api/admin router
+const catalogCache = microCache(30000);
+// Any admin change to the catalog, zones or workers drops the cached lists straight away.
+app.use(['/api/admin', '/api/zones'], (req, res, next) => {
+  if (req.method !== 'GET') res.on('finish', () => catalogCache.clear());
+  next();
+});
 app.use('/api/admin/zone-catalog', zoneCatalogRoutes); // admin-only; must precede the generic /api/admin router
 app.use('/api/whatsapp', whatsappRoutes); // webhook from the WhatsApp platform (public, no login)
 app.use('/api/admin/dev', adminDevRoutes); // superadmin-only; must precede the generic /api/admin router
@@ -228,9 +235,10 @@ app.use('/api/admin/sub-categories', hsSubCategoryRoutes);
 app.use('/api/admin/services', hsServiceRoutes);
 app.use('/api/admin/insights', adminInsightRoutes);
 app.get('/api/public/home-content', getPublicHomeContent);
-app.get('/api/public/categories', getPublicCategories);
-app.get('/api/public/sub-categories', getPublicSubCategories);
-app.get('/api/public/services', getPublicServices);
+app.get('/api/public/home-data', catalogCache, getPublicHomeData);
+app.get('/api/public/categories', catalogCache, getPublicCategories);
+app.get('/api/public/sub-categories', catalogCache, getPublicSubCategories);
+app.get('/api/public/services', catalogCache, getPublicServices);
 app.get('/api/public/cities', getActiveCities);
 app.get('/api/public/builders', getPublicBuilders);
 app.get('/api/public/builders/:id', getPublicBuilderDetails);
