@@ -149,13 +149,13 @@ const PopularBuilders = ({ locality, themeColor = 'emerald' }) => {
                             {/* Circular Logo Card */}
                             <div className="relative w-28 h-28 rounded-full border border-gray-100 bg-white shadow-sm flex items-center justify-center p-3 transition-all duration-300 group-hover:scale-105 group-hover:shadow-md group-hover:border-indigo-100 mb-4 overflow-hidden">
                                 {builder.profile?.brandLogo ? (
-                                    <img 
+                                    <img loading="lazy" decoding="async" 
                                         src={builder.profile.brandLogo} 
                                         alt={builder.name} 
                                         className="w-full h-full rounded-full object-cover" 
                                     />
                                 ) : builder.brandLogo ? (
-                                    <img 
+                                    <img loading="lazy" decoding="async" 
                                         src={builder.brandLogo} 
                                         alt={builder.name} 
                                         className="w-full h-full rounded-full object-cover" 

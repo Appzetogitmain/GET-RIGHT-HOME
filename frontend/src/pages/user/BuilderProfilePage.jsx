@@ -152,7 +152,7 @@ const BuilderProfilePage = () => {
     <div className="min-h-screen bg-slate-50/50 pb-28 relative">
       {/* ── Banner Header ── */}
       <div className="relative h-48 md:h-64 bg-slate-100 overflow-hidden">
-        <img 
+        <img loading="lazy" decoding="async" 
           src={coverImg} 
           alt="Cover" 
           className="w-full h-full object-cover"
@@ -171,7 +171,7 @@ const BuilderProfilePage = () => {
         <div className="absolute bottom-3 right-4">
           <div className="w-16 h-16 rounded-full border-2 border-white bg-white shadow-md flex items-center justify-center p-1.5 overflow-hidden">
             {builderData.logo ? (
-              <img src={builderData.logo} alt={builderData.name} className="w-full h-full object-contain" />
+              <img loading="lazy" decoding="async" src={builderData.logo} alt={builderData.name} className="w-full h-full object-contain" />
             ) : (
               <InitialsAvatar name={builderData.name} size="sm" />
             )}
@@ -358,7 +358,7 @@ const BuilderProfilePage = () => {
                     onClick={() => navigateToProperty(p)}
                     className="flex-shrink-0 w-[280px] bg-white border border-slate-100 rounded-2xl p-3 flex gap-3 shadow-sm snap-start cursor-pointer hover:border-blue-100 transition-colors"
                   >
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={p.coverImage} 
                       alt={p.propertyName}
                       className="w-16 h-16 rounded-xl object-cover bg-slate-50 shrink-0"
@@ -502,7 +502,7 @@ const BuilderProfilePage = () => {
                     className="bg-white border border-slate-100 rounded-2xl p-3 flex gap-3 shadow-sm cursor-pointer hover:border-blue-100 transition-colors"
                   >
                     <div className="relative shrink-0">
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={p.coverImage} 
                         alt={p.propertyName}
                         className="w-16 h-16 rounded-xl object-cover bg-slate-50"

@@ -169,7 +169,7 @@ const UserScrapPage = () => {
                 <div className="flex gap-4">
                   {item.images && item.images.length > 0 && (
                     <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border border-gray-50 bg-gray-50/50">
-                      <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
                     </div>
                   )}
                   <div className="flex-1">
@@ -269,7 +269,7 @@ const UserScrapPage = () => {
                     <div className="grid grid-cols-2 gap-3">
                       {selectedScrap.images.map((img, i) => (
                         <div key={i} className={`rounded-3xl overflow-hidden border border-gray-100 ${i === 0 && selectedScrap.images.length % 2 !== 0 ? 'col-span-2 aspect-video' : 'aspect-square'}`}>
-                          <img src={img} alt="Scrap" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={img} alt="Scrap" className="w-full h-full object-cover" />
                         </div>
                       ))}
                     </div>

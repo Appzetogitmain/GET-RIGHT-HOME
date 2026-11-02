@@ -299,12 +299,8 @@ export default function ReelsPage() {
 
   const handleUploadSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!editingReel && videoType === 'file' && !selectedFile) {
+    if (!editingReel && !selectedFile) {
       toast.error('Please select a video file');
-      return;
-    }
-    if (videoType === 'url' && !videoUrl) {
-      toast.error('Please provide a video URL link');
       return;
     }
     if (!title) {
@@ -833,7 +829,7 @@ export default function ReelsPage() {
                 <h3 className="font-extrabold text-sm uppercase tracking-wider text-white">
                   {uploadStep === 1 && "Select City Area"}
                   {uploadStep === 2 && "Select Target Budget"}
-                  {uploadStep === 3 && "Add Video Reel Source"}
+                  {uploadStep === 3 && "Upload Video File"}
                   {uploadStep === 4 && "Add Property Specifications"}
                 </h3>
               </div>
@@ -910,59 +906,24 @@ export default function ReelsPage() {
               </div>
             )}
 
-            {/* STEP 3: Video File Upload OR URL Paste */}
+            {/* STEP 3: Video File Upload */}
             {uploadStep === 3 && (
               <div className="space-y-4 text-white">
-                <div className="flex border border-white/10 rounded-xl overflow-hidden p-1 bg-white/5">
-                  <button
-                    type="button"
-                    onClick={() => setVideoType('file')}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${videoType === 'file' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
-                      }`}
-                  >
-                    <Video size={13} />
-                    <span>Upload Video File</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVideoType('url')}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${videoType === 'url' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
-                      }`}
-                  >
-                    <Link size={13} />
-                    <span>Paste Link URL</span>
-                  </button>
-                </div>
-
-                {videoType === 'file' ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border border-dashed border-white/15 rounded-2xl p-8 flex flex-col items-center justify-center bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
-                  >
-                    <Video className="w-8 h-8 text-neutral-400 mb-2 animate-pulse" />
-                    <span className="text-xs font-bold text-white">
-                      {selectedFileName ? 'Change Selected Video' : 'Select MP4/WebM Video'}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border border-dashed border-white/15 rounded-2xl p-8 flex flex-col items-center justify-center bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                >
+                  <Video className="w-8 h-8 text-neutral-400 mb-2 animate-pulse" />
+                  <span className="text-xs font-bold text-white">
+                    {selectedFileName ? 'Change Selected Video' : (editingReel ? 'Replace Video File (Optional)' : 'Select MP4/WebM Video')}
+                  </span>
+                  <span className="text-[9px] text-white/55 mt-1">Maximum size 20MB, duration max 30s.</span>
+                  {selectedFileName && (
+                    <span className="mt-3 text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 rounded-lg px-3 py-1 font-mono truncate max-w-[200px]">
+                      {selectedFileName}
                     </span>
-                    <span className="text-[9px] text-white/55 mt-1">Maximum size 20MB, duration max 30s.</span>
-                    {selectedFileName && (
-                      <span className="mt-3 text-[10px] text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 rounded-lg px-3 py-1 font-mono truncate max-w-[200px]">
-                        {selectedFileName}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-[9px] font-black text-white/60 uppercase tracking-wider mb-2">Video/Short URL (Instagram Reel or YouTube Short Link)</label>
-                    <input
-                      type="text"
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                      placeholder="e.g. https://www.instagram.com/reel/Code/"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 font-medium"
-                    />
-                    <span className="text-[9px] text-neutral-500 mt-1.5 block">Paste complete URL of YouTube Shorts or Instagram Reels.</span>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 <div className="flex gap-3 mt-6">
                   <button
@@ -974,7 +935,7 @@ export default function ReelsPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={videoType === 'file' ? !selectedFile : !videoUrl}
+                    disabled={!editingReel && !selectedFile}
                     onClick={() => setUploadStep(4)}
                     className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg"
                   >

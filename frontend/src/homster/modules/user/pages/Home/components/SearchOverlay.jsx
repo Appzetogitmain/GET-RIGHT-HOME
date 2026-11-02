@@ -309,7 +309,7 @@ const SearchOverlay = ({ isOpen, onClose, categories = [], onCategoryClick }) =>
                         >
                           <div className="flex items-center gap-3">
                             {service.imageUrl && (
-                              <img src={toAssetUrl(service.imageUrl)} alt="" className="w-8 h-8 rounded-lg object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                              <img loading="lazy" decoding="async" src={toAssetUrl(service.imageUrl)} alt="" className="w-8 h-8 rounded-lg object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                             )}
                             <span className="font-medium text-gray-700 group-hover:text-gray-900 transition-colors">{service.title}</span>
                           </div>

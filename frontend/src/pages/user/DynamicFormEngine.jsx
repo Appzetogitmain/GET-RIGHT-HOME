@@ -1194,7 +1194,7 @@ const DynamicFormEngine = () => {
                     <div key={i} className="bg-slate-50 p-2 rounded-xl border border-slate-200 relative group flex flex-col gap-1.5">
                       <div className="h-24 w-full rounded-lg overflow-hidden relative bg-slate-900 flex items-center justify-center">
                         {ytId ? (
-                          <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="video preview" className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="video preview" className="w-full h-full object-cover" />
                         ) : isVid ? (
                           <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
                         ) : brokenMedia[`${field.name}_${i}`] ? (
@@ -1541,7 +1541,7 @@ const DynamicFormEngine = () => {
                                 }} />
                               </label>
                             </div>
-                            {item[subF.name] && <img src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
+                            {item[subF.name] && <img loading="lazy" decoding="async" src={item[subF.name]} alt="preview" className="h-12 w-auto mt-2 rounded border" />}
                             {errors[`${field.name}_${index}_${subF.name}`] && <p className="text-red-500 text-[10px] mt-2 font-semibold">{errors[`${field.name}_${index}_${subF.name}`]}</p>}
                           </div>
                         );
@@ -1770,7 +1770,7 @@ const DynamicFormEngine = () => {
               <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 shrink-0 overflow-hidden flex items-center justify-center">
                 {fileUrl ? (
                   isImage
-                    ? <img src={fileUrl} alt={field.label} className="w-full h-full object-cover" />
+                    ? <img loading="lazy" decoding="async" src={fileUrl} alt={field.label} className="w-full h-full object-cover" />
                     : <span className="text-[9px] font-bold text-slate-500 text-center px-1">FILE</span>
                 ) : (
                   <span className="text-[9px] font-bold text-slate-400">EMPTY</span>
@@ -2047,7 +2047,7 @@ const DynamicFormEngine = () => {
 
                 {formData.logo ? (
                   <div className="relative w-24 h-24 bg-white border border-slate-200 rounded-xl overflow-hidden group">
-                    <img src={formData.logo} alt="Property Logo" className="w-full h-full object-contain" />
+                    <img loading="lazy" decoding="async" src={formData.logo} alt="Property Logo" className="w-full h-full object-contain" />
                     <button
                       type="button"
                       onClick={() => handleChange('logo', '')}

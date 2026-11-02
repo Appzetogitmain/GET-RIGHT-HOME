@@ -34,7 +34,7 @@ const CategoryLanding = ({ category, subCategories, loading, cityName, cartCount
     <div className="min-h-screen bg-white pb-10">
       {/* Hero */}
       <div className="relative h-64 w-full overflow-hidden bg-slate-800">
-        {hero && <img src={hero} alt="" className="h-full w-full object-cover" />}
+        {hero && <img loading="lazy" decoding="async" src={hero} alt="" className="h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/20" />
         <div className="absolute inset-x-0 top-0 mx-auto flex max-w-3xl items-center gap-2 px-4 pt-4">
           <button type="button" onClick={onBack} aria-label="Back" className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur">
@@ -98,7 +98,7 @@ const CategoryLanding = ({ category, subCategories, loading, cityName, cartCount
                 return (
                   <button key={sub.id || sub._id} type="button" onClick={() => onPick(sub)} className="flex flex-col items-center text-center transition active:scale-95">
                     <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-slate-50 p-1.5">
-                      {img ? <img src={img} alt="" className="h-full w-full object-contain" /> : <span className="text-2xl font-bold text-slate-300">{String(sub.title || '?').charAt(0)}</span>}
+                      {img ? <img loading="lazy" decoding="async" src={img} alt="" className="h-full w-full object-contain" /> : <span className="text-2xl font-bold text-slate-300">{String(sub.title || '?').charAt(0)}</span>}
                     </span>
                     <span className="mt-2 line-clamp-2 text-xs font-medium leading-tight text-slate-800">{sub.title}</span>
                   </button>

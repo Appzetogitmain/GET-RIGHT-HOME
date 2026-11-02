@@ -423,7 +423,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                                                     className="flex flex-col items-center justify-center cursor-pointer group"
                                                 >
                                                     <div className={`w-14 h-14 rounded-full overflow-hidden mb-2 border-2 transition-all ${selectedCity === city.name ? 'border-emerald-500 shadow-md scale-105' : 'border-transparent group-hover:border-emerald-200'}`}>
-                                                        <img src={city.image} alt={city.name} className="w-full h-full object-cover" />
+                                                        <img loading="lazy" decoding="async" src={city.image} alt={city.name} className="w-full h-full object-cover" />
                                                     </div>
                                                     <span className={`text-xs font-semibold text-center ${selectedCity === city.name ? 'text-emerald-600' : 'text-gray-600 group-hover:text-emerald-500'}`}>{city.name}</span>
                                                 </div>
@@ -693,7 +693,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                                 </span>
                             </div>
                             <div className="w-[85px] h-[75px] shrink-0 rounded-lg overflow-hidden bg-gray-50">
-                                <img src={toAssetUrl(subcat.imageUrl)} alt={subcat.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                <img loading="lazy" decoding="async" src={toAssetUrl(subcat.imageUrl)} alt={subcat.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                             </div>
                         </div>
                     ))}
@@ -872,7 +872,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
             <div className="flex items-end justify-between mb-5 px-1">
                 <div>
                     <div className="flex items-center gap-2 mb-0.5">
-                        <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Star.png" alt="Star" className="w-9 h-9 drop-shadow-sm" />
+                        <img loading="lazy" decoding="async" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Star.png" alt="Star" className="w-9 h-9 drop-shadow-sm" />
                         <span className="text-3xl font-extrabold text-[#b8860b] tracking-tight">4.8</span>
                     </div>
                     <p className="text-[12px] text-[#4f709c] font-medium pl-1">Average rating based on 90,445 reviews</p>
@@ -895,7 +895,7 @@ const PackersAndMoversForm = ({ category, subCategory, services, relatedSubCateg
                 {PM_CUSTOMER_REVIEWS.map((review, idx) => (
                     <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-w-[240px] max-w-[240px] snap-start shrink-0">
                         <div className="flex items-center gap-3 mb-3">
-                            <img src={review.avatar} alt={review.name} className="w-10 h-10 rounded-full object-cover bg-gray-100" />
+                            <img loading="lazy" decoding="async" src={review.avatar} alt={review.name} className="w-10 h-10 rounded-full object-cover bg-gray-100" />
                             <div className="flex-1">
                                 <h3 className="text-[12px] font-bold text-gray-800 leading-tight">{review.name}</h3>
                                 <div className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max mt-1 border border-emerald-100">
@@ -1979,7 +1979,7 @@ const SubCategoryPage = () => {
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-6 h-6 rounded-full bg-gray-300 overflow-hidden border border-white">
-                                                                <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${project.workerName || 'worker'}`} alt="avatar" className="w-full h-full object-cover" />
+                                                                <img loading="lazy" decoding="async" src={`https://api.dicebear.com/7.x/notionists/svg?seed=${project.workerName || 'worker'}`} alt="avatar" className="w-full h-full object-cover" />
                                                             </div>
                                                             <div className="flex items-center gap-1.5 text-white text-[11px] font-medium">
                                                                 <span className="font-bold">{project.workerName || 'Expert'}</span>
@@ -2069,7 +2069,7 @@ const SubCategoryPage = () => {
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
-                                                        <img src={review.avatar} alt={review.name} className="w-full h-full object-cover" />
+                                                        <img loading="lazy" decoding="async" src={review.avatar} alt={review.name} className="w-full h-full object-cover" />
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-1.5 mb-1">
@@ -2345,7 +2345,7 @@ const SubCategoryPage = () => {
                                         <div className="absolute bottom-6 left-4 right-4 z-20">
                                             <div className="flex items-center gap-3 mb-3">
                                                 <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden border-2 border-white">
-                                                    <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${currentProject.workerName || 'worker'}`} alt="avatar" className="w-full h-full object-cover" />
+                                                    <img loading="lazy" decoding="async" src={`https://api.dicebear.com/7.x/notionists/svg?seed=${currentProject.workerName || 'worker'}`} alt="avatar" className="w-full h-full object-cover" />
                                                 </div>
                                                 <div>
                                                     <div className="text-white text-sm font-bold">{currentProject.workerName || 'Expert Painter'}</div>

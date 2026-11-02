@@ -260,7 +260,7 @@ const ServiceListing = ({
                       style={{ borderColor: active ? teal : '#E2E8F0', backgroundColor: active ? `${themeColors.brand.teal}12` : '#F8FAFC' }}
                     >
                       {(sub.iconUrl || sub.imageUrl || sub.icon)
-                        ? <img src={toAssetUrl(sub.iconUrl || sub.imageUrl || sub.icon)} alt="" className="h-full w-full object-contain" />
+                        ? <img loading="lazy" decoding="async" src={toAssetUrl(sub.iconUrl || sub.imageUrl || sub.icon)} alt="" className="h-full w-full object-contain" />
                         : <span className="text-lg font-bold text-slate-400">{String(sub.title || '?').charAt(0)}</span>}
                     </span>
                     <span className={`line-clamp-2 text-[11px] leading-tight ${active ? 'font-bold text-slate-900' : 'font-medium text-slate-500'}`}>{sub.title}</span>
@@ -316,7 +316,7 @@ const ServiceListing = ({
             <section key={group || 'all'} className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {bannerUrl && (
                 <div className="aspect-[16/7] w-full overflow-hidden bg-slate-200">
-                  <img src={bannerUrl} alt="" className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={bannerUrl} alt="" className="h-full w-full object-cover" />
                 </div>
               )}
               {group && <h2 className="px-4 pt-4 text-xl font-bold text-slate-900">{group}</h2>}

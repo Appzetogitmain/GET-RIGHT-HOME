@@ -1736,7 +1736,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                     idx === 0 ? 'col-span-3 h-[130px]' : 'col-span-1'
                   }`}
                 >
-                  <img src={album.img} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <img loading="lazy" decoding="async" src={album.img} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                   <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
                   
                   <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white shadow-sm">
@@ -1922,7 +1922,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                 <span className="absolute top-2 left-2 bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-md z-10">
                   Current
                 </span>
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={(galleryImages && galleryImages[0]) || "/placeholder-property.jpg"} 
                   className="w-full h-28 object-cover rounded-xl mb-2 group-hover:scale-102 transition-transform duration-300 shadow-sm" 
                 />
@@ -1971,7 +1971,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                       onClick={() => navigateToProperty(item)}
                       className="p-3 rounded-2xl border border-slate-150 bg-white min-w-[210px] w-[210px] shrink-0 text-left relative shadow-sm hover:shadow-md transition-all cursor-pointer group"
                     >
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={itemCover} 
                         className="w-full h-28 object-cover rounded-xl mb-2 group-hover:scale-102 transition-transform duration-300 shadow-sm" 
                       />
@@ -2096,7 +2096,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
 
                   return (
                     <div key={i} onClick={() => navigateToProperty(simItem)} className="bg-white rounded-xl border border-slate-150 p-3 w-[150px] shrink-0 shadow-sm hover:border-[#0061df] transition-colors cursor-pointer">
-                      <img src={simCover} className="w-full h-16 object-cover rounded-lg mb-1.5" />
+                      <img loading="lazy" decoding="async" src={simCover} className="w-full h-16 object-cover rounded-lg mb-1.5" />
                       <h5 className="text-[10px] font-bold text-gray-800 line-clamp-1">{simName}</h5>
                       <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{simLocality}</p>
                       
@@ -2709,7 +2709,7 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
                   idx === currentImageIndex ? 'border-[#0061df] scale-105' : 'border-transparent opacity-55'
                 }`}
               >
-                <img src={img} className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={img} className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

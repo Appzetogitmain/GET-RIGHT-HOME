@@ -129,7 +129,7 @@ const LocalityDetail = () => {
         <div className="bg-[#F8F9FA] min-h-screen pb-24 font-sans">
             {/* HERO SECTION - Tighter mobile-first hero */}
             <div className="relative w-full h-[32vh] md:h-[40vh]">
-                <img src={coverImage} alt={locality} className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={coverImage} alt={locality} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                 
                 {/* Back button */}
@@ -288,7 +288,7 @@ const LocalityDetail = () => {
                                 {(automated.popularProjects[projectTab] || []).map((proj, i) => (
                                     <div key={i} onClick={() => navigate(`/handpicked/${proj.slug || proj._id}`)} className="min-w-[260px] sm:min-w-[280px] snap-center shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer transition-all group overflow-hidden">
                                         <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-                                            <img src={proj.coverImage || coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={proj.propertyName} />
+                                            <img loading="lazy" decoding="async" src={proj.coverImage || coverImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={proj.propertyName} />
                                             {/* Top badges */}
                                             <div className="absolute top-3 left-3 flex gap-1">
                                                 {proj.rera && (
@@ -397,7 +397,7 @@ const LocalityDetail = () => {
                                             
                                             {/* The Card */}
                                             <div className="absolute inset-0 ml-12 rounded-[32px] overflow-hidden bg-[#0B1A3A] cursor-pointer shadow-xl border border-slate-100/20">
-                                                <img src={coverImage} className="w-full h-full object-cover opacity-60 group-hover:scale-110 group-hover:opacity-80 transition-all duration-700" alt={pt.type} />
+                                                <img loading="lazy" decoding="async" src={coverImage} className="w-full h-full object-cover opacity-60 group-hover:scale-110 group-hover:opacity-80 transition-all duration-700" alt={pt.type} />
                                                 <div className="absolute inset-0 bg-gradient-to-t from-[#010817] via-[#010817]/60 to-transparent"></div>
                                                 
                                                 <div className="absolute bottom-0 left-0 w-full p-5 text-white">
@@ -430,7 +430,7 @@ const LocalityDetail = () => {
                                 {automated.topSellers.map((seller, i) => (
                                     <div key={i} className="flex gap-4 items-start group">
                                         <div className="w-[54px] h-[54px] rounded-2xl border border-slate-200 p-0.5 shrink-0 overflow-hidden bg-white shadow-sm group-hover:border-blue-300 transition-colors">
-                                            <img src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random&color=0B1A3A&bold=true"} className="w-full h-full rounded-[14px] object-cover" alt="" />
+                                            <img loading="lazy" decoding="async" src={seller.profilePicture || "https://ui-avatars.com/api/?name=" + seller.name + "&background=random&color=0B1A3A&bold=true"} className="w-full h-full rounded-[14px] object-cover" alt="" />
                                         </div>
                                         <div className="flex-1 min-w-0 pt-0.5">
                                             <h4 className="text-[15px] font-black text-[#0B1A3A] leading-tight uppercase truncate">{seller.name}</h4>
@@ -576,7 +576,7 @@ const LocalityDetail = () => {
                                             </div>
                                             <p className="text-sm text-slate-700 mb-3">"{review.reviewText || review.comment}"</p>
                                             <div className="flex items-center gap-2">
-                                                <img src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-6 h-6 rounded-full object-cover" alt="" />
+                                                <img loading="lazy" decoding="async" src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-6 h-6 rounded-full object-cover" alt="" />
                                                 <span className="text-xs font-bold text-slate-800">{review.userId?.name || "Resident"}</span>
                                             </div>
                                         </div>

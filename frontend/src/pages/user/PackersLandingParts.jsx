@@ -69,7 +69,7 @@ export const LandingHero = ({ p, fallbackTitle }) => (
             <p className="text-xs font-medium text-slate-500">{p.couponText || 'Transparent pricing. No hidden charges.'}</p>
           </div>
           {p.couponImage
-            ? <img src={toUrl(p.couponImage)} alt="" className="h-14 w-20 shrink-0 object-contain" />
+            ? <img loading="lazy" decoding="async" src={toUrl(p.couponImage)} alt="" className="h-14 w-20 shrink-0 object-contain" />
             : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#EAF6F8] to-[#CFE8EC] p-1.5"><Icon3D name="quote" /></span>}
         </div>
       )}
@@ -173,7 +173,7 @@ export const LandingSections = ({ p, onStart }) => {
           </div>
           {(p.promoText || p.promoImage) && (
             <div className="mt-6 flex items-center gap-3 border-t border-slate-100 pt-5">
-              {p.promoImage && <img src={toUrl(p.promoImage)} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />}
+              {p.promoImage && <img loading="lazy" decoding="async" src={toUrl(p.promoImage)} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />}
               <div className="min-w-0 flex-1">
                 {p.promoTag && <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ backgroundColor: ORANGE }}>{p.promoTag}</span>}
                 <p className="mt-1 text-sm font-bold leading-snug text-slate-800">{p.promoText}</p>
@@ -242,7 +242,7 @@ export const LandingSections = ({ p, onStart }) => {
               <div key={i} className="w-[260px] shrink-0 rounded-2xl border border-slate-200 p-4">
                 <div className="flex items-center gap-3">
                   {r.image
-                    ? <img src={toUrl(r.image)} alt="" className="h-12 w-12 rounded-full object-cover" />
+                    ? <img loading="lazy" decoding="async" src={toUrl(r.image)} alt="" className="h-12 w-12 rounded-full object-cover" />
                     : <span className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white" style={{ backgroundColor: TEAL }}>{initials(r.name)}</span>}
                   <div>
                     <p className="text-sm font-bold text-slate-800">{r.name}</p>

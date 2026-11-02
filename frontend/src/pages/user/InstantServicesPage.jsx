@@ -143,7 +143,7 @@ const InstantServicesPage = () => {
                                 >
                                     <div className="w-full aspect-square rounded-2xl bg-amber-50 border border-amber-100 p-4 overflow-hidden flex items-center justify-center">
                                         {(category.homeIconUrl || category.icon || category.imageUrl) ? (
-                                            <img src={toAssetUrl(category.homeIconUrl || category.icon || category.imageUrl)} alt="" className="w-full h-full object-contain" />
+                                            <img loading="lazy" decoding="async" src={toAssetUrl(category.homeIconUrl || category.icon || category.imageUrl)} alt="" className="w-full h-full object-contain" />
                                         ) : <Zap className="text-amber-500" />}
                                     </div>
                                     <span className="text-xs font-bold text-gray-800 mt-2 line-clamp-2">{category.title}</span>
@@ -177,7 +177,7 @@ const InstantServicesPage = () => {
                             >
                                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shrink-0 flex items-center justify-center text-white overflow-hidden">
                                     {(service.imageUrl || service.icon) ? (
-                                        <img src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
+                                        <img loading="lazy" decoding="async" src={toAssetUrl(service.imageUrl || service.icon)} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                         <Zap size={20} />
                                     )}

@@ -128,7 +128,7 @@ const RecommendedBrokersPage = () => {
 
                             <div className="w-20 h-20 rounded-full border-4 border-orange-100 shadow-md overflow-hidden mb-3">
                                 {contactModalBroker.profileImage ? (
-                                    <img src={contactModalBroker.profileImage} alt={contactModalBroker.name} className="w-full h-full object-cover" />
+                                    <img loading="lazy" decoding="async" src={contactModalBroker.profileImage} alt={contactModalBroker.name} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full bg-orange-500 text-white flex items-center justify-center font-bold text-xl uppercase">
                                         {contactModalBroker.name ? contactModalBroker.name[0] : 'B'}

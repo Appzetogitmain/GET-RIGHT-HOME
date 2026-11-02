@@ -1354,7 +1354,7 @@ const BookingDetails = () => {
               <div className="flex items-center gap-3 mb-4 pb-3 border-b border-dashed border-gray-100">
                 <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0 border border-teal-100 overflow-hidden">
                   {booking.categoryIcon ? (
-                    <img src={booking.categoryIcon} alt="" className="w-6 h-6 object-contain" />
+                    <img loading="lazy" decoding="async" src={booking.categoryIcon} alt="" className="w-6 h-6 object-contain" />
                   ) : (
                     <FiPackage className="w-5 h-5 text-teal-400" />
                   )}

@@ -45,7 +45,7 @@ const CategoryCircles = () => {
                         {cat.icon ? (
                             <Navigation className="text-white fill-white" size={24} />
                         ) : (
-                            <img src={cat.img} alt={cat.name} className="w-full h-full object-cover" />
+                            <img loading="lazy" decoding="async" src={cat.img} alt={cat.name} className="w-full h-full object-cover" />
                         )}
                     </div>
 

@@ -469,7 +469,7 @@ const BookingConfirmation = () => {
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
                   style={{ backgroundColor: 'rgba(0, 166, 166, 0.1)' }}>
                   {booking.categoryIcon ? (
-                    <img src={booking.categoryIcon} alt="" className="w-5 h-5 object-contain" />
+                    <img loading="lazy" decoding="async" src={booking.categoryIcon} alt="" className="w-5 h-5 object-contain" />
                   ) : (
                     <FiPackage className="w-4 h-4" style={{ color: themeColors.button }} />
                   )}
@@ -489,7 +489,7 @@ const BookingConfirmation = () => {
                   <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-100">
                     <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden">
                       {brandIcon ? (
-                        <img src={brandIcon} alt={String(brandName)} className="w-6 h-6 object-contain" />
+                        <img loading="lazy" decoding="async" src={brandIcon} alt={String(brandName)} className="w-6 h-6 object-contain" />
                       ) : (
                         <span className="text-base font-black text-slate-400">{String(brandName).charAt(0)}</span>
                       )}
