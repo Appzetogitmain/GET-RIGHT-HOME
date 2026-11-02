@@ -123,7 +123,7 @@ const PartnerProfilePage = () => {
                         {/* Avatar */}
                         <div className="relative mb-3">
                             {seller.profileImage ? (
-                                <img src={seller.profileImage} alt={seller.name} className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md" />
+                                <img loading="lazy" decoding="async" src={seller.profileImage} alt={seller.name} className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md" />
                             ) : (
                                 <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-white font-black text-2xl flex items-center justify-center border-4 border-white shadow-md">
                                     {initials}
@@ -252,7 +252,7 @@ const PartnerProfilePage = () => {
                                     >
                                         {/* Image */}
                                         <div className="w-28 h-full shrink-0 relative">
-                                            <img src={cover} alt={property.name} className="w-full h-full object-cover" />
+                                            <img loading="lazy" decoding="async" src={cover} alt={property.name} className="w-full h-full object-cover" />
                                             {property.propertyType && (
                                                 <span className="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur-sm text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded">
                                                     {property.propertyType}

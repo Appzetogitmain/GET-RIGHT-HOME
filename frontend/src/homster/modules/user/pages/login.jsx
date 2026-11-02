@@ -7,7 +7,7 @@ import { userAuthService } from '../../../services/authService';
 import Logo from '../../../components/common/Logo';
 import LogoLoader from '../../../components/common/LogoLoader';
 import DebugConsole from '../components/common/DebugConsole';
-import serviceProvidersImg from '../../../assets/images/service-providers.png';
+import serviceProvidersImg from '../../../assets/images/service-providers.webp';
 
 import { z } from "zod";
 
@@ -199,7 +199,7 @@ const Login = () => {
         {/* Premium Service Providers Illustration */}
         {step === 'phone' && (
           <div className="mt-6 flex justify-center">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={serviceProvidersImg} 
               alt="Service Providers" 
               className="w-56 h-auto rounded-2xl shadow-xl border border-gray-100"

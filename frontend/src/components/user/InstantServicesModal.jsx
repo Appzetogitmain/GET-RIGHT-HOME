@@ -62,7 +62,7 @@ const InstantServicesModal = ({ isOpen, onClose, services, onBook, bookingIds = 
                                 >
                                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shrink-0 flex items-center justify-center text-white overflow-hidden">
                                         {(service.imageUrl || service.icon) ? (
-                                            <img src={service.imageUrl || service.icon} alt="" className="w-full h-full object-cover" />
+                                            <img loading="lazy" decoding="async" src={service.imageUrl || service.icon} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <Zap size={18} />
                                         )}

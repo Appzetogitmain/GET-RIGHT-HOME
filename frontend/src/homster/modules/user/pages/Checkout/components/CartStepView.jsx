@@ -49,7 +49,7 @@ const CartStepView = ({
             <div key={id} className="flex gap-3 rounded-2xl bg-white p-3 shadow-sm">
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                 {image ? (
-                  <img src={image} alt="" className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={image} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-slate-300"><FiShoppingBag className="h-7 w-7" /></div>
                 )}
@@ -94,7 +94,7 @@ const CartStepView = ({
                 <div key={svc.id} className="w-28 shrink-0">
                   <div className="relative h-24 w-28 overflow-hidden rounded-xl bg-slate-100">
                     {svc.image ? (
-                      <img src={svc.image} alt="" className="h-full w-full object-cover" />
+                      <img loading="lazy" decoding="async" src={svc.image} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-slate-300"><FiShoppingBag className="h-6 w-6" /></div>
                     )}

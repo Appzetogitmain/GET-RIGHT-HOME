@@ -258,7 +258,7 @@ const AddScrap = () => {
             <div className="grid grid-cols-3 gap-3">
               {selectedFiles.map((item, index) => (
                 <div key={item.id || index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
-                  <img src={item.preview} alt="Preview" className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={item.preview} alt="Preview" className="w-full h-full object-cover" />
 
                   {/* Upload Progress Overlay */}
                   {item.status === 'uploading' && (

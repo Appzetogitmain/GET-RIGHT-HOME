@@ -6,7 +6,7 @@ import { themeColors } from '../../../theme';
 import { userAuthService } from '../../../services/authService';
 import Logo from '../../../components/common/Logo';
 import LogoLoader from '../../../components/common/LogoLoader';
-import signupTeamImg from '../../../assets/images/signup-team.png';
+import signupTeamImg from '../../../assets/images/signup-team.webp';
 
 import { z } from "zod";
 
@@ -228,7 +228,7 @@ const Signup = () => {
         {/* Premium Team Illustration */}
         {step === 'details' && (
           <div className="mt-6 flex justify-center">
-            <img 
+            <img loading="lazy" decoding="async" 
               src={signupTeamImg} 
               alt="Our Team" 
               className="w-56 h-auto rounded-2xl shadow-xl border border-gray-100"

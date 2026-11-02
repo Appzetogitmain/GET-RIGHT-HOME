@@ -332,7 +332,7 @@ const BookVisitPage = () => {
       {/* Hero: admin-set background video / banner, offer tag, floating search */}
       <div className="relative">
         <div className="relative h-60 overflow-hidden bg-gradient-to-br from-[#347989] via-[#2B6270] to-[#BB5F36] sm:h-72">
-          {hero.imageUrl && !hero.videoUrl && <img src={toUrl(hero.imageUrl)} alt="" className="h-full w-full object-cover" />}
+          {hero.imageUrl && !hero.videoUrl && <img loading="lazy" decoding="async" src={toUrl(hero.imageUrl)} alt="" className="h-full w-full object-cover" />}
           {hero.videoUrl && (
             <video
               src={toUrl(hero.videoUrl)}
@@ -384,7 +384,7 @@ const BookVisitPage = () => {
             {subs.map((s) => (
               <button key={s.id} type="button" onClick={() => startEstimate(s.id)} className="flex w-[76px] shrink-0 flex-col items-center gap-2 text-center">
                 <span className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-                  {s.iconUrl ? <img src={toUrl(s.iconUrl)} alt="" className="h-10 w-10 object-contain" /> : <Brush className="h-6 w-6" style={{ color: teal }} />}
+                  {s.iconUrl ? <img loading="lazy" decoding="async" src={toUrl(s.iconUrl)} alt="" className="h-10 w-10 object-contain" /> : <Brush className="h-6 w-6" style={{ color: teal }} />}
                 </span>
                 <span className="text-[11px] font-medium leading-tight text-slate-700">{s.title}</span>
               </button>

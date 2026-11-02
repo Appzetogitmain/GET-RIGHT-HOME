@@ -81,7 +81,7 @@ const ReviewsPage = () => {
                         >
                             <div className="flex items-center gap-3 mb-3">
                                 {review.userId?.profilePicture ? (
-                                    <img src={review.userId.profilePicture} alt="User" className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100" />
+                                    <img loading="lazy" decoding="async" src={review.userId.profilePicture} alt="User" className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100" />
                                 ) : (
                                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                                         <User size={20} />

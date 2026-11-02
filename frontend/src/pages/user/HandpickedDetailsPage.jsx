@@ -954,7 +954,7 @@ const HandpickedDetailsPage = () => {
                       : 'border-white/40 hover:border-white opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={imgUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={tagLabel} />
+                  <img loading="lazy" decoding="async" src={imgUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={tagLabel} />
                   <div className={`absolute inset-0 bg-linear-to-t ${isSelected ? 'from-orange-900/90 via-black/30' : 'from-black/80 via-black/20'} to-transparent`} />
                   
                   <div className="absolute bottom-1 left-1 right-1 text-center">
@@ -980,7 +980,7 @@ const HandpickedDetailsPage = () => {
                   className="relative shrink-0 w-24 h-16 rounded-xl overflow-hidden cursor-pointer border-2 border-slate-400 bg-slate-900 shadow-lg group hover:border-white transition-all duration-300"
                 >
                   {vYtId ? (
-                    <img src={`https://img.youtube.com/vi/${vYtId}/hqdefault.jpg`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={`Video ${vIdx + 1}`} />
+                    <img loading="lazy" decoding="async" src={`https://img.youtube.com/vi/${vYtId}/hqdefault.jpg`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt={`Video ${vIdx + 1}`} />
                   ) : (
                     <div className="w-full h-full bg-linear-to-br from-orange-900 to-slate-900 flex items-center justify-center">
                       <Video className="w-6 h-6 text-white" />
@@ -1013,7 +1013,7 @@ const HandpickedDetailsPage = () => {
           {/* Header Area (99acres style) */}
           <div className="flex items-start gap-4">
             {builderTrackRecord.logo && (
-              <img src={builderTrackRecord.logo} alt="Builder Logo" className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-slate-200 object-cover p-1 shadow-sm" />
+              <img loading="lazy" decoding="async" src={builderTrackRecord.logo} alt="Builder Logo" className="w-14 h-14 md:w-16 md:h-16 rounded-full border border-slate-200 object-cover p-1 shadow-sm" />
             )}
             <div className="flex-1 flex flex-col items-start">
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
@@ -1078,7 +1078,7 @@ const HandpickedDetailsPage = () => {
                     towersList.map((tower, idx) => (
                       <div key={idx} className={`flex items-start gap-3 ${idx > 0 ? 'pt-3 border-t border-slate-200/60' : ''}`}>
                         <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
-                          <img src={pImages[idx % pImages.length] || pImages[0]} alt={tower.name || tower.towerName || 'Phase'} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={pImages[idx % pImages.length] || pImages[0]} alt={tower.name || tower.towerName || 'Phase'} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/20"></div>
                           <div className="absolute bottom-1 left-1 text-[8px] font-bold text-white uppercase">{tower.phase || `Phase ${idx + 1}`}</div>
                         </div>
@@ -1093,7 +1093,7 @@ const HandpickedDetailsPage = () => {
                   ) : (
                     <div className="flex items-start gap-3">
                       <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 relative">
-                        <img src={pImages[0]} alt="Construction Status" className="w-full h-full object-cover" />
+                        <img loading="lazy" decoding="async" src={pImages[0]} alt="Construction Status" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/20"></div>
                         <div className="absolute bottom-1 left-1 text-[8px] font-bold text-white uppercase">Status</div>
                       </div>
@@ -1357,7 +1357,7 @@ const HandpickedDetailsPage = () => {
                   </div>
 
                   <div className="relative h-56 w-full rounded-2xl overflow-hidden shadow-sm">
-                    <img src={pImages[1] || pImages[0]} className="w-full h-full object-cover brightness-[0.8]" alt="Amenity view" />
+                    <img loading="lazy" decoding="async" src={pImages[1] || pImages[0]} className="w-full h-full object-cover brightness-[0.8]" alt="Amenity view" />
                     <div className="absolute bottom-4 left-4 text-white">
                       <h4 className="font-bold text-xl">{property?.amenities?.[0] || 'Gymnasium'}</h4>
                       <p className="text-xs text-white/90">Premium Facility</p>
@@ -2058,7 +2058,7 @@ const HandpickedDetailsPage = () => {
 
                         return (
                           <div key={i} onClick={() => navigate(`/property/${simItem.slug || simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-50 shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
-                            <img src={info.cover} className="w-full h-24 object-cover rounded-lg mb-3" alt={info.name} />
+                            <img loading="lazy" decoding="async" src={info.cover} className="w-full h-24 object-cover rounded-lg mb-3" alt={info.name} />
                             <h5 className="text-sm font-bold text-gray-800 line-clamp-1">{info.name}</h5>
                             <p className="text-[11px] text-slate-500 font-bold mb-1 line-clamp-1">{info.locality}</p>
                             <p className="text-xs font-bold text-slate-900">{simPrice}</p>
@@ -2088,7 +2088,7 @@ const HandpickedDetailsPage = () => {
 
                       return (
                         <div key={i} onClick={() => navigate(`/property/${simItem.slug || simItem._id}`)} className="bg-white rounded-xl border border-slate-200 p-3 w-40 shrink-0 shadow-sm hover:border-slate-300 transition-colors cursor-pointer">
-                          <img src={info.cover} className="w-full h-20 object-cover rounded-lg mb-2" alt={info.name} />
+                          <img loading="lazy" decoding="async" src={info.cover} className="w-full h-20 object-cover rounded-lg mb-2" alt={info.name} />
                           <h5 className="text-[11px] font-bold text-gray-800 line-clamp-1">{info.name}</h5>
                           <p className="text-[10px] text-slate-500 font-bold line-clamp-1">{info.locality}</p>
 
@@ -2343,7 +2343,7 @@ const HandpickedDetailsPage = () => {
                           className="flex gap-3 p-2 bg-white/80 border border-slate-200 rounded-xl hover:border-slate-500/30 transition-all cursor-pointer"
                         >
                           <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 shrink-0">
-                            <img src={simCover} className="w-full h-full object-cover" alt={simTitle} />
+                            <img loading="lazy" decoding="async" src={simCover} className="w-full h-full object-cover" alt={simTitle} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <h4 className="text-xs font-bold text-slate-900 truncate">{simTitle}</h4>
@@ -2451,7 +2451,7 @@ const HandpickedDetailsPage = () => {
                         return (
                           <div key={idx} className="bg-white/60 border border-slate-200 rounded-3xl overflow-hidden hover:border-slate-500/30 transition-all flex flex-col md:flex-row gap-6 p-6 shadow-sm">
                             <div className="w-full md:w-72 h-48 rounded-2xl overflow-hidden bg-slate-100 shrink-0 relative group">
-                              <img src={planImg} className="w-full h-full object-cover" alt={cfgName} />
+                              <img loading="lazy" decoding="async" src={planImg} className="w-full h-full object-cover" alt={cfgName} />
                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <button onClick={() => setSelectedFloorPlan(plan)} className="px-3 py-1.5 bg-white text-slate-900 text-xs font-bold rounded-lg shadow">
                                   View Full Layout
@@ -2654,7 +2654,7 @@ const HandpickedDetailsPage = () => {
                     <>
                       {modalDocUrl && (
                         <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50 p-3 text-center">
-                          <img src={modalDocUrl} alt="Payment Plan Document" className="w-full max-h-72 object-contain rounded-lg shadow-sm" />
+                          <img loading="lazy" decoding="async" src={modalDocUrl} alt="Payment Plan Document" className="w-full max-h-72 object-contain rounded-lg shadow-sm" />
                           <a href={modalDocUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-slate-600 font-bold mt-2.5 hover:underline">
                             <Download className="w-4 h-4" /> Open Full Resolution Document / Image
                           </a>

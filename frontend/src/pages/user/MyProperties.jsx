@@ -259,7 +259,7 @@ const MyProperties = () => {
                   <div className="flex gap-4">
                     <div className="w-24 h-24 rounded-2xl bg-gray-50 overflow-hidden relative shrink-0">
                       {property.coverImage ? (
-                        <img src={property.coverImage} className="w-full h-full object-cover" alt="" />
+                        <img loading="lazy" decoding="async" src={property.coverImage} className="w-full h-full object-cover" alt="" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
                           <Building2 size={24} />

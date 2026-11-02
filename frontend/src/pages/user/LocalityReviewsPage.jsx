@@ -106,7 +106,7 @@ const LocalityReviewsPage = () => {
                             >
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
-                                        <img src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-100" alt="" />
+                                        <img loading="lazy" decoding="async" src={review.userId?.profilePicture || "https://ui-avatars.com/api/?name=" + (review.userId?.name || 'U') + "&background=random"} className="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-100" alt="" />
                                         <div>
                                             <h4 className="font-bold text-sm text-slate-800">{review.userId?.name || "Resident"}</h4>
                                             {review.isVerifiedResident && <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5"><Check className="w-3 h-3" /> Verified Resident</p>}

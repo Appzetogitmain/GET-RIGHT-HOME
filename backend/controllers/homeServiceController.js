@@ -136,6 +136,37 @@ export const getPublicCategories = async (req, res) => {
   }
 };
 
+/**
+ * One request for the user Home screen: the zone/worker-filtered categories plus the
+ * home content, instead of the app asking for each separately (and getting a 404 on
+ * the missing /public/home-data it used to call).
+ */
+export const getPublicHomeData = async (req, res) => {
+  try {
+    let categories = [];
+    await getPublicCategories(req, { json: (o) => { categories = o.categories || []; }, status() { return this; } });
+    const { cityId = 'default' } = req.query;
+    const HomeContent = (await import('../models/HomeContent.js')).default;
+    const homeContent = (await HomeContent.findOne({ cityId }).lean()) || (await HomeContent.findOne({ cityId: 'default' }).lean()) || null;
+    res.json({
+      success: true,
+      categories: categories.map((c) => ({
+        id: c._id,
+        _id: c._id,
+        title: c.title,
+        slug: c.slug,
+        icon: c.homeIconUrl || c.imageUrl || c.icon || '',
+        hasSaleBadge: !!c.hasSaleBadge,
+        badge: c.homeBadge || '',
+        bookingModes: c.bookingModes
+      })),
+      homeContent
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const createCategory = async (req, res) => {
   try {
     const { title } = req.body;

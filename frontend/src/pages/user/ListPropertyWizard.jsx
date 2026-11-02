@@ -475,7 +475,7 @@ const ListPropertyWizard = () => {
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full bg-blue-50 ring-2 ring-white flex items-center justify-center text-blue-600 font-bold text-sm overflow-hidden shadow-sm">
                   {(user.profileImage || user.avatar || user.photo) ? (
-                    <img src={user.profileImage || user.avatar || user.photo} alt={user.name} className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={user.profileImage || user.avatar || user.photo} alt={user.name} className="w-full h-full object-cover" />
                   ) : (
                     user.name ? user.name.charAt(0).toUpperCase() : <User size={18} />
                   )}
