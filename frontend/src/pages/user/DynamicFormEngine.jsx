@@ -357,17 +357,19 @@ const DynamicFormEngine = () => {
       return;
     }
 
-    // On step 1 there is no previous step, and history can't be trusted here:
-    // /list-property auto-forwards builders straight back into this wizard, so
-    // navigate(-1) bounces and the button looks dead. Go somewhere stable
-    // instead. Work is already autosaved to localStorage, so leaving is safe.
-    // Editing an existing listing, or a builder (who never sees the
-    // /list-property chooser) belongs back in their listings. Everyone else
-    // came through the chooser, so that's the natural step back.
-    const exitTo = (isEditMode || user?.role === 'builder')
-      ? '/my-properties'
-      : '/list-property';
-    navigate(exitTo);
+    // On step 1 there is no previous step.
+    // If editing or builder, go back to my-properties.
+    // Otherwise, cleanly return to /list-property using navigate(-1) so that
+    // the history entry is popped instead of duplicated.
+    if (isEditMode || user?.role === 'builder') {
+      navigate('/my-properties', { replace: true });
+    } else {
+      if (window.history.state && window.history.state.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate('/list-property', { replace: true });
+      }
+    }
   };
 
   const [draftSaved, setDraftSaved] = useState(false);

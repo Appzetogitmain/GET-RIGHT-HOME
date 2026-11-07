@@ -7,15 +7,26 @@ import { validationResult } from 'express-validator';
 import Profession from '../../models/Profession.js';
 import cloudinaryService from '../../services/cloudinaryService.js';
 import { validProfessionIds } from '../professionController.js';
+import Otp from '../../models/Otp.js';
+import smsService from '../../utils/smsService.js';
 
 // Stubs for services not yet configured in Hoomzo
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 const hashOTP = (otp) => otp;
-const storeOTP = async () => { };
+const storeOTP = async (phone, otp) => {
+  await Otp.findOneAndUpdate(
+    { phone },
+    { phone, otp, expiresAt: Date.now() + 10 * 60 * 1000, tempData: { role: 'worker' } },
+    { upsert: true, new: true }
+  );
+};
 const verifyOTP = async (phone, otp) => {
-  const defaultOtp = process.env.DEFAULT_OTP || '123456';
-  if (otp === defaultOtp) return { success: true };
-  return { success: false, message: 'Invalid OTP' };
+  const otpRecord = await Otp.findOne({ phone });
+  if (otpRecord && otpRecord.otp === otp && otpRecord.expiresAt >= Date.now()) {
+    await Otp.deleteOne({ phone });
+    return { success: true };
+  }
+  return { success: false, message: 'Invalid or expired OTP' };
 };
 const checkRateLimit = async () => true;
 const generateTokenPair = (data) => {
@@ -27,7 +38,9 @@ const verifyRefreshToken = (token) => {
 };
 const generateVerificationToken = (phone) => Buffer.from(phone).toString('base64');
 const verifyVerificationToken = (token) => { try { return Buffer.from(token, 'base64').toString(); } catch { return null; } };
-const sendSMSOTP = async (phone, otp) => { console.log(`[SMS Stub] OTP ${otp} for ${phone}`); return { success: true }; };
+const sendSMSOTP = async (phone, otp) => {
+  return smsService.sendOTP(phone, otp, 'worker-auth');
+};
 // Real uploader: the old stub always failed, so Aadhar/PAN/licence scans were stored
 // as multi-MB base64 inside the worker document.
 const USER_ROLES = { WORKER: 'worker' };

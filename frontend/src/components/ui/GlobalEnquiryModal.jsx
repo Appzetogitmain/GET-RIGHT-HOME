@@ -280,13 +280,10 @@ const GlobalEnquiryModal = () => {
                     setEnquiryForm({ ...enquiryForm, otp: e.target.value });
                     if (enquiryErrors.otp) setEnquiryErrors(prev => ({ ...prev, otp: '' }));
                   }}
-                  placeholder="123456"
+                  placeholder="------"
                   maxLength={6}
                   className="w-full bg-transparent outline-none text-xs font-bold tracking-widest text-slate-800"
                 />
-                <span className="absolute right-3 bottom-3 text-[8px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                  Bypass: 123456
-                </span>
                 {enquiryErrors.otp && <p className="text-red-500 text-[10px] font-bold mt-1">{enquiryErrors.otp}</p>}
               </div>
             )}

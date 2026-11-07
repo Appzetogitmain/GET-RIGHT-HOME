@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
     Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, LayoutGrid, CreditCard, Video, Image as ImageIcon, MapPin, ShieldCheck, Gift,
-    Wrench, UserCog, ShoppingBag, Package, ClipboardList, Layers, ChevronDown, FolderCog, Zap, CalendarCheck
+    Wrench, UserCog, ShoppingBag, Package, ClipboardList, Layers, ChevronDown, FolderCog, Zap, CalendarCheck, ToggleLeft
 } from 'lucide-react';
 
 import logo from '../../../assets/grh-logo.png';
@@ -197,6 +197,7 @@ const AdminLayout = () => {
                 },
                 { icon: MapPin, label: 'Zone Setup', path: '/admin/home-service/zones' },
                 { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
+                { icon: ToggleLeft, label: 'Feature Settings (Toggles)', path: '/admin/home-service/feature-settings' },
             ]
         },
         {
@@ -307,6 +308,7 @@ const AdminLayout = () => {
                 { icon: MapPin, label: 'Zone Services', path: '/admin/home-service/zone-services' },
                 { icon: Bell, label: 'Service Notifications', path: '/admin/home-service/notifications' },
                 { icon: Settings, label: 'Service Settings', path: '/admin/home-service/settings' },
+                { icon: ToggleLeft, label: 'Feature Settings (Toggles)', path: '/admin/home-service/feature-settings' },
                 { icon: Settings, label: 'Dev Settings', path: '/admin/home-service/dev-settings' },
             ]
         },

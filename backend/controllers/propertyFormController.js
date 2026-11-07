@@ -457,10 +457,13 @@ export const seedTemplatesController = async (req, res) => {
 // Seed on startup helper
 export const seedOnStartup = async () => {
   try {
-    console.log('🌱 Starting Auto-Seeding of 4-Step Templates...');
-    await PropertyFormTemplate.deleteMany({});
+    const count = await PropertyFormTemplate.countDocuments();
+    if (count > 0) {
+      return;
+    }
+    console.log('🌱 Starting Auto-Seeding of 4-Step Templates for new/empty DB...');
     const allTemplates = generateAllTemplates();
-    await PropertyFormTemplate.create(allTemplates);
+    await PropertyFormTemplate.insertMany(allTemplates);
     console.log(`🌱 Auto-Seeding Completed: ${allTemplates.length} templates created.`);
   } catch (err) {
     console.error('🌱 Auto-Seeding Failed:', err);
@@ -479,12 +482,26 @@ export const getTemplate = async (req, res) => {
 
         // Allow specific sub-type templates to load (e.g. 'Co-working office space')
 
-        const template = await PropertyFormTemplate.findOne({ 
+        let template = await PropertyFormTemplate.findOne({ 
             transactionType, 
             category, 
             propertyType,
             isActive: true 
         });
+
+        if (!template) {
+            const count = await PropertyFormTemplate.countDocuments();
+            if (count === 0) {
+                console.log('🌱 Database has no form templates. Auto-seeding default templates now...');
+                await seedOnStartup();
+                template = await PropertyFormTemplate.findOne({ 
+                    transactionType, 
+                    category, 
+                    propertyType,
+                    isActive: true 
+                });
+            }
+        }
 
         if (!template) {
             return res.status(404).json({ success: false, message: "No form template found for this configuration." });
@@ -520,6 +537,12 @@ export const saveTemplate = async (req, res) => {
 // Get all unique combinations to show in Step 1
 export const getAvailableConfigurations = async (req, res) => {
     try {
+        const count = await PropertyFormTemplate.countDocuments();
+        if (count === 0) {
+            console.log('🌱 Database has no form templates. Auto-seeding on getAvailableConfigurations...');
+            await seedOnStartup();
+        }
+
         // Aggregate to get unique transactionType -> categories -> propertyTypes
         const configs = await PropertyFormTemplate.aggregate([
             { $match: { isActive: true } },

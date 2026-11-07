@@ -414,6 +414,21 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         // slug for any property/project that predates the field.
         const { backfillSeoSlugs } = await import('./utils/seoSlugBackfill.js');
         await backfillSeoSlugs();
+
+        // Auto-seed property form templates if new / empty DB
+        try {
+          const { seedOnStartup } = await import('./controllers/propertyFormController.js');
+          await seedOnStartup();
+        } catch (formErr) {
+          console.warn('⚠️ Property Form template seeding failed on startup:', formErr.message);
+        }
+
+        // Auto-seed default Superadmin if new / empty DB
+        try {
+          await seedAdminOnStartup();
+        } catch (adminErr) {
+          console.warn('⚠️ Admin auto-seeding failed on startup:', adminErr.message);
+        }
       } catch (tierErr) {
         console.error('❌ Auto-seeding tiers failed on startup:', tierErr.message);
       }

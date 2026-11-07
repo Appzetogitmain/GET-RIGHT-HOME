@@ -22,7 +22,7 @@ const ListPropertyWizard = () => {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('draft_property_') || key.includes('_wizard_draft_new'))) {
+      if (key && (key.startsWith('draft_property_') || key.startsWith('draft_step_') || key.includes('_wizard_draft_new'))) {
         keysToRemove.push(key);
       }
     }
@@ -306,6 +306,18 @@ const ListPropertyWizard = () => {
     });
   };
 
+  const handleBack = () => {
+    if (location.state?.from) {
+      navigate(location.state.from);
+      return;
+    }
+    if (user?.role === 'builder' || user?.role === 'broker') {
+      navigate('/my-properties');
+      return;
+    }
+    navigate('/');
+  };
+
   const entityType = user?.role === 'builder' ? 'project' : 'property';
 
   const intentIcons = { 'Sell': Tag, 'Rent / Lease': Key, 'Paying Guest': BedDouble };
@@ -336,7 +348,12 @@ const ListPropertyWizard = () => {
     <div className="min-h-screen bg-slate-50 pb-32 font-sans antialiased text-slate-800">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 h-16 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+          aria-label="Go back"
+        >
           <ArrowLeft size={22} strokeWidth={2} />
         </button>
         <div className="flex items-center gap-2">
@@ -560,13 +577,10 @@ const ListPropertyWizard = () => {
                   type="text"
                   value={listingForm.otp}
                   onChange={(e) => setListingForm({ ...listingForm, otp: e.target.value })}
-                  placeholder="123456"
+                  placeholder="------"
                   maxLength={6}
                   className="w-full bg-transparent outline-none text-[13px] font-bold tracking-widest text-slate-800"
                 />
-                <span className="absolute right-3 bottom-3 text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                  Test OTP: 123456
-                </span>
               </div>
             )}
 

@@ -69,8 +69,8 @@ export const sendOtp = async (req, res) => {
       }
     }
 
-    // Generate OTP - Always use 123456 for development
-    const otp = '123456';
+    // Generate real 6-digit random OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     if (user) {
@@ -86,8 +86,13 @@ export const sendOtp = async (req, res) => {
       );
     }
 
-    // Always skip SMS sending in development and log to console
-    console.log(`🧪 Development Mode: OTP for ${phone} is ${otp}`);
+    // Send real OTP via SMSIndiaHub
+    const smsResponse = await smsService.sendOTP(phone, otp, `${type || 'auth'}/verification`);
+    if (!smsResponse.success) {
+      console.error(`❌ [SMS] Failed to send OTP to ${phone}:`, smsResponse.error);
+    } else {
+      console.log(`✅ [SMS] OTP successfully sent to ${phone}`);
+    }
 
     res.status(200).json({
       message: 'OTP sent successfully',
@@ -110,8 +115,8 @@ export const sendEnquiryOtp = async (req, res) => {
     let user = await User.findOne({ phone });
     let type = user ? 'login' : 'register';
 
-    // Generate OTP - Always use 123456 for development
-    const otp = '123456';
+    // Generate real 6-digit random OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     if (user) {
@@ -127,7 +132,13 @@ export const sendEnquiryOtp = async (req, res) => {
       );
     }
 
-    console.log(`🧪 Development Mode: Enquiry OTP for ${phone} is ${otp} (${type})`);
+    // Send real OTP via SMSIndiaHub
+    const smsResponse = await smsService.sendOTP(phone, otp, 'enquiry');
+    if (!smsResponse.success) {
+      console.error(`❌ [SMS] Failed to send Enquiry OTP to ${phone}:`, smsResponse.error);
+    } else {
+      console.log(`✅ [SMS] Enquiry OTP successfully sent to ${phone}`);
+    }
 
     res.status(200).json({
       message: 'OTP sent successfully',
@@ -286,7 +297,7 @@ export const verifyOtp = async (req, res) => {
         });
       }
       // ... (existing login logic)
-      if (user.otp !== otp && otp !== '123456') {
+      if (user.otp !== otp) {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
       if (user.otpExpires < Date.now()) {
@@ -303,7 +314,7 @@ export const verifyOtp = async (req, res) => {
       if (!otpRecord) {
         return res.status(400).json({ message: 'Invalid request or OTP expired. Please request OTP again.' });
       }
-      if (otpRecord.otp !== otp && otp !== '123456') {
+      if (otpRecord.otp !== otp) {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
       if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
@@ -449,7 +460,7 @@ export const verifyPartnerOtp = async (req, res) => {
       return res.status(400).json({ message: 'Invalid request or OTP expired. Please register again.' });
     }
 
-    if (otpRecord.otp !== otp && otp !== '123456') {
+    if (otpRecord.otp !== otp) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
@@ -916,12 +927,24 @@ export const lazyEnquiryLoginRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name, Phone, OTP and Property ID are required' });
     }
 
-    // Verify OTP (123456 or from Otp db)
-    if (otp !== '123456') {
-      const otpRecord = await Otp.findOne({ phone });
-      if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt < Date.now()) {
-        return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    // Verify OTP from Otp db or user.otp
+    const otpRecord = await Otp.findOne({ phone });
+    let isOtpValid = otpRecord && otpRecord.otp === otp && otpRecord.expiresAt >= Date.now();
+
+    if (!isOtpValid) {
+      const existingUser = await User.findOne({ phone }).select('+otp +otpExpires');
+      if (existingUser && existingUser.otp === otp && existingUser.otpExpires >= Date.now()) {
+        isOtpValid = true;
+        existingUser.otp = undefined;
+        existingUser.otpExpires = undefined;
+        await existingUser.save();
       }
+    }
+
+    if (!isOtpValid) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+    if (otpRecord) {
       await Otp.deleteOne({ phone });
     }
 
@@ -1019,12 +1042,24 @@ export const lazyListingLoginRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid role' });
     }
 
-    // Verify OTP (123456 or from Otp db)
-    if (otp !== '123456') {
-      const otpRecord = await Otp.findOne({ phone });
-      if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt < Date.now()) {
-        return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    // Verify OTP from Otp db or user.otp
+    const otpRecord = await Otp.findOne({ phone });
+    let isOtpValid = otpRecord && otpRecord.otp === otp && otpRecord.expiresAt >= Date.now();
+
+    if (!isOtpValid) {
+      const existingUser = await User.findOne({ phone }).select('+otp +otpExpires');
+      if (existingUser && existingUser.otp === otp && existingUser.otpExpires >= Date.now()) {
+        isOtpValid = true;
+        existingUser.otp = undefined;
+        existingUser.otpExpires = undefined;
+        await existingUser.save();
       }
+    }
+
+    if (!isOtpValid) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+    if (otpRecord) {
       await Otp.deleteOne({ phone });
     }
 
