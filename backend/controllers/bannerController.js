@@ -46,12 +46,12 @@ export const createBanner = async (req, res) => {
     const { title, link, order, type, imageUrl, imagePublicId, linkedItemType, linkedItem } = req.body;
 
     const banner = new Banner({
-      title,
-      link,
-      linkedItemType,
-      linkedItem,
-      order,
-      type,
+      title: title || '',
+      link: link || '',
+      linkedItemType: (linkedItemType && String(linkedItemType).trim()) ? linkedItemType : null,
+      linkedItem: (linkedItem && String(linkedItem).trim()) ? linkedItem : null,
+      order: order !== undefined ? Number(order) : 0,
+      type: type || 'home',
       imageUrl,
       imagePublicId
     });
@@ -75,14 +75,11 @@ export const updateBanner = async (req, res) => {
       return res.status(404).json({ message: 'Banner not found' });
     }
 
-    // If new image is provided, we might want to delete the old one from Cloudinary
-    // But usually, the frontend handles upload and just sends new URLs.
-    
-    banner.title = title || banner.title;
+    banner.title = title !== undefined ? title : banner.title;
     banner.link = link !== undefined ? link : banner.link;
-    banner.linkedItemType = linkedItemType !== undefined ? linkedItemType : banner.linkedItemType;
-    banner.linkedItem = linkedItem !== undefined ? linkedItem : banner.linkedItem;
-    banner.order = order !== undefined ? order : banner.order;
+    banner.linkedItemType = (linkedItemType && String(linkedItemType).trim()) ? linkedItemType : null;
+    banner.linkedItem = (linkedItem && String(linkedItem).trim()) ? linkedItem : null;
+    banner.order = order !== undefined ? Number(order) : banner.order;
     banner.type = type || banner.type;
     banner.isActive = isActive !== undefined ? isActive : banner.isActive;
     

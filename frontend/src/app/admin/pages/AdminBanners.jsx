@@ -136,14 +136,21 @@ const AdminBanners = () => {
         }
 
         try {
+            const payload = {
+                ...formData,
+                linkedItem: formData.linkedItem ? formData.linkedItem : null,
+                linkedItemType: formData.linkedItem && formData.linkedItemType ? formData.linkedItemType : null,
+                link: formData.link ? formData.link.trim() : ''
+            };
+
             const token = localStorage.getItem('adminToken');
             if (editingBanner) {
-                await axios.put(`${API_URL}/banners/${editingBanner._id}`, formData, {
+                await axios.put(`${API_URL}/banners/${editingBanner._id}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 toast.success('Banner updated');
             } else {
-                await axios.post(`${API_URL}/banners`, formData, {
+                await axios.post(`${API_URL}/banners`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 toast.success('Banner created');
