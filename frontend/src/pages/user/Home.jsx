@@ -488,29 +488,6 @@ const Home = () => {
                 )}
             </div>
 
-            {/* Test Push Notification Button */}
-            <div className="w-full px-4 md:px-6 lg:px-8 2xl:px-12 py-8 flex justify-center">
-                <button
-                    onClick={async () => {
-                        try {
-                            const { registerFCMToken } = await import('../../homster/services/pushNotificationService');
-                            // This ensures the FCM token is requested on user click (WebView requires user gesture)
-                            await registerFCMToken('user', true);
-
-                            const { api } = await import('../../services/apiService');
-                            await api.post('/fcm-tokens/test');
-                            toast.success('Test notification sent! Check your device.');
-                        } catch (err) {
-                            console.error(err);
-                            toast.error('Failed to send test notification. Please login first.');
-                        }
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95"
-                >
-                    Test Push Notification
-                </button>
-            </div>
-
             <SupportSection />
         </main>
     );
