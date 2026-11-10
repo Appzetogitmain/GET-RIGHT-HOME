@@ -104,18 +104,25 @@ const UserLogin = () => {
             setCanResend(false);
             setStep(2);
         } catch (err) {
-            // Check if account doesn't exist
-            if (err.response?.data?.requiresRegistration ||
-                err.response?.status === 404 ||
-                err.message?.includes('Account not found')) {
-                setError('Account not found. Redirecting to signup...');
+            console.error("Login sendOtp error:", err);
+            const rawMsg = typeof err === 'string' ? err : (err?.message || err?.error || err?.response?.data?.message || '');
+            const isNotFound = err?.requiresRegistration ||
+                err?.response?.status === 404 ||
+                err?.status === 404 ||
+                rawMsg.toLowerCase().includes('account not found') ||
+                rawMsg.toLowerCase().includes('not found') ||
+                rawMsg.toLowerCase().includes('please register');
+
+            if (isNotFound) {
+                setError('Account not found in database. Redirecting to Sign Up...');
                 setTimeout(() => {
                     navigate('/signup', { state: { phone } });
                 }, 1500);
+            } else if (rawMsg.toLowerCase().includes('network error') || rawMsg.toLowerCase().includes('econnrefused')) {
+                setError('Cannot connect to backend server. Make sure backend is running on port 5056.');
             } else {
-                setError(err.message || 'Failed to send OTP');
+                setError(rawMsg || 'Failed to send OTP. Please try again.');
             }
-            console.error(err);
         } finally {
             setLoading(false);
         }
