@@ -88,7 +88,6 @@ const referralTrackingSchema = new mongoose.Schema({
 
 // Indexes for quick stats and lookup
 referralTrackingSchema.index({ referrerId: 1, status: 1 });
-referralTrackingSchema.index({ referredUserId: 1 });
 
 const ReferralTracking = mongoose.model('ReferralTracking', referralTrackingSchema);
 export default ReferralTracking;

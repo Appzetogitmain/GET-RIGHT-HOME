@@ -190,16 +190,21 @@ const UserSignup = () => {
             setCanResend(false);
             setStep(2);
         } catch (err) {
-            // Check if account already exists
-            if (err.response?.data?.requiresLogin ||
-                err.response?.status === 409 ||
-                err.message?.includes('already exists')) {
+            console.error("Signup sendOtp error:", err);
+            const rawMsg = typeof err === 'string' ? err : (err?.message || err?.error || err?.response?.data?.message || '');
+            const isAlreadyExists = err?.requiresLogin ||
+                err?.response?.status === 409 ||
+                rawMsg.toLowerCase().includes('already exists');
+
+            if (isAlreadyExists) {
                 setError('Account already exists. Redirecting to login...');
                 setTimeout(() => {
                     navigate('/login', { state: { phone: formData.phone } });
                 }, 1500);
+            } else if (rawMsg.toLowerCase().includes('network error') || rawMsg.toLowerCase().includes('econnrefused')) {
+                setError('Cannot connect to backend server. Make sure backend is running on port 5056.');
             } else {
-                setError(err.message || 'Failed to send OTP');
+                setError(rawMsg || 'Failed to send OTP. Please try again.');
             }
         } finally {
             setLoading(false);
