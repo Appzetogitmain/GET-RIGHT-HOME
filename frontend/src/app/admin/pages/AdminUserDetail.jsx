@@ -344,22 +344,25 @@ const AdminUserDetail = () => {
     const fetchUserDetails = async () => {
         try {
             setLoading(true);
-            const [userRes, enqRes] = await Promise.all([
+            const [userRes, enqRes] = await Promise.allSettled([
                 adminService.getUserDetails(id),
                 adminService.getEnquiries({ limit: 100 })
             ]);
-            if (userRes.success) {
-                setUser(userRes.user);
-                setBookings(userRes.bookings);
-                setProperties(userRes.properties || []);
-                setWallet(userRes.wallet);
-                setTransactions(userRes.transactions);
-                setSubscriptions(userRes.subscriptions || []);
-                setActiveSubscription(userRes.activeSubscription || null);
+            if (userRes.status === 'fulfilled' && userRes.value?.success) {
+                const data = userRes.value;
+                setUser(data.user || null);
+                setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+                setProperties(Array.isArray(data.properties) ? data.properties : []);
+                setWallet(data.wallet || null);
+                setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
+                setSubscriptions(Array.isArray(data.subscriptions) ? data.subscriptions : []);
+                setActiveSubscription(data.activeSubscription || null);
+            } else if (userRes.status === 'rejected') {
+                console.error('getUserDetails failed:', userRes.reason);
+                toast.error('Failed to load user information');
             }
-            if (enqRes.success) {
-                // Filter enquiries that belong to this user
-                const userEnquiries = (enqRes.enquiries || []).filter(
+            if (enqRes.status === 'fulfilled' && enqRes.value?.success) {
+                const userEnquiries = (enqRes.value.enquiries || []).filter(
                     enq => enq.userId?._id === id || enq.userId === id
                 );
                 setEnquiries(userEnquiries);

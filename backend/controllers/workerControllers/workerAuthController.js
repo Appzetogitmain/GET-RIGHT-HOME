@@ -11,7 +11,15 @@ import Otp from '../../models/Otp.js';
 import smsService from '../../utils/smsService.js';
 
 // Stubs for services not yet configured in Hoomzo
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const TEST_PHONE_OTPS = { '7869549428': '123456' }; // 🔐 Fixed OTP for test numbers
+const generateOTP = (phone) => {
+  const cleanPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+  if (TEST_PHONE_OTPS[cleanPhone]) {
+    console.log(`🔐 [TEST] Using fixed OTP for worker test number ${cleanPhone}`);
+    return TEST_PHONE_OTPS[cleanPhone];
+  }
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 const hashOTP = (otp) => otp;
 const storeOTP = async (phone, otp) => {
   await Otp.findOneAndUpdate(
@@ -93,7 +101,7 @@ const sendOTP = async (req, res) => {
     }
 
     // 2. Generate OTP
-    const otp = generateOTP();
+    const otp = generateOTP(phone);
     const otpHash = hashOTP(otp);
 
     // 3. Store OTP (Redis primary, MongoDB fallback)

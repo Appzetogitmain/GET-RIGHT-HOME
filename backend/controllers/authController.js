@@ -69,8 +69,13 @@ export const sendOtp = async (req, res) => {
       }
     }
 
-    // Generate real 6-digit random OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // 🔐 TEST NUMBER: Always use fixed OTP for testing
+    const TEST_NUMBERS = { '7869549428': '123456' };
+    const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+    const otp = TEST_NUMBERS[cleanPhone] || Math.floor(100000 + Math.random() * 900000).toString();
+    if (TEST_NUMBERS[cleanPhone]) {
+      console.log(`🔐 [TEST] Using fixed OTP for test number ${cleanPhone}`);
+    }
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     if (user) {
@@ -115,8 +120,13 @@ export const sendEnquiryOtp = async (req, res) => {
     let user = await User.findOne({ phone });
     let type = user ? 'login' : 'register';
 
-    // Generate real 6-digit random OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // 🔐 TEST NUMBER: Always use fixed OTP for testing
+    const TEST_NUMBERS = { '7869549428': '123456' };
+    const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+    const otp = TEST_NUMBERS[cleanPhone] || Math.floor(100000 + Math.random() * 900000).toString();
+    if (TEST_NUMBERS[cleanPhone]) {
+      console.log(`🔐 [TEST] Using fixed OTP for test number ${cleanPhone}`);
+    }
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     if (user) {
