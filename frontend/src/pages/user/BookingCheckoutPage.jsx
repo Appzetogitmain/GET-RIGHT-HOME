@@ -10,6 +10,7 @@ import { bookingService, paymentService } from '../../services/apiService';
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='12' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image</text></svg>";
 
 import walletService from '../../services/walletService';
+import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 
 const loadRazorpay = () => {
   return new Promise((resolve) => {
@@ -24,6 +25,7 @@ const loadRazorpay = () => {
 const BookingCheckoutPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const featureFlags = useFeatureFlags();
 
   // Data passed from PropertyDetailsPage
   const {
@@ -40,6 +42,13 @@ const BookingCheckoutPage = () => {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
+
+  useEffect(() => {
+    if (featureFlags.userRazorpay === false && paymentMethod === 'online') {
+      setPaymentMethod('pay_at_hotel');
+      setUseWallet(false);
+    }
+  }, [featureFlags.userRazorpay, paymentMethod]);
 
   useEffect(() => {
     if (!property || !dates) {
@@ -342,54 +351,52 @@ const BookingCheckoutPage = () => {
         </div>
 
         {/* Wallet Section */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-              <Wallet size={18} className="text-blue-600" />
-              Use Wallet Balance
-            </h3>
-            <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md">
-              Available: ₹{walletBalance.toLocaleString()}
-            </span>
-          </div>
+        {featureFlags.userRazorpay !== false && (
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                <Wallet size={18} className="text-blue-600" />
+                Use Wallet Balance
+              </h3>
+              <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md">
+                Available: ₹{walletBalance.toLocaleString()}
+              </span>
+            </div>
 
-          <label className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${useWallet && paymentMethod === 'online' ? 'border-blue-600 bg-blue-50/20' : 'border-gray-100'}`}>
-            <div className="relative flex items-center">
-              <input
-                type="checkbox"
-                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300 pointer-events-none"
-                checked={useWallet}
-                disabled={walletBalance <= 0 || paymentMethod !== 'online'}
-                onChange={() => { }} // Handled by parent div if needed, but safer on input change
-              />
-              {/* Overlay check for styling if needed, but standard checkbox is fine for now. 
-                     We need to handle the click. The label wraps it so clicking anywhere works.
-                     Wait, I need to modify 'useWallet' state.
-                 */}
-              <div
-                className="absolute inset-0 cursor-pointer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (paymentMethod !== 'online') {
-                    toast.error("Wallet can only be used with Online Payment for now");
-                    return;
-                  }
-                  if (walletBalance > 0) setUseWallet(!useWallet);
-                }}
-              ></div>
-            </div>
-            <div className="flex-1 opacity-100">
-              <p className="text-sm font-semibold text-gray-800">Pay using Wallet</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {paymentMethod !== 'online'
-                  ? "Select 'Pay Now' to use wallet balance."
-                  : walletBalance > 0
-                    ? `Use ₹${Math.min(walletBalance, totalAmount).toLocaleString()} from your wallet.`
-                    : "Insufficient balance."}
-              </p>
-            </div>
-          </label>
-        </div>
+            <label className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${useWallet && paymentMethod === 'online' ? 'border-blue-600 bg-blue-50/20' : 'border-gray-100'}`}>
+              <div className="relative flex items-center">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300 pointer-events-none"
+                  checked={useWallet}
+                  disabled={walletBalance <= 0 || paymentMethod !== 'online'}
+                  onChange={() => { }} // Handled by parent div if needed, but safer on input change
+                />
+                <div
+                  className="absolute inset-0 cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (paymentMethod !== 'online') {
+                      toast.error("Wallet can only be used with Online Payment for now");
+                      return;
+                    }
+                    if (walletBalance > 0) setUseWallet(!useWallet);
+                  }}
+                ></div>
+              </div>
+              <div className="flex-1 opacity-100">
+                <p className="text-sm font-semibold text-gray-800">Pay using Wallet</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {paymentMethod !== 'online'
+                    ? "Select 'Pay Now' to use wallet balance."
+                    : walletBalance > 0
+                      ? `Use ₹${Math.min(walletBalance, totalAmount).toLocaleString()} from your wallet.`
+                      : "Insufficient balance."}
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
 
         {/* 4. Payment Options */}
         {(() => {
@@ -426,35 +433,37 @@ const BookingCheckoutPage = () => {
                 </label>
 
                 {/* Option 2: Pay Now */}
-                <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'online' ? 'border-surface bg-surface/5' : 'border-gray-100 hover:border-gray-200'}`}>
-                  <input
-                    type="radio"
-                    name="payment"
-                    className="mt-1 accent-surface"
-                    checked={paymentMethod === 'online'}
-                    onChange={() => setPaymentMethod('online')}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`font-bold text-sm ${paymentMethod === 'online' ? 'text-surface' : 'text-gray-900'}`}>Pay Now</span>
+                {featureFlags.userRazorpay !== false && (
+                  <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'online' ? 'border-surface bg-surface/5' : 'border-gray-100 hover:border-gray-200'}`}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      className="mt-1 accent-surface"
+                      checked={paymentMethod === 'online'}
+                      onChange={() => setPaymentMethod('online')}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`font-bold text-sm ${paymentMethod === 'online' ? 'text-surface' : 'text-gray-900'}`}>Pay Now</span>
+                        <div className="flex gap-2">
+                          <CreditCard size={16} className={`${paymentMethod === 'online' ? 'text-surface' : 'text-gray-500'}`} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed mb-2">
+                        {isPgOrHostel
+                          ? 'Pay first month\'s rent online & get instant room reservation confirmation.'
+                          : 'Secure online payment via UPI, Card, or Netbanking.'}
+                      </p>
+                      {/* Badges */}
                       <div className="flex gap-2">
-                        <CreditCard size={16} className={`${paymentMethod === 'online' ? 'text-surface' : 'text-gray-500'}`} />
+                        <span className="bg-green-100 text-green-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded">
+                          {isPgOrHostel ? 'Instant Confirm' : 'Fast Checkout'}
+                        </span>
+                        <span className="bg-blue-100 text-blue-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded">Secure</span>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 leading-relaxed mb-2">
-                      {isPgOrHostel
-                        ? 'Pay first month\'s rent online & get instant room reservation confirmation.'
-                        : 'Secure online payment via UPI, Card, or Netbanking.'}
-                    </p>
-                    {/* Badges */}
-                    <div className="flex gap-2">
-                      <span className="bg-green-100 text-green-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-                        {isPgOrHostel ? 'Instant Confirm' : 'Fast Checkout'}
-                      </span>
-                      <span className="bg-blue-100 text-blue-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded">Secure</span>
-                    </div>
-                  </div>
-                </label>
+                  </label>
+                )}
               </div>
             </div>
           );

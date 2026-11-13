@@ -4,7 +4,7 @@ import {  body  } from 'express-validator';
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
 import { getActiveProfessions } from '../../controllers/professionController.js';
-import {  getProfile, updateProfile, updateLocation, toggleOnline, getReferrals  } from '../../controllers/workerControllers/workerProfileController.js';
+import {  getProfile, updateProfile, updateLocation, toggleOnline, getReferrals, deleteWorkerAccount  } from '../../controllers/workerControllers/workerProfileController.js';
 
 // Validation rules
 const updateProfileValidation = [
@@ -17,6 +17,8 @@ const updateProfileValidation = [
 router.get('/professions', authenticate, isWorker, getActiveProfessions);
 router.get('/profile', authenticate, isWorker, getProfile);
 router.put('/profile', authenticate, isWorker, updateProfileValidation, updateProfile);
+router.delete('/profile', authenticate, isWorker, deleteWorkerAccount);
+router.delete('/delete-account', authenticate, isWorker, deleteWorkerAccount);
 router.put('/profile/location', authenticate, isWorker, updateLocation);
 router.post('/toggle-online', authenticate, isWorker, toggleOnline);
 router.get('/referrals', authenticate, isWorker, getReferrals);

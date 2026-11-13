@@ -7,14 +7,21 @@ import { walletService } from '../../../../services/walletService';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import NotificationBell from '../../components/common/NotificationBell';
 import { themeColors } from '../../../../theme';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 
 const Wallet = () => {
   const navigate = useNavigate();
+  const featureFlags = useFeatureFlags();
   const [walletBalance, setWalletBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (featureFlags.userRazorpay === false) {
+      navigate('/user/account', { replace: true });
+      return;
+    }
+
     const loadWalletData = async () => {
       try {
         setLoading(true);
@@ -38,7 +45,11 @@ const Wallet = () => {
     };
 
     loadWalletData();
-  }, []);
+  }, [featureFlags.userRazorpay, navigate]);
+
+  if (featureFlags.userRazorpay === false) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen pb-20 relative bg-white">

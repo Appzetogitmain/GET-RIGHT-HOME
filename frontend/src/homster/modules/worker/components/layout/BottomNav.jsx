@@ -4,10 +4,12 @@ import { FiHome, FiBriefcase, FiUser, FiDollarSign, FiUsers } from 'react-icons/
 import { HiHome, HiBriefcase, HiUser } from 'react-icons/hi';
 import { gsap } from 'gsap';
 import workerService from '../../../../services/workerService';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 
 const BottomNav = memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
+  const flags = useFeatureFlags();
   const iconRefs = useRef({});
   const [pendingJobsCount, setPendingJobsCount] = useState(0);
 
@@ -50,14 +52,19 @@ const BottomNav = memo(() => {
   }, [prefetchJobs]);
 
   const navItems = useMemo(() => {
-    return [
+    const items = [
       { path: '/worker/dashboard', icon: FiHome, activeIcon: HiHome, label: 'Home' },
       { path: '/worker/jobs', icon: FiBriefcase, activeIcon: HiBriefcase, label: 'Jobs', badge: pendingJobsCount },
-      { path: '/worker/wallet', icon: FiDollarSign, activeIcon: FiDollarSign, label: 'Wallet' },
-      { path: '/worker/referrals', icon: FiUsers, activeIcon: FiUsers, label: 'Refer' },
-      { path: '/worker/profile', icon: FiUser, activeIcon: HiUser, label: 'Profile' },
     ];
-  }, [pendingJobsCount]);
+    if (flags.workerRazorpay !== false) {
+      items.push({ path: '/worker/wallet', icon: FiDollarSign, activeIcon: FiDollarSign, label: 'Wallet' });
+    }
+    items.push(
+      { path: '/worker/referrals', icon: FiUsers, activeIcon: FiUsers, label: 'Refer' },
+      { path: '/worker/profile', icon: FiUser, activeIcon: HiUser, label: 'Profile' }
+    );
+    return items;
+  }, [pendingJobsCount, flags.workerRazorpay]);
 
   const handleNavClick = (path) => {
     if (location.pathname !== path) {

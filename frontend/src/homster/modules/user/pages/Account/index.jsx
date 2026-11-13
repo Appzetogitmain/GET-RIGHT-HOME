@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { themeColors } from '../../../../theme';
@@ -20,6 +21,8 @@ import {
   FiBell,
   FiShoppingBag,
   FiLogOut,
+  FiTrash2,
+  FiX,
   FiGift,
   FiShield,
   FiZap,
@@ -46,6 +49,8 @@ const Account = () => {
     plans: null
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch user profile from database
   useEffect(() => {
@@ -135,6 +140,21 @@ const Account = () => {
       localStorage.removeItem('userData');
       toast.success('Logged out successfully');
       navigate('/user/login');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      await userAuthService.deleteAccount();
+      toast.success('Your account has been deleted');
+      navigate('/user/login');
+    } catch (error) {
+      console.error('Delete user account error:', error);
+      toast.error(error.message || 'Failed to delete account');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -337,41 +357,26 @@ const Account = () => {
             </motion.div>
           )}
 
-          {/* Quick Actions Grid */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
-            <button
-              onClick={() => navigate('/wallet')}
-              className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group"
-            >
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: `${themeColors.brand.teal}15`, color: themeColors.brand.teal }}
+          {/* Quick Actions Grid - Wallet Balance */}
+          {featureFlags.userRazorpay !== false && (
+            <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
+              <button
+                onClick={() => navigate('/wallet')}
+                className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group"
               >
-                <MdAccountBalanceWallet className="w-5 h-5" />
-              </div>
-              <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Balance</span>
-              <p className={`text-lg font-black mt-0.5 ${userProfile.walletBalance < 0 ? 'text-red-500' : 'text-gray-900'}`}>
-                ₹{Math.abs(userProfile.walletBalance || 0).toLocaleString('en-IN')}
-                {userProfile.walletBalance < 0 && <span className="text-xs font-normal ml-1">(Penalty)</span>}
-              </p>
-            </button>
-            {/* 
-            <button
-              onClick={() => navigate('/user/rewards')}
-              className="bg-gray-900 p-4 rounded-3xl shadow-lg shadow-gray-200 hover:shadow-xl transition-all text-left relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-50"></div>
-              <div className="relative z-10 h-full flex flex-col justify-between">
-                <div className="w-10 h-10 bg-white/10 text-yellow-400 rounded-2xl flex items-center justify-center mb-3 backdrop-blur-sm group-hover:scale-110 transition-transform">
-                  <FiGift className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"
+                  style={{ backgroundColor: `${themeColors.brand.teal}15`, color: themeColors.brand.teal }}
+                >
+                  <MdAccountBalanceWallet className="w-5 h-5" />
                 </div>
-                <div>
-                  <span className="text-xs text-white/60 font-bold uppercase tracking-wider">Rewards</span>
-                  <p className="text-lg font-black text-white mt-0.5">Refer & Earn</p>
-                </div>
-              </div>
-            </button>
-            */}
-          </motion.div>
+                <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Balance</span>
+                <p className={`text-lg font-black mt-0.5 ${userProfile.walletBalance < 0 ? 'text-red-500' : 'text-gray-900'}`}>
+                  ₹{Math.abs(userProfile.walletBalance || 0).toLocaleString('en-IN')}
+                  {userProfile.walletBalance < 0 && <span className="text-xs font-normal ml-1">(Penalty)</span>}
+                </p>
+              </button>
+            </motion.div>
+          )}
 
           {/* Menu Groups */}
 
@@ -489,6 +494,14 @@ const Account = () => {
             <div className="h-4"></div>
             <motion.button
               whileTap={{ scale: 0.98 }}
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full flex items-center justify-center gap-2 p-4 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 font-black uppercase tracking-wider rounded-2xl border border-red-200 shadow-sm transition-all mb-3"
+            >
+              <FiTrash2 className="w-5 h-5" />
+              <span>Delete Account</span>
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 p-4 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-red-200 transition-all mb-3"
             >
@@ -503,6 +516,70 @@ const Account = () => {
 
         </motion.main>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md p-6 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setShowDeleteConfirm(false)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+              aria-label="Close"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center pt-2">
+              <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600 mb-4 shadow-sm">
+                <FiTrash2 className="w-8 h-8" />
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Account?</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-6 px-2">
+                Are you sure you want to delete your account? This action is permanent and cannot be undone. All your bookings, properties, and saved details will be permanently removed.
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3.5 px-4 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleDeleteAccount}
+                  className="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 text-white font-bold text-sm hover:from-red-700 hover:to-rose-800 active:scale-95 transition-all shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiTrash2 className="w-4 h-4" />
+                      <span>Yes, Delete</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

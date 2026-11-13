@@ -11,6 +11,7 @@ import {
   validateReferralCode
  } from '../../controllers/workerControllers/workerAuthController.js';
 import { getPublicProfessions } from '../../controllers/professionController.js';
+import { deleteWorkerAccount } from '../../controllers/workerControllers/workerProfileController.js';
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
 
@@ -47,5 +48,6 @@ router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', authenticate, isWorker, logout);
+router.delete('/delete-account', authenticate, isWorker, deleteWorkerAccount);
 
 export default router;

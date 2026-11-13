@@ -6,10 +6,18 @@ import { workerTheme as themeColors } from '../../../../theme';
 import workerWalletService from '../../../../services/workerWalletService';
 import { toast } from 'react-hot-toast';
 import LogoLoader from '../../../../components/common/LogoLoader';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 
 const Wallet = () => {
   const navigate = useNavigate();
+  const flags = useFeatureFlags();
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (flags.workerRazorpay === false) {
+      navigate('/worker/dashboard', { replace: true });
+    }
+  }, [flags.workerRazorpay, navigate]);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [wallet, setWallet] = useState({
     balance: 0,
@@ -184,6 +192,10 @@ const Wallet = () => {
       document.body.style.overflow = '';
     };
   }, [selectedTransaction, imageModalOpen, withdrawModalOpen]);
+
+  if (flags.workerRazorpay === false) {
+    return null;
+  }
 
   if (loading) {
     return <LogoLoader />;

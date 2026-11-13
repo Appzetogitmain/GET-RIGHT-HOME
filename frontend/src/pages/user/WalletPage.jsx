@@ -8,9 +8,17 @@ import {
 import { api } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import useFeatureFlags from '../../homster/hooks/useFeatureFlags';
 
 const WalletPage = () => {
     const navigate = useNavigate();
+    const featureFlags = useFeatureFlags();
+
+    useEffect(() => {
+        if (featureFlags.userRazorpay === false) {
+            navigate('/profile', { replace: true });
+        }
+    }, [featureFlags.userRazorpay, navigate]);
     const [balance, setBalance] = useState(0);
     const [stats, setStats] = useState(null);
     const [transactions, setTransactions] = useState([]);
@@ -25,10 +33,11 @@ const WalletPage = () => {
     const quickAmounts = [500, 1000, 2000];
 
     useEffect(() => {
+        if (featureFlags.userRazorpay === false) return;
         checkOwnership();
         fetchWalletData();
         fetchTransactions();
-    }, [viewMode]);
+    }, [viewMode, featureFlags.userRazorpay]);
 
     const checkOwnership = async () => {
         try {
@@ -138,6 +147,10 @@ const WalletPage = () => {
             setProcessing(false);
         }
     };
+
+    if (featureFlags.userRazorpay === false) {
+        return null;
+    }
 
     if (loading) {
         return (

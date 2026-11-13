@@ -1149,3 +1149,42 @@ export const logout = async (req, res) => {
     res.status(500).json({ message: 'Server error during logout' });
   }
 };
+
+/**
+ * @desc    Delete user/partner account
+ * @route   DELETE /api/auth/delete-account
+ * @access  Private
+ */
+export const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const role = req.user?.role;
+    if (role === 'partner') {
+      await Partner.findByIdAndDelete(userId);
+    } else {
+      await User.findByIdAndDelete(userId);
+    }
+
+    // Clear authentication cookie
+    const isLocal = req.headers.host?.includes('localhost') || 
+                    req.headers.host?.includes('127.0.0.1') || 
+                    req.headers.host?.includes('192.168.') || 
+                    req.headers.host?.includes('10.') || 
+                    req.headers.host?.includes('172.');
+    const secure = process.env.NODE_ENV === 'production' && !isLocal;
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: secure,
+      sameSite: secure ? 'none' : 'lax'
+    });
+
+    res.status(200).json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete Account Error:', error);
+    res.status(500).json({ success: false, message: 'Server error deleting account' });
+  }
+};

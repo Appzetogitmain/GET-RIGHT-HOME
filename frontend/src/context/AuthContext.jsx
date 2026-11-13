@@ -27,6 +27,11 @@ export const AuthProvider = ({ children }) => {
     setUserState(null);
   };
 
+  const deleteAccount = async () => {
+    await authService.deleteAccount();
+    setUserState(null);
+  };
+
   const updateUser = (userData) => {
     localStorage.setItem('user', JSON.stringify(userData));
     setUserState(userData);
@@ -35,7 +40,7 @@ export const AuthProvider = ({ children }) => {
   const isLoggedIn = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, login, logout, updateUser, setUser: updateUser }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, login, logout, deleteAccount, updateUser, setUser: updateUser }}>
       {children}
     </AuthContext.Provider>
   );

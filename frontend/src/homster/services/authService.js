@@ -90,6 +90,25 @@ export const userAuthService = {
     localStorage.removeItem('userData');
   },
 
+  // Delete Account
+  deleteAccount: async () => {
+    await removeFCMToken('user');
+    try {
+      await api.delete('/users/delete-account');
+    } catch (error) {
+      try {
+        await api.delete('/auth/delete-account');
+      } catch (err) {
+        console.error('Delete account API error:', err);
+      }
+    }
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  },
+
   // Get profile
   getProfile: async () => {
     const response = await api.get('/users/profile');
@@ -208,6 +227,26 @@ export const workerAuthService = {
       await api.post('/workers/auth/logout', { platform: getPlatformType() });
     } catch (error) {
       console.error('Logout error:', error);
+    }
+    localStorage.removeItem('workerAccessToken');
+    localStorage.removeItem('workerRefreshToken');
+    localStorage.removeItem('workerData');
+    sessionStorage.removeItem('workerAccessToken');
+    sessionStorage.removeItem('workerRefreshToken');
+    sessionStorage.removeItem('workerData');
+  },
+
+  // Delete Account
+  deleteAccount: async () => {
+    await removeFCMToken('worker');
+    try {
+      await api.delete('/workers/delete-account');
+    } catch (error) {
+      try {
+        await api.delete('/workers/profile');
+      } catch (err) {
+        console.error('Worker delete account API error:', err);
+      }
     }
     localStorage.removeItem('workerAccessToken');
     localStorage.removeItem('workerRefreshToken');

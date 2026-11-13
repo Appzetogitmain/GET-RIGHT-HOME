@@ -237,7 +237,9 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                 <div>
                                     <SectionTitle title="Finance" />
                                     <div className="flex flex-col gap-1">
-                                        <MenuItem icon={Wallet} label="My Wallet" path="/wallet" />
+                                        {featureFlags.userRazorpay !== false && (
+                                            <MenuItem icon={Wallet} label="My Wallet" path="/wallet" />
+                                        )}
                                         {featureFlags.userSubscription && (
                                             <MenuItem icon={CreditCard} label="Subscription Plans" path="/my-subscriptions" />
                                         )}

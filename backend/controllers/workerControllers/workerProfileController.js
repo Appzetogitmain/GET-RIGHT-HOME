@@ -568,10 +568,49 @@ const getReferrals = async (req, res) => {
   }
 };
 
+/**
+ * Delete worker account
+ */
+const deleteWorkerAccount = async (req, res) => {
+  try {
+    const workerId = req.user?.id || req.user?._id;
+    if (!workerId) {
+      return res.status(401).json({ success: false, message: 'Worker not authenticated' });
+    }
+
+    await Worker.findByIdAndDelete(workerId);
+
+    // Clear cookies
+    const isLocal = req.headers.host?.includes('localhost') || 
+                    req.headers.host?.includes('127.0.0.1') || 
+                    req.headers.host?.includes('192.168.') || 
+                    req.headers.host?.includes('10.') || 
+                    req.headers.host?.includes('172.');
+    const secure = process.env.NODE_ENV === 'production' && !isLocal;
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: secure,
+      sameSite: secure ? 'none' : 'lax'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Worker account deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete worker account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete worker account'
+    });
+  }
+};
+
 export { 
   getProfile,
   updateProfile,
   updateLocation,
   toggleOnline,
-  getReferrals
+  getReferrals,
+  deleteWorkerAccount
  };

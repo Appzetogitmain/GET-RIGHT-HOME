@@ -2,6 +2,7 @@ import express from 'express';
 import { requireFeature } from '../utils/featureFlags.js';
 import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedPlaces, toggleSavedPlace, updateUserRole, getCheckoutData, validatePromo, getRecommendedBrokers, getBrokerProfile, syncCart, sendEmergencyAlert } from '../controllers/userController.js';
 import { createVipOrder, verifyVipPayment } from '../controllers/vipController.js';
+import { deleteAccount } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -13,6 +14,9 @@ router.get('/broker/:id', getBrokerProfile);
 // Protected Routes
 router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
+router.delete('/profile', protect, deleteAccount);
+router.delete('/delete-account', protect, deleteAccount);
+router.delete('/auth/delete-account', protect, deleteAccount);
 router.get('/checkout-data', protect, getCheckoutData);
 router.put('/role', protect, updateUserRole);
 router.put('/fcm-token', protect, updateFcmToken);

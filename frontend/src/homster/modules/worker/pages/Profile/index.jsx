@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiCalendar, FiShield, FiX } from 'react-icons/fi';
+import { FiUser, FiEdit2, FiMapPin, FiStar, FiChevronRight, FiLogOut, FiCreditCard, FiFileText, FiBookOpen, FiUsers, FiMessageSquare, FiHelpCircle, FiSettings, FiAward, FiCalendar, FiShield, FiX, FiTrash2 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { workerTheme as themeColors } from '../../../../theme';
 import { workerAuthService } from '../../../../services/authService';
@@ -18,6 +18,8 @@ const Profile = () => {
   const [stats, setStats] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useLayoutEffect(() => {
     const html = document.documentElement;
@@ -140,14 +142,14 @@ const Profile = () => {
 
   // Prevent background scroll when logout confirmation modal is open
   useEffect(() => {
-    if (showLogoutConfirm) {
+    if (showLogoutConfirm || showDeleteConfirm) {
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = originalOverflow;
       };
     }
-  }, [showLogoutConfirm]);
+  }, [showLogoutConfirm, showDeleteConfirm]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -165,6 +167,21 @@ const Profile = () => {
     } finally {
       setIsLoggingOut(false);
       setShowLogoutConfirm(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      await workerAuthService.deleteAccount();
+      toast.success('Your worker account has been deleted');
+      navigate('/worker/login');
+    } catch (error) {
+      console.error('Delete worker account error:', error);
+      toast.error(error.message || 'Failed to delete worker account');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -372,8 +389,18 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Logout Button */}
-      <div className="px-4 pb-8">
+      {/* Action Buttons: Delete Account & Log Out */}
+      <div className="px-4 pb-8 space-y-3">
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            setShowDeleteConfirm(true);
+          }}
+          className="w-full bg-red-50 text-red-600 hover:bg-red-100 rounded-2xl p-4 flex items-center justify-center gap-2 font-bold transition-all active:scale-95 border border-red-200 shadow-sm"
+        >
+          <FiTrash2 className="w-5 h-5" /> Delete Account
+        </button>
+
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -439,6 +466,70 @@ const Profile = () => {
                     <>
                       <FiLogOut className="w-4 h-4" />
                       <span>Yes, Log Out</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md p-6 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setShowDeleteConfirm(false)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+              aria-label="Close"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center pt-2">
+              <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-600 mb-4 shadow-sm">
+                <FiTrash2 className="w-8 h-8" />
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Account Confirmation</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-6 px-2">
+                Are you sure you want to permanently delete your worker account? This action cannot be undone. All your job history, wallet balance, and profile details will be permanently removed.
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3.5 px-4 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleDeleteAccount}
+                  className="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 text-white font-bold text-sm hover:from-red-700 hover:to-rose-800 active:scale-95 transition-all shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiTrash2 className="w-4 h-4" />
+                      <span>Yes, Delete</span>
                     </>
                   )}
                 </button>

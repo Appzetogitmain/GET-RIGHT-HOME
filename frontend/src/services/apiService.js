@@ -316,6 +316,15 @@ export const authService = {
       await api.post('/auth/logout');
     } catch (e) {}
     localStorage.removeItem('user');
+  },
+  deleteAccount: async () => {
+    try {
+      const response = await api.delete('/auth/delete-account');
+      localStorage.removeItem('user');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 

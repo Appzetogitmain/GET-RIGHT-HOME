@@ -143,7 +143,7 @@ const WorkerRoutes = () => {
                 <Route path="/documents" element={<WorkerProtectedRoute><Documents /></WorkerProtectedRoute>} />
                 <Route path="/settings" element={<WorkerProtectedRoute><Settings /></WorkerProtectedRoute>} />
                 <Route path="/notifications" element={<WorkerProtectedRoute><Notifications /></WorkerProtectedRoute>} />
-                <Route path="/wallet" element={<WorkerProtectedRoute><Wallet /></WorkerProtectedRoute>} />
+                <Route path="/wallet" element={<WorkerProtectedRoute><FeatureRoute flag="workerRazorpay"><Wallet /></FeatureRoute></WorkerProtectedRoute>} />
                 <Route path="/subscription" element={<WorkerProtectedRoute><FeatureRoute flag="workerSubscription"><Subscription /></FeatureRoute></WorkerProtectedRoute>} />
                 <Route path="/training" element={<WorkerProtectedRoute><Training /></WorkerProtectedRoute>} />
                 <Route path="/support" element={<Support />} />

@@ -12,6 +12,7 @@ import WorkerJobAlertModal from '../../components/bookings/WorkerJobAlertModal';
 import WorkerOfflineModal from './components/WorkerOfflineModal';
 import LogoLoader from '../../../../components/common/LogoLoader';
 import workerWalletService from '../../../../services/workerWalletService';
+import useFeatureFlags from '../../../../hooks/useFeatureFlags';
 
 const ACHIEVEMENT_ICONS = {
   FiStar: FiStar,
@@ -47,6 +48,7 @@ const readCachedWorkerProfile = () => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const flags = useFeatureFlags();
 
   // Helper function to convert hex to rgba
   const hexToRgba = (hex, alpha) => {
@@ -876,12 +878,14 @@ const Dashboard = () => {
           <div className="bg-white rounded-[24px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-gray-50 mb-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-[#1E3A8A] text-lg font-bold">Earnings</h2>
-              <button
-                onClick={() => navigate('/worker/wallet')}
-                className="text-[#3B82F6] text-sm font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
-              >
-                History <FiChevronRight className="w-4 h-4" />
-              </button>
+              {flags.workerRazorpay !== false && (
+                <button
+                  onClick={() => navigate('/worker/wallet')}
+                  className="text-[#3B82F6] text-sm font-bold flex items-center gap-0.5 active:scale-95 transition-transform"
+                >
+                  History <FiChevronRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center justify-between mb-6">
@@ -901,24 +905,26 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="bg-[#EFF6FF] rounded-[16px] p-4 flex items-center justify-between border border-[#DBEAFE]">
-              <div>
-                <p className="text-[#2563EB] text-xs font-bold mb-1">Wallet Balance</p>
-                <p className="text-[#2563EB] text-[22px] font-extrabold tracking-tight leading-none">₹{stats.walletBalance.toLocaleString()}</p>
-              </div>
-              <button
-                onClick={() => navigate('/worker/wallet')}
-                className="bg-[#3B82F6] text-white px-5 py-2.5 rounded-full text-[13px] font-bold flex items-center gap-1.5 shadow-[0_4px_12px_rgba(59,130,246,0.25)] active:scale-95 transition-transform"
-              >
-                <div className="flex items-center gap-0.5">
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2L1 7v2h22V7L12 2zm-9 9h3v7H3v-7zm7 0h3v7h-3v-7zm7 0h3v7h-3v-7zM1 20v2h22v-2H1z" />
-                  </svg>
-                  <FiArrowRight className="w-3 h-3 -ml-0.5 stroke-[3]" />
+            {flags.workerRazorpay !== false && (
+              <div className="bg-[#EFF6FF] rounded-[16px] p-4 flex items-center justify-between border border-[#DBEAFE]">
+                <div>
+                  <p className="text-[#2563EB] text-xs font-bold mb-1">Wallet Balance</p>
+                  <p className="text-[#2563EB] text-[22px] font-extrabold tracking-tight leading-none">₹{stats.walletBalance.toLocaleString()}</p>
                 </div>
-                Withdraw
-              </button>
-            </div>
+                <button
+                  onClick={() => navigate('/worker/wallet')}
+                  className="bg-[#3B82F6] text-white px-5 py-2.5 rounded-full text-[13px] font-bold flex items-center gap-1.5 shadow-[0_4px_12px_rgba(59,130,246,0.25)] active:scale-95 transition-transform"
+                >
+                  <div className="flex items-center gap-0.5">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L1 7v2h22V7L12 2zm-9 9h3v7H3v-7zm7 0h3v7h-3v-7zm7 0h3v7h-3v-7zM1 20v2h22v-2H1z" />
+                    </svg>
+                    <FiArrowRight className="w-3 h-3 -ml-0.5 stroke-[3]" />
+                  </div>
+                  Withdraw
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1182,7 +1188,7 @@ const Dashboard = () => {
         <div className="px-4 pt-2 pb-6">
           <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
             <h2 className="text-[#1E3A8A] text-lg font-bold mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-4 gap-2">
+            <div className={`grid ${flags.workerRazorpay !== false ? 'grid-cols-4' : 'grid-cols-3'} gap-2`}>
               <div onClick={() => navigate('/worker/jobs')} className="flex flex-col items-center gap-2 cursor-pointer group">
                 <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center transition-transform group-hover:scale-105">
                   <FiClipboard className="w-6 h-6" />
@@ -1190,12 +1196,14 @@ const Dashboard = () => {
                 <span className="text-[11px] font-bold text-[#1E3A8A] text-center leading-tight">My Jobs</span>
               </div>
 
-              <div onClick={() => navigate('/worker/wallet')} className="flex flex-col items-center gap-2 cursor-pointer group">
-                <div className="w-14 h-14 rounded-2xl bg-[#E6F8F3] text-[#00A699] flex items-center justify-center transition-transform group-hover:scale-105">
-                  <FaWallet className="w-6 h-6" />
+              {flags.workerRazorpay !== false && (
+                <div onClick={() => navigate('/worker/wallet')} className="flex flex-col items-center gap-2 cursor-pointer group">
+                  <div className="w-14 h-14 rounded-2xl bg-[#E6F8F3] text-[#00A699] flex items-center justify-center transition-transform group-hover:scale-105">
+                    <FaWallet className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-bold text-[#1E3A8A] text-center leading-tight">Wallet</span>
                 </div>
-                <span className="text-[11px] font-bold text-[#1E3A8A] text-center leading-tight">Wallet</span>
-              </div>
+              )}
 
               <div onClick={() => navigate('/worker/support')} className="flex flex-col items-center gap-2 cursor-pointer group">
                 <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center transition-transform group-hover:scale-105">

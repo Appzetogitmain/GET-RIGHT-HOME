@@ -143,7 +143,7 @@ const UserRoutes = () => {
               <Route path="/settings" element={<ProtectedRoute userType="user"><Settings /></ProtectedRoute>} />
               <Route path="/manage-payment-methods" element={<ProtectedRoute userType="user"><ManagePaymentMethods /></ProtectedRoute>} />
               <Route path="/manage-addresses" element={<ProtectedRoute userType="user"><ManageAddresses /></ProtectedRoute>} />
-              <Route path="/wallet" element={<ProtectedRoute userType="user"><Wallet /></ProtectedRoute>} />
+              <Route path="/wallet" element={<ProtectedRoute userType="user"><FeatureRoute flag="userRazorpay"><Wallet /></FeatureRoute></ProtectedRoute>} />
               <Route path="/my-plan" element={<ProtectedRoute userType="user"><FeatureRoute flag="userSubscription"><MyPlan /></FeatureRoute></ProtectedRoute>} />
               <Route path="/my-plan/:id" element={<ProtectedRoute userType="user"><FeatureRoute flag="userSubscription"><PlanDetails /></FeatureRoute></ProtectedRoute>} />
               <Route path="/my-rating" element={<ProtectedRoute userType="user"><MyRating /></ProtectedRoute>} />
