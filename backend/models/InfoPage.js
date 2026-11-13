@@ -4,12 +4,12 @@ const infoPageSchema = new mongoose.Schema(
   {
     audience: {
       type: String,
-      enum: ['user', 'partner'],
+      enum: ['user', 'partner', 'worker'],
       required: true
     },
     slug: {
       type: String,
-      enum: ['terms', 'privacy', 'about', 'contact'],
+      enum: ['terms', 'privacy', 'about', 'contact', 'support'],
       required: true
     },
     title: {
