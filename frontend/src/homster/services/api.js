@@ -200,9 +200,12 @@ export const handleLogout = (role = null) => {
     localStorage.removeItem(`${prefix}Data`);
   };
 
+  const publicWorkerPaths = ['/worker/login', '/worker/signup', '/worker/terms', '/worker/privacy', '/worker/privacy-policy', '/worker/support'];
+  const publicUserPaths = ['/login', '/signup', '/terms', '/privacy', '/support', '/legal', '/contact'];
+
   if (role === 'worker') {
     clearTokens('worker');
-    if (window.location.pathname !== '/worker/login') {
+    if (!publicWorkerPaths.some(p => window.location.pathname.startsWith(p))) {
       window.location.href = '/worker/login';
     }
   } else if (role === 'admin') {
@@ -218,7 +221,7 @@ export const handleLogout = (role = null) => {
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('userData');
-    if (!window.location.pathname.includes('/login')) {
+    if (!publicUserPaths.some(p => window.location.pathname.startsWith(p))) {
       window.location.href = '/login';
     }
   }

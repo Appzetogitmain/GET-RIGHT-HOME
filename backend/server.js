@@ -429,6 +429,14 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         } catch (adminErr) {
           console.warn('⚠️ Admin auto-seeding failed on startup:', adminErr.message);
         }
+
+        // Auto-seed default Legal Pages (Terms & Conditions, Privacy Policy) for User, Partner & Worker
+        try {
+          const { seedLegalPagesOnStartup } = await import('./utils/legalSeeder.js');
+          await seedLegalPagesOnStartup();
+        } catch (legalErr) {
+          console.warn('⚠️ Legal pages auto-seeding failed on startup:', legalErr.message);
+        }
       } catch (tierErr) {
         console.error('❌ Auto-seeding tiers failed on startup:', tierErr.message);
       }

@@ -86,7 +86,7 @@ const AdminLegalPages = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Legal & Info Pages</h2>
           <p className="text-gray-500 text-sm">
-            Manage Terms, Privacy, About and Contact content for users and partners.
+            Manage Terms, Privacy, About and Contact content for users, partners, and workers.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-1">
@@ -103,6 +103,13 @@ const AdminLegalPages = () => {
               }`}
           >
             Partner
+          </button>
+          <button
+            onClick={() => setAudience('worker')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg ${audience === 'worker' ? 'bg-black text-white' : 'text-gray-600'
+              }`}
+          >
+            Worker
           </button>
         </div>
       </div>
@@ -130,7 +137,7 @@ const AdminLegalPages = () => {
                 <div>
                   <p className="text-sm font-bold text-gray-900">{label}</p>
                   <p className="text-[11px] text-gray-500 uppercase tracking-wide">
-                    {audience === 'user' ? 'User facing' : 'Partner facing'}
+                    {audience === 'user' ? 'User facing' : audience === 'worker' ? 'Worker facing' : 'Partner facing'}
                   </p>
                 </div>
               </div>

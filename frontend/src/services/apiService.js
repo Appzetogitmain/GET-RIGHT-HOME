@@ -175,7 +175,9 @@ api.interceptors.response.use(
       localStorage.removeItem('userToken');
       localStorage.removeItem('adminToken');
       localStorage.removeItem('accessToken');
-      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
+      const publicPaths = ['/login', '/signup', '/terms', '/privacy', '/support', '/legal', '/contact', '/worker/terms', '/worker/privacy', '/worker/privacy-policy', '/worker/support'];
+      const isPublicPath = publicPaths.some(p => window.location.pathname.startsWith(p));
+      if (!isPublicPath && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
         console.warn("Session expired or account blocked. Redirecting to login...");
         const path = window.location.pathname + window.location.search;
         const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(window.location.pathname);

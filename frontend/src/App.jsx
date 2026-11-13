@@ -480,6 +480,7 @@ function App() {
                     <Route path="/legal" element={<LegalPage />} />
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
+                    <Route path="/support" element={<SupportPage />} />
 
                     {/* Home Services Public Routes */}
                     <Route path="/home-services" element={<HomeServicesPage />} />
@@ -710,7 +711,6 @@ function App() {
                       <Route path="/my-reviews" element={<UserMyReviewsPage />} />
                       <Route path="/wallet" element={<WalletPage />} />
                       <Route path="/payment" element={<PaymentPage />} />
-                      <Route path="/support" element={<SupportPage />} />
                       <Route path="/support/chat" element={<SupportChatPage />} />
                       <Route path="/refer" element={<ReferAndEarnPage />} />
                       <Route path="/checkout" element={<BookingCheckoutPage />} />
