@@ -163,7 +163,7 @@ const WorkerRoutes = () => {
 
         <Suspense fallback={null}><GlobalWorkerJobAlert /></Suspense>
         {/* Logged-in workers must keep device location on */}
-        {isAuthenticated && !['/worker/login', '/worker/signup'].includes(location.pathname) && <WorkerLocationGuard />}
+        {isAuthenticated && !['/worker/login', '/worker/signup', '/worker/terms', '/worker/privacy', '/worker/support', '/worker/privacy-policy'].includes(location.pathname) && <WorkerLocationGuard />}
         <Suspense fallback={null}><JobReminderModal /></Suspense>
       </ErrorBoundary>
 

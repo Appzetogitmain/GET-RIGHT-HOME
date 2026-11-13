@@ -27,6 +27,7 @@ import HomeServiceService from '../models/HomeServiceService.js';
 import HomeServiceBooking from '../models/HomeServiceBooking.js';
 import Cart from '../models/Cart.js';
 import { syncBuilderProjectDetails } from './propertyController.js';
+import { DEFAULT_LEGAL_DATA } from '../utils/legalSeeder.js';
 
 
 
@@ -1582,7 +1583,27 @@ export const getLegalPages = async (req, res) => {
       query.audience = audience;
     }
 
-    const pages = await InfoPage.find(query).sort({ audience: 1, slug: 1 });
+    let pages = await InfoPage.find(query).sort({ audience: 1, slug: 1 });
+
+    // If any standard pages are missing for requested audience, merge with defaults
+    if (audience && DEFAULT_LEGAL_DATA[audience]) {
+      const existingSlugs = new Set(pages.map(p => p.slug));
+      const defaultsToAdd = [];
+      for (const [slug, item] of Object.entries(DEFAULT_LEGAL_DATA[audience])) {
+        if (!existingSlugs.has(slug)) {
+          defaultsToAdd.push({
+            audience,
+            slug,
+            title: item.title,
+            content: item.content,
+            isActive: true
+          });
+        }
+      }
+      if (defaultsToAdd.length > 0) {
+        pages = [...pages, ...defaultsToAdd];
+      }
+    }
 
     res.status(200).json({ success: true, pages });
   } catch (error) {
@@ -1594,11 +1615,11 @@ export const upsertLegalPage = async (req, res) => {
   try {
     const { audience, slug, title, content, isActive } = req.body;
 
-    if (!['user', 'partner'].includes(audience)) {
+    if (!['user', 'partner', 'worker'].includes(audience)) {
       return res.status(400).json({ success: false, message: 'Invalid audience' });
     }
 
-    if (!['terms', 'privacy', 'about', 'contact'].includes(slug)) {
+    if (!['terms', 'privacy', 'about', 'contact', 'support'].includes(slug)) {
       return res.status(400).json({ success: false, message: 'Invalid page type' });
     }
 
@@ -1622,6 +1643,22 @@ export const upsertLegalPage = async (req, res) => {
       update,
       { new: true, upsert: true }
     );
+
+    // If worker terms or privacy is updated, also sync with PlatformSettings for worker app
+    if (audience === 'worker') {
+      try {
+        const platformSettings = await PlatformSettings.getSettings();
+        if (slug === 'terms') {
+          platformSettings.termsAndConditions = content;
+          await platformSettings.save();
+        } else if (slug === 'privacy') {
+          platformSettings.privacyPolicy = content;
+          await platformSettings.save();
+        }
+      } catch (syncErr) {
+        // Non-blocking
+      }
+    }
 
     res.status(200).json({ success: true, page });
   } catch (error) {
