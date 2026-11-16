@@ -21,6 +21,21 @@ const PREMIUM_IMAGES = {
 
 let cachedFilterTypes = null;
 
+// Warm the lazy route chunks so switching tabs doesn't wait on a network
+// download (the cause of the delay + spinner flash). Imports are cached by
+// the bundler, so calling these repeatedly is free.
+const ROUTE_PREFETCH = {
+  'Buy': () => import('../../pages/user/BuyPage'),
+  'Rent/PG': () => import('../../pages/user/RentPage'),
+  'Plot': () => import('../../pages/user/PlotPage'),
+  'Home Service': () => import('../../pages/user/HomeServicesPage'),
+};
+const prefetchRoute = (label) => {
+  const loader = ROUTE_PREFETCH[label];
+  if (loader) loader().catch(() => {});
+};
+const prefetchAllRoutes = () => Object.keys(ROUTE_PREFETCH).forEach(prefetchRoute);
+
 const PropertyTypeFilter = ({ selectedType, selectedLabel, onSelectType, theme }) => {
   const accentColor = theme?.accent || '#005B9F';
   const textClass = theme?.text || 'text-[#005B9F]';
@@ -30,6 +45,14 @@ const PropertyTypeFilter = ({ selectedType, selectedLabel, onSelectType, theme }
   const [allTypes, setAllTypes] = useState(cachedFilterTypes || [ALL_OPTION, ...STATIC_TYPES]);
   const [imageError, setImageError] = useState({});
   const scrollContainerRef = useRef(null);
+
+  // Prefetch all tab destinations once the browser is idle
+  useEffect(() => {
+    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 300));
+    const cic = window.cancelIdleCallback || clearTimeout;
+    const handle = ric(prefetchAllRoutes);
+    return () => cic(handle);
+  }, []);
 
   useEffect(() => {
     if (cachedFilterTypes) return; // Prevent millisecond glitch by using cache
@@ -179,8 +202,10 @@ const PropertyTypeFilter = ({ selectedType, selectedLabel, onSelectType, theme }
               key={type.id || 'all'}
               id={`tab-${type.label.replace(/\s+/g, '-')}`}
               onClick={() => onSelectType(type.id, type.label)}
+              onPointerDown={() => prefetchRoute(type.label)}
+              onMouseEnter={() => prefetchRoute(type.label)}
               className={`
-                flex flex-col items-center justify-between p-1.5 pb-2.5 min-w-[85px] w-[85px] h-[115px] rounded-[1.25rem] border transition-all shrink-0 group
+                flex flex-col items-center justify-between p-1.5 pb-2.5 min-w-[85px] w-[85px] h-[115px] rounded-[1.25rem] border transition-[transform,box-shadow,background-color,border-color] duration-200 shrink-0 group
                 ${isSelected ? `shadow-md ${bgLightClass} scale-[1.02]` : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}
               `}
               style={{ borderColor: isSelected ? accentColor : undefined }}

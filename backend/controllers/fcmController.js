@@ -1,5 +1,4 @@
 import User from '../models/User.js';
-import { sendNotificationToUser } from '../services/firebaseAdmin.js';
 
 // @desc    Save FCM token
 // @route   POST /api/fcm-tokens/save
@@ -59,27 +58,3 @@ export const removeFcmToken = async (req, res) => {
   }
 };
 
-// @desc    Test Push Notification
-// @route   POST /api/fcm-tokens/test
-// @access  Private
-export const testPushNotification = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    
-    // Call the deduplicate-safe function
-    await sendNotificationToUser(userId, {
-      title: 'Test Notification 🎉',
-      body: 'This is a test notification from GET-RIGHT-HOME backend.',
-      data: {
-        type: 'test',
-        id: Date.now().toString(),
-        link: '/'
-      }
-    });
-
-    res.status(200).json({ success: true, message: 'Test notification queued successfully' });
-  } catch (error) {
-    console.error('Test Push Notification error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};

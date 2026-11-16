@@ -6,7 +6,6 @@
 import express from 'express';
 const router = express.Router();
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
-import { sendNotificationToWorker } from '../../services/firebaseAdmin.js';
 import Worker from '../../models/Worker.js';
 import User from '../../models/User.js';
 
@@ -141,49 +140,6 @@ router.delete('/remove-all', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error removing FCM tokens:', error);
     res.status(500).json({ success: false, error: 'Failed to remove FCM tokens' });
-  }
-});
-
-/**
- * @route   POST /api/workers/fcm-tokens/test
- * @desc    Send test notification to worker (development only)
- * @access  Private (Worker)
- */
-router.post('/test', authenticate, async (req, res) => {
-  try {
-    const workerId = req.user._id;
-    const worker = await Worker.findById(workerId);
-
-    if (!worker) {
-      return res.status(404).json({ success: false, error: 'Worker not found' });
-    }
-
-    const tokens = [...(worker.fcmTokens || []), ...(worker.fcmTokenMobile || [])];
-    const uniqueTokens = [...new Set(tokens)];
-
-    if (uniqueTokens.length === 0) {
-      return res.json({ success: false, error: 'No FCM tokens found for worker' });
-    }
-
-    const response = await sendNotificationToWorker(workerId, {
-      title: '🔔 Test Notification',
-      body: 'This is a test notification for worker!',
-      data: {
-        type: 'test',
-        id: `test-${Date.now()}`,
-        link: '/worker/dashboard'
-      }
-    });
-
-    res.json({
-      success: true,
-      message: 'Test notification sent',
-      successCount: response?.successCount || 0,
-      failureCount: response?.failureCount || 0
-    });
-  } catch (error) {
-    console.error('Error sending test notification:', error);
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 

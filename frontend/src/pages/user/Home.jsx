@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import HeroSection from '../../components/user/HeroSection';
@@ -314,21 +314,25 @@ const Home = () => {
         return THEME_MAP[selectedType.label] || THEME_MAP.default;
     }, [selectedType]);
 
+    // startTransition keeps the current screen visible until the next page is
+    // ready, instead of flashing the full-page spinner.
+    const go = (path) => startTransition(() => navigate(path));
+
     const handleTypeSelect = (id, label) => {
         if (id === 'homeservice') {
-            navigate('/home-services');
+            go('/home-services');
             return;
         }
         if (label === 'PG/Co-Living' || label === 'PG' || label === 'Rent/PG' || label === 'Rent') {
-            navigate('/rent-pg');
+            go('/rent-pg');
             return;
         }
         if (label === 'Buy') {
-            navigate('/buy');
+            go('/buy');
             return;
         }
         if (label === 'Plot') {
-            navigate('/plot');
+            go('/plot');
             return;
         }
         setSelectedType({ id, label });
