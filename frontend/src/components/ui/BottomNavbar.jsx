@@ -74,7 +74,7 @@ const BottomNavbar = () => {
         border-t border-gray-100 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]
         flex justify-between items-center
         px-2 pt-2 pb-0 h-[60px]
-      ">
+      " style={{ boxSizing: 'content-box', paddingBottom: 'var(--bottom-nav-inset)' }}>
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.name;
