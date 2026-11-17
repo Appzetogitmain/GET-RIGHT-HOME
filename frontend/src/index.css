@@ -34,6 +34,14 @@
   --color-partner-border: #BBF7D0;
 }
 
+/* Space kept below the mobile bottom nav so it clears the phone's own
+   back/home/recents buttons (3-button Android nav, gesture bar, iOS home bar).
+   Some Android WebViews report env(safe-area-inset-bottom) as 0, so keep a
+   minimum of 16px. */
+:root {
+  --bottom-nav-inset: max(env(safe-area-inset-bottom, 0px), 16px);
+}
+
 @layer base {
   body {
     /* 
