@@ -53,7 +53,17 @@ const matchesDependsOn = (dependsOn, dataObj) => {
 const DynamicFormEngine = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { transactionType, category, propertyType, propertySubType, existingProperty } = location.state || {};
+  // Router state is lost when the app is reopened on this URL, so fall back to
+  // the saved draft pointer to resume where the user left off.
+  const navState = (() => {
+    if (location.state) return location.state;
+    try {
+      return JSON.parse(localStorage.getItem('draft_resume_state') || 'null') || {};
+    } catch {
+      return {};
+    }
+  })();
+  const { transactionType, category, propertyType, propertySubType, existingProperty } = navState;
   const isEditMode = !!existingProperty;
   const displayPropertyType = propertySubType || propertyType;
 
@@ -200,6 +210,15 @@ const DynamicFormEngine = () => {
     };
     fetchTemplate();
   }, [transactionType, category, displayPropertyType, navigate]);
+
+  // Remember which listing is in progress so it can be resumed later.
+  useEffect(() => {
+    if (!isEditMode && transactionType && category && displayPropertyType) {
+      const { existingProperty: _omit, ...resumable } = navState;
+      localStorage.setItem('draft_resume_state', JSON.stringify(resumable));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, transactionType, category, displayPropertyType]);
 
   // Save form data to localStorage on change
   useEffect(() => {
@@ -644,6 +663,7 @@ const DynamicFormEngine = () => {
       // redundant — keeping it would resurrect a stale duplicate later.
       localStorage.removeItem(storageKey);
       localStorage.removeItem(stepStorageKey);
+      localStorage.removeItem('draft_resume_state');
 
       const eligibility = await fetchEligibility();
 

@@ -338,7 +338,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
         >
           {/* Cover Image Container */}
           <div className="relative h-[180px] w-full overflow-hidden bg-gray-100 flex-shrink-0">
-            <img
+            <img loading="lazy" decoding="async"
               src={activeImageSrc}
               alt={displayName}
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -506,7 +506,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
               style={{ transform: `translateY(-${currentImageIndex * 100}%)` }}
             >
               {propertyImagesList.map((img, idx) => (
-                <img
+                <img loading="lazy" decoding="async"
                   key={idx}
                   src={img}
                   alt={displayName}
@@ -650,7 +650,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
               }}
             >
               {[...propertyImagesList].reverse().map((img, idx) => (
-                <img
+                <img loading="lazy" decoding="async"
                   key={idx}
                   src={img}
                   alt={displayName}
@@ -799,7 +799,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
             >
               {propertyImagesList.map((img, idx) => (
                 <div key={idx} style={{ width: `${100 / propertyImagesList.length}%` }} className="h-full relative">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={img}
                     alt={displayName}
                     className="w-full h-full object-cover"
@@ -813,7 +813,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
               ))}
             </div>
           ) : (
-            <img
+            <img loading="lazy" decoding="async"
               src={imageSrc}
               alt={displayName}
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -1067,4 +1067,4 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
   );
 };
 
-export default GRHPropertyCard;
+export default React.memo(GRHPropertyCard);

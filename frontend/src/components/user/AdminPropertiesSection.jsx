@@ -128,7 +128,7 @@ const AdminPropertyCard = ({ property, index, theme }) => {
                             const extractedImage = property.coverImage || property.images?.[0] || property.propertyImages?.[0] || dynImages[0] || null;
                             if (extractedImage) {
                                 return (
-                                    <img
+                                    <img loading="lazy" decoding="async"
                                         src={extractedImage}
                                         alt={property.propertyName}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
@@ -181,7 +181,7 @@ const AdminPropertyCard = ({ property, index, theme }) => {
                     <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md rounded-2xl p-4 pt-7 shadow-lg flex flex-col items-center border border-gray-100/50">
                         {/* Circular Brand Logo Badge */}
                         <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-white border-2 border-gray-100 shadow-md flex items-center justify-center p-1.5 overflow-hidden z-20">
-                            <img
+                            <img loading="lazy" decoding="async"
                                 src={displayLogo}
                                 alt="Brand Logo"
                                 className={`w-full h-full rounded-full ${logoIsCover ? 'object-cover' : 'object-contain'}`}

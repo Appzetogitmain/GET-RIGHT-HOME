@@ -3,14 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Loader2 } from 'lucide-react';
 import { reelService } from '../../services/reelService';
 
+// Several reel cards are on screen at once, and each YouTube/Instagram embed
+// boots a full third-party player. Running 3-4 of them together makes phones
+// stutter, so only one embed plays at a time; the rest keep their thumbnail.
+let activeEmbedId = null;
+const embedListeners = new Set();
+const setActiveEmbed = (id) => {
+    activeEmbedId = id;
+    embedListeners.forEach((listener) => listener());
+};
+
 const ReelItem = ({ reel, navigate, theme }) => {
     const containerRef = useRef(null);
     const videoRef = useRef(null);
     const [isIntersecting, setIsIntersecting] = useState(false);
+    const intersectingRef = useRef(false);
+    const [isActiveEmbed, setIsActiveEmbed] = useState(false);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
+                intersectingRef.current = entry.isIntersecting;
                 setIsIntersecting(entry.isIntersecting);
             },
             { threshold: 0.7 } // Play when 70% of the card is visible
@@ -54,6 +67,32 @@ const ReelItem = ({ reel, navigate, theme }) => {
     };
 
     const videoDetails = getVideoDetails(reel.videoUrl);
+    const isEmbed = reel.videoType === 'url' && (videoDetails.type === 'youtube' || videoDetails.type === 'instagram');
+
+    // Claim / release the single embed slot as this card enters / leaves view.
+    useEffect(() => {
+        if (!isEmbed) return undefined;
+        const sync = () => {
+            if (activeEmbedId === null && intersectingRef.current) setActiveEmbed(reel._id);
+            setIsActiveEmbed(activeEmbedId === reel._id);
+        };
+        embedListeners.add(sync);
+        return () => {
+            embedListeners.delete(sync);
+            if (activeEmbedId === reel._id) setActiveEmbed(null);
+        };
+    }, [isEmbed, reel._id]);
+
+    useEffect(() => {
+        if (!isEmbed) return;
+        if (isIntersecting) {
+            if (activeEmbedId === null) setActiveEmbed(reel._id);
+        } else if (activeEmbedId === reel._id) {
+            setActiveEmbed(null); // hands the slot to the next visible card
+        }
+    }, [isEmbed, isIntersecting, reel._id]);
+
+    const showEmbed = isIntersecting && isActiveEmbed;
 
     // Get thumbnail URL
     let thumbUrl = reel.thumbnailUrl;
@@ -80,7 +119,7 @@ const ReelItem = ({ reel, navigate, theme }) => {
                 {/* Auto-playing Video / Iframe */}
                 {reel.videoType === 'url' ? (
                     videoDetails.type === 'youtube' ? (
-                        isIntersecting ? (
+                        showEmbed ? (
                             <iframe
                                 src={`https://www.youtube.com/embed/${videoDetails.id}?autoplay=1&mute=1&loop=1&playlist=${videoDetails.id}&controls=0&modestbranding=1&rel=0&playsinline=1`}
                                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
@@ -89,7 +128,7 @@ const ReelItem = ({ reel, navigate, theme }) => {
                             />
                         ) : null
                     ) : videoDetails.type === 'instagram' ? (
-                        isIntersecting ? (
+                        showEmbed ? (
                             <iframe
                                 src={`https://www.instagram.com/reel/${videoDetails.id}/embed/`}
                                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
@@ -102,6 +141,7 @@ const ReelItem = ({ reel, navigate, theme }) => {
                             ref={videoRef}
                             src={reel.videoUrl}
                             poster={thumbUrl}
+                            preload="none"
                             muted
                             loop
                             playsInline
@@ -113,6 +153,7 @@ const ReelItem = ({ reel, navigate, theme }) => {
                         ref={videoRef}
                         src={reel.videoUrl}
                         poster={thumbUrl}
+                        preload="none"
                         muted
                         loop
                         playsInline
@@ -122,10 +163,12 @@ const ReelItem = ({ reel, navigate, theme }) => {
 
                 {/* Fallback Static Thumbnail */}
                 <img
+                    loading="lazy"
+                    decoding="async"
                     src={thumbUrl}
                     alt={reel.caption || reel.title}
                     className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-                        isIntersecting ? 'opacity-0' : 'opacity-100'
+                        (isEmbed ? showEmbed : isIntersecting) ? 'opacity-0' : 'opacity-100'
                     }`}
                 />
 
@@ -133,7 +176,7 @@ const ReelItem = ({ reel, navigate, theme }) => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
                 {/* Play Icon - Only shows when not playing */}
-                {!isIntersecting && (
+                {!(isEmbed ? showEmbed : isIntersecting) && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="bg-black/30 backdrop-blur-sm p-2 rounded-full">
                             <Play size={18} className="text-white fill-white" />

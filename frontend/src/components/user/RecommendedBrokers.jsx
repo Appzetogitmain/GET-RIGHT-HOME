@@ -87,7 +87,7 @@ export const BrokerCard = ({ broker, index = 0, onContact }) => {
                 <div className="flex items-center gap-3">
                     <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-4 border-white shadow-md overflow-hidden bg-white shrink-0 flex items-center justify-center">
                         {broker.profileImage ? (
-                            <img
+                            <img loading="lazy" decoding="async"
                                 src={broker.profileImage}
                                 alt={broker.name}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

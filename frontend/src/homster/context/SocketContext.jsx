@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { playNotificationSound, isSoundEnabled, playAlertRing, stopAlertRing, playApprovalSuccessSound, playRejectionSound, playAdminOfflineAlertSound, playManualAssignmentAlertSound } from '../utils/notificationSound';
@@ -138,619 +137,630 @@ export const SocketProvider = ({ children }) => {
       }
     }
 
-    const newSocket = io(socketBaseUrl, {
-      auth: {
-        token: token || ''
-      },
-      // Websocket first: long-polling holds one of the browser's ~6 connections
-      // per host open, which starves the page's API calls. Falls back to polling.
-      transports: ['websocket', 'polling'],
-      path: '/socket.io/',
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      autoConnect: true
-    });
+    // socket.io-client is not needed to paint the page, so it is fetched
+    // lazily instead of sitting in the initial bundle.
+    let cancelled = false;
+    let newSocket = null;
+    import('socket.io-client').then(({ io }) => {
+      if (cancelled) return;
+      newSocket = io(socketBaseUrl, {
+        auth: {
+          token: token || ''
+        },
+        // Websocket first: long-polling holds one of the browser's ~6 connections
+        // per host open, which starves the page's API calls. Falls back to polling.
+        transports: ['websocket', 'polling'],
+        path: '/socket.io/',
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        autoConnect: true
+      });
 
-    setSocket(newSocket);
+      setSocket(newSocket);
 
-    newSocket.on('connect', () => {
-      console.log(`✅ [Socket] ${userType?.toUpperCase()} connected → socket.id: ${newSocket.id}`);
+      newSocket.on('connect', () => {
+        console.log(`✅ [Socket] ${userType?.toUpperCase()} connected → socket.id: ${newSocket.id}`);
       
-      // Register FCM token for push notifications (on page load/refresh).
-      // Firebase is sizeable and is not needed to paint the app, so defer it
-      // until the socket is connected instead of putting it on the load path.
-      if (userType && (token || hasUserAuth)) {
-        import('../services/pushNotificationService').then(({
-          registerFCMToken,
-          setupForegroundNotificationHandler
-        }) => {
-          setupForegroundNotificationHandler(() => {});
-          return registerFCMToken(userType, true);
-        }).then((fcmToken) => {
-          if (fcmToken) console.log(`[Socket] ✅ FCM token registered for ${userType}`);
-        }).catch(() => {
-          // Push registration is best-effort and must never block app startup.
+        // Register FCM token for push notifications (on page load/refresh).
+        // Firebase is sizeable and is not needed to paint the app, so defer it
+        // until the socket is connected instead of putting it on the load path.
+        if (userType && (token || hasUserAuth)) {
+          import('../services/pushNotificationService').then(({
+            registerFCMToken,
+            setupForegroundNotificationHandler
+          }) => {
+            setupForegroundNotificationHandler(() => {});
+            return registerFCMToken(userType, true);
+          }).then((fcmToken) => {
+            if (fcmToken) console.log(`[Socket] ✅ FCM token registered for ${userType}`);
+          }).catch(() => {
+            // Push registration is best-effort and must never block app startup.
+          });
+        }
+
+
+        if (userType === 'worker') {
+          const workerData = JSON.parse(localStorage.getItem('workerData') || sessionStorage.getItem('workerData') || '{}');
+          const workerId = workerData.id || workerData._id;
+          if (workerId) {
+            console.log(`[Socket] WORKER joining room: worker_${workerId}`);
+            newSocket.emit('join_worker_room', workerId);
+          } else {
+            console.warn('[Socket] ⚠️ WORKER: no workerId found in localStorage');
+          }
+        }
+
+        if (userType === 'user') {
+          // Fallback to check both 'userData' and 'user' since different parts of the app use different keys
+          const storedUserData = localStorage.getItem('userData') || localStorage.getItem('user') || '{}';
+          const userData = JSON.parse(storedUserData);
+          const userId = userData.id || userData._id;
+          if (userId) {
+            console.log(`[Socket] USER joining room: user_${userId}`);
+            newSocket.emit('join_user_room', userId);
+          } else {
+            console.warn('[Socket] ⚠️ USER: no userId found in localStorage under "userData" or "user". userData:', userData);
+          }
+        }
+
+        if (userType === 'admin') {
+          // Shared room — every admin/superadmin session gets the same alerts
+          // (e.g. a new property submitted for approval), no per-admin id needed.
+          console.log('[Socket] ADMIN joining room: admin_room');
+          newSocket.emit('join_admin_room');
+        }
+      });
+
+      // Also re-verify room subscription whenever pathname or user data is refreshed
+      if (userType === 'worker') {
+        const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
+        const workerId = workerData.id || workerData._id;
+        if (workerId && newSocket.connected) {
+          newSocket.emit('join_worker_room', workerId);
+        }
+      }
+
+      newSocket.on('disconnect', (reason) => {
+        console.log(`❌ [Socket] ${userType?.toUpperCase()} disconnected → reason: ${reason}`);
+      });
+
+      // A listing just went live (admin approved / created it): let open search
+      // and list pages refresh themselves.
+      newSocket.on('property_listed', (data) => {
+        window.dispatchEvent(new CustomEvent('propertyListed', { detail: data }));
+      });
+
+      newSocket.on('connect_error', (err) => {
+        console.error(`[Socket] ❌ Connection error for ${userType}:`, err.message);
+      });
+
+      // Listen for generic notifications
+      newSocket.on('notification', (data) => {
+        console.log(`[Socket] 🔔 '${userType}' received NOTIFICATION:`, data);
+        if (isSoundEnabled(userType)) {
+          playNotificationSound();
+        }
+
+        // Show custom toast for all notifications
+        toast.custom((t) => (
+          <SwipeableNotification
+            t={t}
+            data={data}
+            onClick={() => {
+              toast.dismiss(t.id);
+              const targetUrl = data.click_action || data.data?.click_action || data.link || data.data?.link;
+              if (targetUrl) {
+                navigate(targetUrl);
+              } else if (data.workerId || data.data?.workerId) {
+                if (userType === 'admin') navigate('/admin/workers');
+                else if (userType === 'worker') navigate(`/worker/job/${data.workerId || data.data?.workerId}`);
+              } else if (data.relatedId) {
+                if (userType === 'worker') navigate(`/worker/job/${data.relatedId}`);
+                else navigate(`/user/booking/${data.relatedId}`);
+              }
+            }}
+          />
+        ), {
+          id: 'socket-notification', // Prevent stacking
+          duration: 3500, // Slightly longer to allow interaction/reading since it's dismissible
+          position: 'top-right'
+        });
+
+        // Dispatch update events to refresh UI components
+        if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
+        if (userType === 'user') {
+          window.dispatchEvent(new Event('userBookingsUpdated'));
+        }
+        if (userType === 'admin') {
+          window.dispatchEvent(new Event('adminNotificationsUpdated'));
+          window.dispatchEvent(new Event('adminWorkersUpdated'));
+        }
+      });
+
+      // Listen for new worker registration in admin room
+      newSocket.on('new_worker_registered', (data) => {
+        console.log(`[Socket] 👷 '${userType}' received NEW_WORKER_REGISTERED:`, data);
+        if (userType === 'admin') {
+          window.dispatchEvent(new Event('adminWorkersUpdated'));
+        }
+      });
+
+      // Listen for real-time booking updates
+      newSocket.on('booking_updated', (data) => {
+        console.log(`[Socket] 📦 '${userType}' received BOOKING_UPDATED:`, data);
+      
+        const status = (data.status || (data.data && data.data.status))?.toLowerCase();
+        if (['cancelled', 'rejected', 'failed', 'no_workers', 'no_vendors', 'completed', 'work_done'].includes(status)) {
+          stopAlertRing();
+        }
+
+        if (userType === 'user') {
+          const stored = localStorage.getItem('activeAssignedBooking');
+          if (stored) {
+            try {
+               const activeData = JSON.parse(stored);
+               const updatedBookingId = data.bookingId || data._id || (data.data && data.data._id);
+             
+               if (activeData.bookingId === updatedBookingId && ['completed', 'cancelled', 'rejected', 'work_done'].includes(status)) {
+                 localStorage.removeItem('activeAssignedBooking');
+                 window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
+               }
+            } catch(e) {}
+          }
+          window.dispatchEvent(new Event('userBookingsUpdated'));
+        }
+      
+        if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
+      });
+
+      if (userType === 'user') {
+        newSocket.on('booking_accepted', (data) => {
+          console.log(`[Socket] 🎯 USER received BOOKING_ACCEPTED:`, data);
+          if (isSoundEnabled('user')) {
+            playNotificationSound();
+          }
+        
+          // Save active booking info to localStorage
+          localStorage.setItem('activeAssignedBooking', JSON.stringify({
+            bookingId: data.bookingId,
+            worker: data.worker,
+            timestamp: Date.now()
+          }));
+        
+          // Notify components
+          window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
+          window.dispatchEvent(new Event('userBookingsUpdated'));
+
+          // Show toast
+          toast.success(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-sm">Your expert has been assigned!</span>
+              <span className="text-xs opacity-90">{data.worker?.name || 'A professional'} is ready for your job.</span>
+            </div>,
+            { duration: 5000, position: 'top-center' }
+          );
+        });
+
+        // A support reply from admin — the widget itself decides whether to
+        // show a toast (it won't, if the thread is already open on screen).
+        newSocket.on('support_message', (data) => {
+          console.log('[Socket] 💬 USER received SUPPORT_MESSAGE:', data);
+          if (data.senderType === 'admin' && isSoundEnabled('user')) {
+            playNotificationSound();
+          }
+          window.dispatchEvent(new CustomEvent('supportMessageReceived', { detail: data }));
         });
       }
 
-
-      if (userType === 'worker') {
-        const workerData = JSON.parse(localStorage.getItem('workerData') || sessionStorage.getItem('workerData') || '{}');
-        const workerId = workerData.id || workerData._id;
-        if (workerId) {
-          console.log(`[Socket] WORKER joining room: worker_${workerId}`);
-          newSocket.emit('join_worker_room', workerId);
-        } else {
-          console.warn('[Socket] ⚠️ WORKER: no workerId found in localStorage');
-        }
-      }
-
-      if (userType === 'user') {
-        // Fallback to check both 'userData' and 'user' since different parts of the app use different keys
-        const storedUserData = localStorage.getItem('userData') || localStorage.getItem('user') || '{}';
-        const userData = JSON.parse(storedUserData);
-        const userId = userData.id || userData._id;
-        if (userId) {
-          console.log(`[Socket] USER joining room: user_${userId}`);
-          newSocket.emit('join_user_room', userId);
-        } else {
-          console.warn('[Socket] ⚠️ USER: no userId found in localStorage under "userData" or "user". userData:', userData);
-        }
-      }
-
+      // Listen for a property being submitted for approval — plays a sound and
+      // pops a toast on whichever admin page is currently open, since this is
+      // a room broadcast rather than a targeted per-user event.
       if (userType === 'admin') {
-        // Shared room — every admin/superadmin session gets the same alerts
-        // (e.g. a new property submitted for approval), no per-admin id needed.
-        console.log('[Socket] ADMIN joining room: admin_room');
-        newSocket.emit('join_admin_room');
-      }
-    });
+        newSocket.on('property_submitted', (data) => {
+          console.log('[Socket] 🔔 ADMIN received PROPERTY_SUBMITTED:', data);
+          if (isSoundEnabled('admin')) {
+            playNotificationSound();
+          }
 
-    // Also re-verify room subscription whenever pathname or user data is refreshed
-    if (userType === 'worker') {
-      const workerData = JSON.parse(localStorage.getItem('workerData') || '{}');
-      const workerId = workerData.id || workerData._id;
-      if (workerId && newSocket.connected) {
-        newSocket.emit('join_worker_room', workerId);
-      }
-    }
-
-    newSocket.on('disconnect', (reason) => {
-      console.log(`❌ [Socket] ${userType?.toUpperCase()} disconnected → reason: ${reason}`);
-    });
-
-    // A listing just went live (admin approved / created it): let open search
-    // and list pages refresh themselves.
-    newSocket.on('property_listed', (data) => {
-      window.dispatchEvent(new CustomEvent('propertyListed', { detail: data }));
-    });
-
-    newSocket.on('connect_error', (err) => {
-      console.error(`[Socket] ❌ Connection error for ${userType}:`, err.message);
-    });
-
-    // Listen for generic notifications
-    newSocket.on('notification', (data) => {
-      console.log(`[Socket] 🔔 '${userType}' received NOTIFICATION:`, data);
-      if (isSoundEnabled(userType)) {
-        playNotificationSound();
-      }
-
-      // Show custom toast for all notifications
-      toast.custom((t) => (
-        <SwipeableNotification
-          t={t}
-          data={data}
-          onClick={() => {
-            toast.dismiss(t.id);
-            const targetUrl = data.click_action || data.data?.click_action || data.link || data.data?.link;
-            if (targetUrl) {
-              navigate(targetUrl);
-            } else if (data.workerId || data.data?.workerId) {
-              if (userType === 'admin') navigate('/admin/workers');
-              else if (userType === 'worker') navigate(`/worker/job/${data.workerId || data.data?.workerId}`);
-            } else if (data.relatedId) {
-              if (userType === 'worker') navigate(`/worker/job/${data.relatedId}`);
-              else navigate(`/user/booking/${data.relatedId}`);
-            }
-          }}
-        />
-      ), {
-        id: 'socket-notification', // Prevent stacking
-        duration: 3500, // Slightly longer to allow interaction/reading since it's dismissible
-        position: 'top-right'
-      });
-
-      // Dispatch update events to refresh UI components
-      if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
-      if (userType === 'user') {
-        window.dispatchEvent(new Event('userBookingsUpdated'));
-      }
-      if (userType === 'admin') {
-        window.dispatchEvent(new Event('adminNotificationsUpdated'));
-        window.dispatchEvent(new Event('adminWorkersUpdated'));
-      }
-    });
-
-    // Listen for new worker registration in admin room
-    newSocket.on('new_worker_registered', (data) => {
-      console.log(`[Socket] 👷 '${userType}' received NEW_WORKER_REGISTERED:`, data);
-      if (userType === 'admin') {
-        window.dispatchEvent(new Event('adminWorkersUpdated'));
-      }
-    });
-
-    // Listen for real-time booking updates
-    newSocket.on('booking_updated', (data) => {
-      console.log(`[Socket] 📦 '${userType}' received BOOKING_UPDATED:`, data);
-      
-      const status = (data.status || (data.data && data.data.status))?.toLowerCase();
-      if (['cancelled', 'rejected', 'failed', 'no_workers', 'no_vendors', 'completed', 'work_done'].includes(status)) {
-        stopAlertRing();
-      }
-
-      if (userType === 'user') {
-        const stored = localStorage.getItem('activeAssignedBooking');
-        if (stored) {
-          try {
-             const activeData = JSON.parse(stored);
-             const updatedBookingId = data.bookingId || data._id || (data.data && data.data._id);
-             
-             if (activeData.bookingId === updatedBookingId && ['completed', 'cancelled', 'rejected', 'work_done'].includes(status)) {
-               localStorage.removeItem('activeAssignedBooking');
-               window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
-             }
-          } catch(e) {}
-        }
-        window.dispatchEvent(new Event('userBookingsUpdated'));
-      }
-      
-      if (userType === 'worker') window.dispatchEvent(new Event('workerJobsUpdated'));
-    });
-
-    if (userType === 'user') {
-      newSocket.on('booking_accepted', (data) => {
-        console.log(`[Socket] 🎯 USER received BOOKING_ACCEPTED:`, data);
-        if (isSoundEnabled('user')) {
-          playNotificationSound();
-        }
-        
-        // Save active booking info to localStorage
-        localStorage.setItem('activeAssignedBooking', JSON.stringify({
-          bookingId: data.bookingId,
-          worker: data.worker,
-          timestamp: Date.now()
-        }));
-        
-        // Notify components
-        window.dispatchEvent(new Event('activeAssignedBookingUpdated'));
-        window.dispatchEvent(new Event('userBookingsUpdated'));
-
-        // Show toast
-        toast.success(
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-sm">Your expert has been assigned!</span>
-            <span className="text-xs opacity-90">{data.worker?.name || 'A professional'} is ready for your job.</span>
-          </div>,
-          { duration: 5000, position: 'top-center' }
-        );
-      });
-
-      // A support reply from admin — the widget itself decides whether to
-      // show a toast (it won't, if the thread is already open on screen).
-      newSocket.on('support_message', (data) => {
-        console.log('[Socket] 💬 USER received SUPPORT_MESSAGE:', data);
-        if (data.senderType === 'admin' && isSoundEnabled('user')) {
-          playNotificationSound();
-        }
-        window.dispatchEvent(new CustomEvent('supportMessageReceived', { detail: data }));
-      });
-    }
-
-    // Listen for a property being submitted for approval — plays a sound and
-    // pops a toast on whichever admin page is currently open, since this is
-    // a room broadcast rather than a targeted per-user event.
-    if (userType === 'admin') {
-      newSocket.on('property_submitted', (data) => {
-        console.log('[Socket] 🔔 ADMIN received PROPERTY_SUBMITTED:', data);
-        if (isSoundEnabled('admin')) {
-          playNotificationSound();
-        }
-
-        toast.success(
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-sm">New property submitted for approval</span>
-            <span className="text-xs opacity-90">
-              {data.propertyName || 'A property'}
-              {data.submittedBy?.name ? ` by ${data.submittedBy.name}` : ''}
-              {data.submittedBy?.role ? ` (${data.submittedBy.role})` : ''}
-            </span>
-          </div>,
-          { duration: 6000, position: 'top-right' }
-        );
-
-        window.dispatchEvent(new CustomEvent('propertySubmittedForApproval', { detail: data }));
-      });
-
-      // A support message — from either side (a user writing in, or another
-      // admin replying) — so every admin's inbox/badge stays in sync live.
-      newSocket.on('support_message', (data) => {
-        console.log('[Socket] 💬 ADMIN received SUPPORT_MESSAGE:', data);
-        if (data.senderType === 'user' && isSoundEnabled('admin')) {
-          playNotificationSound();
           toast.success(
             <div className="flex flex-col gap-1">
-              <span className="font-bold text-sm">New support message</span>
+              <span className="font-bold text-sm">New property submitted for approval</span>
               <span className="text-xs opacity-90">
-                {data.userName || 'A user'}: {data.text?.slice(0, 80)}
+                {data.propertyName || 'A property'}
+                {data.submittedBy?.name ? ` by ${data.submittedBy.name}` : ''}
+                {data.submittedBy?.role ? ` (${data.submittedBy.role})` : ''}
               </span>
             </div>,
             { duration: 6000, position: 'top-right' }
           );
-        }
-        window.dispatchEvent(new CustomEvent('adminSupportMessage', { detail: data }));
-      });
 
-      // Real-time alert when a worker requests offline leave
-      newSocket.on('worker_offline_request', (data) => {
-        console.log('[Socket] ⏰ ADMIN received WORKER_OFFLINE_REQUEST:', data);
-        if (isSoundEnabled('admin')) {
-          playAdminOfflineAlertSound();
-        }
-
-        toast.custom(
-          (t) => (
-            <div
-              onClick={() => {
-                toast.dismiss(t.id);
-                navigate('/admin/home-service/workers/offline-requests');
-              }}
-              className="bg-white border-2 border-indigo-500 rounded-2xl p-4 shadow-2xl cursor-pointer max-w-sm flex items-start gap-3 transition-transform hover:scale-102 ring-4 ring-indigo-50"
-            >
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 text-xl shadow-xs">
-                ⏰
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm text-gray-900 leading-tight">
-                  New Offline Leave Request
-                </div>
-                <div className="text-xs text-gray-600 mt-1">
-                  {data.message || `${data.workerName || 'A worker'} requested leave.`}
-                </div>
-                <div className="text-[11px] font-bold text-indigo-600 mt-2 flex items-center gap-1">
-                  Click to Review &amp; Approve &rarr;
-                </div>
-              </div>
-            </div>
-          ),
-          { duration: 8000, position: 'top-right' }
-        );
-
-        window.dispatchEvent(new CustomEvent('workerOfflineRequestReceived', { detail: data }));
-      });
-
-      // A professional ignored the pre-job reminder (or dropped the job) —
-      // surface it so ops can re-broadcast the booking.
-      const notifyBookingNeedsAttention = (title, data, fallback, { urgentSound = false } = {}) => {
-        if (isSoundEnabled('admin')) {
-          if (urgentSound) playManualAssignmentAlertSound();
-          else playAdminOfflineAlertSound();
-        }
-        toast.custom(
-          (t) => (
-            <div
-              onClick={() => { toast.dismiss(t.id); navigate('/admin/home-service/bookings'); }}
-              className="bg-white border-2 border-red-500 rounded-2xl p-4 shadow-2xl cursor-pointer max-w-sm flex items-start gap-3 ring-4 ring-red-50"
-            >
-              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 text-xl">⚠️</div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm text-gray-900 leading-tight">{title}</div>
-                <div className="text-xs text-gray-600 mt-1">{data.message || fallback}</div>
-                <div className="text-[11px] font-bold text-red-600 mt-2">Open bookings to assign &rarr;</div>
-              </div>
-            </div>
-          ),
-          { duration: 12000, position: 'top-right' }
-        );
-        window.dispatchEvent(new CustomEvent('adminBookingsChanged', { detail: data }));
-      };
-      newSocket.on('worker_reminder_unconfirmed', (data) =>
-        notifyBookingNeedsAttention('Professional Not Responding', data, 'A professional has not confirmed an upcoming job.'));
-      newSocket.on('helper_requested', (data) =>
-        notifyBookingNeedsAttention('Extra Worker Requested', data, `${data.workerName || 'A professional'} needs extra help on booking #${data.bookingNumber || ''}.`, { urgentSound: true }));
-      newSocket.on('booking_needs_assignment', (data) =>
-        notifyBookingNeedsAttention('Booking Needs Assignment', data, `Booking #${data.bookingNumber || ''} has no available professional. Please assign one.`, { urgentSound: true }));
-      newSocket.on('booking_rejected_by_worker', (data) =>
-        notifyBookingNeedsAttention('Professional Released a Job', data, `Booking #${data.bookingNumber || ''} needs reassignment.`, { urgentSound: true }));
-
-      newSocket.on('offline_request_updated', (data) => {
-        window.dispatchEvent(new CustomEvent('workerOfflineRequestReceived', { detail: data }));
-      });
-    }
-
-    // Listen for special Worker Job Assignments
-    if (userType === 'worker') {
-      // A slot job was handed straight to this worker (or admin added them as a
-      // helper): no accept popup — a soft alert, and the jobs list refreshes.
-      newSocket.on('slot_job_assigned', (data) => {
-        if (isSoundEnabled('worker')) playNotificationSound();
-        toast.success(data?.message || 'New job assigned to you', { duration: 6000 });
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-      });
-      newSocket.on('helper_changed', () => window.dispatchEvent(new Event('workerJobsUpdated')));
-
-      // Admin approved / rejected the worker's availability request
-      newSocket.on('worker_availability_changed', (data) => {
-        if (data?.title) {
-          if (data.type === 'availability_approved') toast.success(data.message || data.title);
-          else toast.error(data.message || data.title);
-        }
-        window.dispatchEvent(new Event('workerOfflineStatusUpdated'));
-      });
-
-      newSocket.on('worker_capacity_changed', (data) => {
-        const isBusy = !!data?.isBusy;
-        localStorage.setItem('workerIsBusy', isBusy ? 'true' : 'false');
-
-        if (isBusy) {
-          stopAlertRing();
-          localStorage.setItem('workerPendingJobs', '[]');
-          // No id means clear every open offer card/modal.
-          window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: {} }));
-        }
-
-        window.dispatchEvent(new CustomEvent('workerCapacityChanged', { detail: data }));
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-      });
-
-      newSocket.on('job_cancelled', (data) => {
-        stopAlertRing();
-        const bookingId = data.bookingId;
-        if (bookingId) {
-          // Remove from local storage
-          const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
-          const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(bookingId));
-          localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
-
-          // Dispatch remove event so modal disappears immediately
-          window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: { id: bookingId } }));
-          window.dispatchEvent(new Event('workerJobsUpdated'));
-          
-          import('react-hot-toast').then(({ toast }) => {
-            toast.error(data.message || 'Job cancelled');
-          });
-        }
-      });
-      // Pre-job reminder: ask the worker to confirm they'll make the job.
-      newSocket.on('job_reminder', (data) => {
-        playAlertRing();
-        window.dispatchEvent(new CustomEvent('jobReminder', { detail: data }));
-      });
-      newSocket.on('new_job_assigned', (data) => {
-        if (localStorage.getItem('workerIsBusy') === 'true') return;
-        // Play urgent alert ring
-        playAlertRing();
-
-        const newJob = {
-          id: data.bookingId,
-          _id: data.bookingId,
-          serviceType: data.serviceName || 'Service',
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          location: {
-            address: data.address?.addressLine1 || 'Location shared',
-          },
-          price: data.totalAmount || data.finalAmount || data.price,
-          totalAmount: data.totalAmount || data.finalAmount || data.price,
-          scheduledDate: data.scheduledDate,
-          scheduledTime: data.scheduledTime,
-          timeSlot: {
-            date: new Date(data.scheduledDate).toLocaleDateString(),
-            time: data.scheduledTime
-          },
-          status: 'ASSIGNED',
-          createdAt: new Date().toISOString(),
-          // Server's real response window — without this the alert card
-          // falls back to a hard-coded 60s and can auto-reject the job long
-          // before the server (e.g. a 5-minute wave) actually gives up.
-          respondBySeconds: data.respondBySeconds,
-          responseWindowSeconds: data.responseWindowSeconds
-        };
-
-        const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
-        if (!pendingJobs.find(job => String(job.id || job._id) === String(newJob.id))) {
-          pendingJobs.unshift(newJob);
-          localStorage.setItem('workerPendingJobs', JSON.stringify(pendingJobs));
-        }
-
-        // Notify app components to refresh
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-
-        // Always show the global alert 
-        const event = new CustomEvent('showWorkerJobAlert', { detail: newJob });
-        window.dispatchEvent(event);
-      });
-
-      // Listen for direct booking requests (Worker Mode)
-      newSocket.on('new_booking_request', (data) => {
-        if (localStorage.getItem('workerIsBusy') === 'true') return;
-        // Play urgent alert ring
-        playAlertRing();
-
-        const newJob = {
-          id: data.bookingId,
-          _id: data.bookingId,
-          serviceType: data.serviceName || 'Service',
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          location: {
-            address: data.address?.addressLine1 || 'Location shared',
-            distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
-          },
-          price: data.totalAmount || data.finalAmount || data.price,
-          totalAmount: data.totalAmount || data.finalAmount || data.price,
-          serviceCategory: data.serviceCategory,
-          brandName: data.brandName,
-          brandIcon: data.brandIcon,
-          categoryIcon: data.categoryIcon,
-          bookedItems: data.bookedItems,
-          requirementText: data.requirementText,
-          isConsultancyRequest: data.isConsultancyRequest,
-          isEstimateBased: data.isEstimateBased,
-          scheduledDate: data.scheduledDate,
-          scheduledTime: data.scheduledTime,
-          timeSlot: {
-            date: new Date(data.scheduledDate).toLocaleDateString(),
-            time: data.scheduledTime
-          },
-          status: 'requested',
-          createdAt: data.createdAt || new Date().toISOString(),
-          expiresAt: data.expiresAt,
-          // Same as new_job_assigned above — carry the server's real response
-          // window through so the countdown doesn't fall back to 60s.
-          respondBySeconds: data.respondBySeconds,
-          responseWindowSeconds: data.responseWindowSeconds
-        };
-
-        // Save to localStorage for persistence
-        const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
-        if (!pendingJobs.find(job => String(job.id || job._id) === String(newJob.id))) {
-          pendingJobs.unshift(newJob);
-          localStorage.setItem('workerPendingJobs', JSON.stringify(pendingJobs));
-        }
-
-        // Notify app components to refresh
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-
-        // Show the alert modal
-        const event = new CustomEvent('showWorkerJobAlert', { 
-          detail: {
-            ...newJob,
-            service: newJob.serviceType, // Alias for older components
-            amount: newJob.price
-          } 
+          window.dispatchEvent(new CustomEvent('propertySubmittedForApproval', { detail: data }));
         });
-        window.dispatchEvent(event);
-      });
 
-      // Real-time listener: Another worker in the same zone accepted the job
-      newSocket.on('booking_claimed_by_other', (data) => {
-        if (!data?.bookingId) return;
-        const bId = String(data.bookingId);
-        console.log(`[Socket] Job ${bId} was accepted by another professional. Dismissing alert.`);
+        // A support message — from either side (a user writing in, or another
+        // admin replying) — so every admin's inbox/badge stays in sync live.
+        newSocket.on('support_message', (data) => {
+          console.log('[Socket] 💬 ADMIN received SUPPORT_MESSAGE:', data);
+          if (data.senderType === 'user' && isSoundEnabled('admin')) {
+            playNotificationSound();
+            toast.success(
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-sm">New support message</span>
+                <span className="text-xs opacity-90">
+                  {data.userName || 'A user'}: {data.text?.slice(0, 80)}
+                </span>
+              </div>,
+              { duration: 6000, position: 'top-right' }
+            );
+          }
+          window.dispatchEvent(new CustomEvent('adminSupportMessage', { detail: data }));
+        });
 
-        try {
-          const pending = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
-          const updated = pending.filter(job => String(job.id || job._id) !== bId);
-          localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
-        } catch (e) {
-          console.error(e);
-        }
+        // Real-time alert when a worker requests offline leave
+        newSocket.on('worker_offline_request', (data) => {
+          console.log('[Socket] ⏰ ADMIN received WORKER_OFFLINE_REQUEST:', data);
+          if (isSoundEnabled('admin')) {
+            playAdminOfflineAlertSound();
+          }
 
-        window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: { id: bId } }));
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-      });
+          toast.custom(
+            (t) => (
+              <div
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  navigate('/admin/home-service/workers/offline-requests');
+                }}
+                className="bg-white border-2 border-indigo-500 rounded-2xl p-4 shadow-2xl cursor-pointer max-w-sm flex items-start gap-3 transition-transform hover:scale-102 ring-4 ring-indigo-50"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 text-xl shadow-xs">
+                  ⏰
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm text-gray-900 leading-tight">
+                    New Offline Leave Request
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {data.message || `${data.workerName || 'A worker'} requested leave.`}
+                  </div>
+                  <div className="text-[11px] font-bold text-indigo-600 mt-2 flex items-center gap-1">
+                    Click to Review &amp; Approve &rarr;
+                  </div>
+                </div>
+              </div>
+            ),
+            { duration: 8000, position: 'top-right' }
+          );
 
-      newSocket.on('booking_offer_closed', (data) => {
-        if (!data?.bookingId) return;
-        const bId = String(data.bookingId);
+          window.dispatchEvent(new CustomEvent('workerOfflineRequestReceived', { detail: data }));
+        });
 
-        try {
-          const pending = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
-          const updated = pending.filter(job => String(job.id || job._id) !== bId);
-          localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
-        } catch (e) {
-          console.error(e);
-        }
+        // A professional ignored the pre-job reminder (or dropped the job) —
+        // surface it so ops can re-broadcast the booking.
+        const notifyBookingNeedsAttention = (title, data, fallback, { urgentSound = false } = {}) => {
+          if (isSoundEnabled('admin')) {
+            if (urgentSound) playManualAssignmentAlertSound();
+            else playAdminOfflineAlertSound();
+          }
+          toast.custom(
+            (t) => (
+              <div
+                onClick={() => { toast.dismiss(t.id); navigate('/admin/home-service/bookings'); }}
+                className="bg-white border-2 border-red-500 rounded-2xl p-4 shadow-2xl cursor-pointer max-w-sm flex items-start gap-3 ring-4 ring-red-50"
+              >
+                <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 text-xl">⚠️</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm text-gray-900 leading-tight">{title}</div>
+                  <div className="text-xs text-gray-600 mt-1">{data.message || fallback}</div>
+                  <div className="text-[11px] font-bold text-red-600 mt-2">Open bookings to assign &rarr;</div>
+                </div>
+              </div>
+            ),
+            { duration: 12000, position: 'top-right' }
+          );
+          window.dispatchEvent(new CustomEvent('adminBookingsChanged', { detail: data }));
+        };
+        newSocket.on('worker_reminder_unconfirmed', (data) =>
+          notifyBookingNeedsAttention('Professional Not Responding', data, 'A professional has not confirmed an upcoming job.'));
+        newSocket.on('helper_requested', (data) =>
+          notifyBookingNeedsAttention('Extra Worker Requested', data, `${data.workerName || 'A professional'} needs extra help on booking #${data.bookingNumber || ''}.`, { urgentSound: true }));
+        newSocket.on('booking_needs_assignment', (data) =>
+          notifyBookingNeedsAttention('Booking Needs Assignment', data, `Booking #${data.bookingNumber || ''} has no available professional. Please assign one.`, { urgentSound: true }));
+        newSocket.on('booking_rejected_by_worker', (data) =>
+          notifyBookingNeedsAttention('Professional Released a Job', data, `Booking #${data.bookingNumber || ''} needs reassignment.`, { urgentSound: true }));
 
-        window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: { id: bId } }));
-        window.dispatchEvent(new Event('workerJobsUpdated'));
-      });
+        newSocket.on('offline_request_updated', (data) => {
+          window.dispatchEvent(new CustomEvent('workerOfflineRequestReceived', { detail: data }));
+        });
+      }
 
-      // Real-time listener: Admin approves worker offline request
-      newSocket.on('worker_offline_approved', (data) => {
-        console.log('[Socket] 🎉 WORKER received OFFLINE_REQUEST_APPROVED:', data);
-        if (isSoundEnabled('worker')) {
-          playApprovalSuccessSound();
-        }
+      // Listen for special Worker Job Assignments
+      if (userType === 'worker') {
+        // A slot job was handed straight to this worker (or admin added them as a
+        // helper): no accept popup — a soft alert, and the jobs list refreshes.
+        newSocket.on('slot_job_assigned', (data) => {
+          if (isSoundEnabled('worker')) playNotificationSound();
+          toast.success(data?.message || 'New job assigned to you', { duration: 6000 });
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+        });
+        newSocket.on('helper_changed', () => window.dispatchEvent(new Event('workerJobsUpdated')));
 
-        toast.success(
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-sm">Offline Leave Approved! 🎉</span>
-            <span className="text-xs opacity-90">
-              {data.message || 'Admin has approved your offline leave request.'}
-            </span>
-          </div>,
-          { duration: 8000, position: 'top-center' }
-        );
+        // Admin approved / rejected the worker's availability request
+        newSocket.on('worker_availability_changed', (data) => {
+          if (data?.title) {
+            if (data.type === 'availability_approved') toast.success(data.message || data.title);
+            else toast.error(data.message || data.title);
+          }
+          window.dispatchEvent(new Event('workerOfflineStatusUpdated'));
+        });
 
-        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
-      });
+        newSocket.on('worker_capacity_changed', (data) => {
+          const isBusy = !!data?.isBusy;
+          localStorage.setItem('workerIsBusy', isBusy ? 'true' : 'false');
 
-      // Real-time listener: Admin rejects worker offline request
-      newSocket.on('worker_offline_rejected', (data) => {
-        console.log('[Socket] ❌ WORKER received OFFLINE_REQUEST_REJECTED:', data);
-        if (isSoundEnabled('worker')) {
-          playRejectionSound();
-        }
+          if (isBusy) {
+            stopAlertRing();
+            localStorage.setItem('workerPendingJobs', '[]');
+            // No id means clear every open offer card/modal.
+            window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: {} }));
+          }
 
-        toast.error(
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-sm">Offline Request Rejected</span>
-            <span className="text-xs opacity-90">
-              {data.message || (data.reason ? `Reason: ${data.reason}` : 'Admin declined your offline leave request.')}
-            </span>
-          </div>,
-          { duration: 8000, position: 'top-center' }
-        );
+          window.dispatchEvent(new CustomEvent('workerCapacityChanged', { detail: data }));
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+        });
 
-        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
-      });
+        newSocket.on('job_cancelled', (data) => {
+          stopAlertRing();
+          const bookingId = data.bookingId;
+          if (bookingId) {
+            // Remove from local storage
+            const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
+            const updated = pendingJobs.filter(b => String(b.id || b._id) !== String(bookingId));
+            localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
 
-      // Real-time listener: Admin adjusts offline request time
-      newSocket.on('worker_offline_adjusted', (data) => {
-        console.log('[Socket] ⏰ WORKER received OFFLINE_REQUEST_ADJUSTED:', data);
-        if (isSoundEnabled('worker')) {
-          playApprovalSuccessSound();
-        }
+            // Dispatch remove event so modal disappears immediately
+            window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: { id: bookingId } }));
+            window.dispatchEvent(new Event('workerJobsUpdated'));
+          
+            import('react-hot-toast').then(({ toast }) => {
+              toast.error(data.message || 'Job cancelled');
+            });
+          }
+        });
+        // Pre-job reminder: ask the worker to confirm they'll make the job.
+        newSocket.on('job_reminder', (data) => {
+          playAlertRing();
+          window.dispatchEvent(new CustomEvent('jobReminder', { detail: data }));
+        });
+        newSocket.on('new_job_assigned', (data) => {
+          if (localStorage.getItem('workerIsBusy') === 'true') return;
+          // Play urgent alert ring
+          playAlertRing();
 
-        toast(
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-sm">Offline Leave Time Adjusted ⏰</span>
-            <span className="text-xs opacity-90">
-              {data.message || 'Admin updated your offline leave schedule.'}
-            </span>
-          </div>,
-          { duration: 8000, position: 'top-center', icon: '⏰' }
-        );
+          const newJob = {
+            id: data.bookingId,
+            _id: data.bookingId,
+            serviceType: data.serviceName || 'Service',
+            customerName: data.customerName,
+            customerPhone: data.customerPhone,
+            location: {
+              address: data.address?.addressLine1 || 'Location shared',
+            },
+            price: data.totalAmount || data.finalAmount || data.price,
+            totalAmount: data.totalAmount || data.finalAmount || data.price,
+            scheduledDate: data.scheduledDate,
+            scheduledTime: data.scheduledTime,
+            timeSlot: {
+              date: new Date(data.scheduledDate).toLocaleDateString(),
+              time: data.scheduledTime
+            },
+            status: 'ASSIGNED',
+            createdAt: new Date().toISOString(),
+            // Server's real response window — without this the alert card
+            // falls back to a hard-coded 60s and can auto-reject the job long
+            // before the server (e.g. a 5-minute wave) actually gives up.
+            respondBySeconds: data.respondBySeconds,
+            responseWindowSeconds: data.responseWindowSeconds
+          };
 
-        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
-      });
+          const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
+          if (!pendingJobs.find(job => String(job.id || job._id) === String(newJob.id))) {
+            pendingJobs.unshift(newJob);
+            localStorage.setItem('workerPendingJobs', JSON.stringify(pendingJobs));
+          }
 
-      // Real-time listener: Admin forces worker online
-      newSocket.on('worker_forced_online', (data) => {
-        console.log('[Socket] 🟢 WORKER received FORCED_ONLINE:', data);
-        if (isSoundEnabled('worker')) {
-          playApprovalSuccessSound();
-        }
+          // Notify app components to refresh
+          window.dispatchEvent(new Event('workerJobsUpdated'));
 
-        toast.success(
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-sm">Status Changed: Online 🟢</span>
-            <span className="text-xs opacity-90">Admin has set your status to Online.</span>
-          </div>,
-          { duration: 6000, position: 'top-center' }
-        );
+          // Always show the global alert 
+          const event = new CustomEvent('showWorkerJobAlert', { detail: newJob });
+          window.dispatchEvent(event);
+        });
 
-        window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
-      });
-    }
+        // Listen for direct booking requests (Worker Mode)
+        newSocket.on('new_booking_request', (data) => {
+          if (localStorage.getItem('workerIsBusy') === 'true') return;
+          // Play urgent alert ring
+          playAlertRing();
+
+          const newJob = {
+            id: data.bookingId,
+            _id: data.bookingId,
+            serviceType: data.serviceName || 'Service',
+            customerName: data.customerName,
+            customerPhone: data.customerPhone,
+            location: {
+              address: data.address?.addressLine1 || 'Location shared',
+              distance: data.distance ? `${data.distance.toFixed(1)} km` : 'Near you'
+            },
+            price: data.totalAmount || data.finalAmount || data.price,
+            totalAmount: data.totalAmount || data.finalAmount || data.price,
+            serviceCategory: data.serviceCategory,
+            brandName: data.brandName,
+            brandIcon: data.brandIcon,
+            categoryIcon: data.categoryIcon,
+            bookedItems: data.bookedItems,
+            requirementText: data.requirementText,
+            isConsultancyRequest: data.isConsultancyRequest,
+            isEstimateBased: data.isEstimateBased,
+            scheduledDate: data.scheduledDate,
+            scheduledTime: data.scheduledTime,
+            timeSlot: {
+              date: new Date(data.scheduledDate).toLocaleDateString(),
+              time: data.scheduledTime
+            },
+            status: 'requested',
+            createdAt: data.createdAt || new Date().toISOString(),
+            expiresAt: data.expiresAt,
+            // Same as new_job_assigned above — carry the server's real response
+            // window through so the countdown doesn't fall back to 60s.
+            respondBySeconds: data.respondBySeconds,
+            responseWindowSeconds: data.responseWindowSeconds
+          };
+
+          // Save to localStorage for persistence
+          const pendingJobs = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
+          if (!pendingJobs.find(job => String(job.id || job._id) === String(newJob.id))) {
+            pendingJobs.unshift(newJob);
+            localStorage.setItem('workerPendingJobs', JSON.stringify(pendingJobs));
+          }
+
+          // Notify app components to refresh
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+
+          // Show the alert modal
+          const event = new CustomEvent('showWorkerJobAlert', { 
+            detail: {
+              ...newJob,
+              service: newJob.serviceType, // Alias for older components
+              amount: newJob.price
+            } 
+          });
+          window.dispatchEvent(event);
+        });
+
+        // Real-time listener: Another worker in the same zone accepted the job
+        newSocket.on('booking_claimed_by_other', (data) => {
+          if (!data?.bookingId) return;
+          const bId = String(data.bookingId);
+          console.log(`[Socket] Job ${bId} was accepted by another professional. Dismissing alert.`);
+
+          try {
+            const pending = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
+            const updated = pending.filter(job => String(job.id || job._id) !== bId);
+            localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
+          } catch (e) {
+            console.error(e);
+          }
+
+          window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: { id: bId } }));
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+        });
+
+        newSocket.on('booking_offer_closed', (data) => {
+          if (!data?.bookingId) return;
+          const bId = String(data.bookingId);
+
+          try {
+            const pending = JSON.parse(localStorage.getItem('workerPendingJobs') || '[]');
+            const updated = pending.filter(job => String(job.id || job._id) !== bId);
+            localStorage.setItem('workerPendingJobs', JSON.stringify(updated));
+          } catch (e) {
+            console.error(e);
+          }
+
+          window.dispatchEvent(new CustomEvent('removeWorkerJobAlert', { detail: { id: bId } }));
+          window.dispatchEvent(new Event('workerJobsUpdated'));
+        });
+
+        // Real-time listener: Admin approves worker offline request
+        newSocket.on('worker_offline_approved', (data) => {
+          console.log('[Socket] 🎉 WORKER received OFFLINE_REQUEST_APPROVED:', data);
+          if (isSoundEnabled('worker')) {
+            playApprovalSuccessSound();
+          }
+
+          toast.success(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-sm">Offline Leave Approved! 🎉</span>
+              <span className="text-xs opacity-90">
+                {data.message || 'Admin has approved your offline leave request.'}
+              </span>
+            </div>,
+            { duration: 8000, position: 'top-center' }
+          );
+
+          window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
+        });
+
+        // Real-time listener: Admin rejects worker offline request
+        newSocket.on('worker_offline_rejected', (data) => {
+          console.log('[Socket] ❌ WORKER received OFFLINE_REQUEST_REJECTED:', data);
+          if (isSoundEnabled('worker')) {
+            playRejectionSound();
+          }
+
+          toast.error(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-sm">Offline Request Rejected</span>
+              <span className="text-xs opacity-90">
+                {data.message || (data.reason ? `Reason: ${data.reason}` : 'Admin declined your offline leave request.')}
+              </span>
+            </div>,
+            { duration: 8000, position: 'top-center' }
+          );
+
+          window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
+        });
+
+        // Real-time listener: Admin adjusts offline request time
+        newSocket.on('worker_offline_adjusted', (data) => {
+          console.log('[Socket] ⏰ WORKER received OFFLINE_REQUEST_ADJUSTED:', data);
+          if (isSoundEnabled('worker')) {
+            playApprovalSuccessSound();
+          }
+
+          toast(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-sm">Offline Leave Time Adjusted ⏰</span>
+              <span className="text-xs opacity-90">
+                {data.message || 'Admin updated your offline leave schedule.'}
+              </span>
+            </div>,
+            { duration: 8000, position: 'top-center', icon: '⏰' }
+          );
+
+          window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
+        });
+
+        // Real-time listener: Admin forces worker online
+        newSocket.on('worker_forced_online', (data) => {
+          console.log('[Socket] 🟢 WORKER received FORCED_ONLINE:', data);
+          if (isSoundEnabled('worker')) {
+            playApprovalSuccessSound();
+          }
+
+          toast.success(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-sm">Status Changed: Online 🟢</span>
+              <span className="text-xs opacity-90">Admin has set your status to Online.</span>
+            </div>,
+            { duration: 6000, position: 'top-center' }
+          );
+
+          window.dispatchEvent(new CustomEvent('workerOfflineStatusUpdated', { detail: data }));
+        });
+      }
+
+    }).catch((err) => {
+      console.error('[Socket] failed to load client:', err);
+    });
 
     return () => {
-      newSocket.disconnect();
+      cancelled = true;
+      if (newSocket) newSocket.disconnect();
     };
   }, [userType]);
 

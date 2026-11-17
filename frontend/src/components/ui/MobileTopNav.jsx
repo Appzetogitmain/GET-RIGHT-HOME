@@ -20,7 +20,8 @@ const MobileTopNav = () => {
         const handleScroll = () => {
             setScrolled(window.scrollY > 10);
         };
-        window.addEventListener('scroll', handleScroll);
+        handleScroll();
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
@@ -43,7 +44,7 @@ const MobileTopNav = () => {
 
     return (
         <>
-            <div className={`flex lg:hidden items-center justify-between h-12 px-2 fixed top-0 w-full z-[60] transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-md shadow-sm' : 'bg-white'}`}>
+            <div className={`flex lg:hidden items-center justify-between h-12 px-2 fixed top-0 w-full z-[60] transition-shadow duration-300 bg-white ${scrolled ? 'shadow-sm' : ''}`}>
                 <div className="flex items-center gap-0">
                     <button
                         onClick={() => setIsMenuOpen(true)}

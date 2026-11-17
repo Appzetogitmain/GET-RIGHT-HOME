@@ -462,7 +462,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           {/* Image Block: main image + side thumbnail rail */}
           <div className="relative w-full sm:w-[300px] md:w-[320px] shrink-0 h-[220px] sm:h-[212px] flex bg-gray-100 group/slider">
             <div className="relative flex-1 h-full overflow-hidden">
-              <img
+              <img loading="lazy" decoding="async"
                 src={imageList[currentImageIndex]}
                 alt={displayName}
                 className="w-full h-full object-cover"
@@ -510,7 +510,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
               <div className="hidden sm:flex flex-col w-[78px] shrink-0 h-full gap-[2px] ml-[2px]">
                 {sideThumbs.map((img, idx) => (
                   <div key={idx} className="relative flex-1 overflow-hidden">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={img}
                       alt=""
                       className="w-full h-full object-cover"
@@ -711,7 +711,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
           >
           {/* Cover Image Section */}
           <div className="relative h-[180px] w-full rounded-t-[1.5rem] overflow-hidden bg-slate-100 flex-shrink-0">
-            <img
+            <img loading="lazy" decoding="async"
               src={activeImageSrc}
               alt={displayName}
               className="w-full h-full object-cover rounded-t-[1.5rem] transition-transform duration-700 group-hover:scale-105"
@@ -830,7 +830,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
         >
           {/* Cover Image Container */}
           <div className="relative h-[190px] w-full rounded-t-[1.5rem] overflow-hidden bg-gray-100 flex-shrink-0">
-            <img
+            <img loading="lazy" decoding="async"
               src={imageSrc}
               alt={displayName}
               className="w-full h-full object-cover rounded-t-[1.5rem] transition-transform duration-700 group-hover:scale-110"
@@ -964,7 +964,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
         >
           {/* Cover Image Container */}
           <div className="relative h-[190px] w-full rounded-t-[1.5rem] overflow-hidden bg-gray-100 flex-shrink-0">
-            <img
+            <img loading="lazy" decoding="async"
               src={imageSrc}
               alt={displayName}
               className="w-full h-full object-cover rounded-t-[1.5rem] transition-transform duration-700 group-hover:scale-110"
@@ -1080,7 +1080,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       onClick={() => navigateToProperty(item)}
       className={`relative h-[270px] md:h-[340px] w-full bg-gray-100 rounded-[1.25rem] md:rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${item.logo ? 'border-2 border-amber-400/80 shadow-md hover:shadow-lg shadow-amber-500/5 bg-gradient-to-b from-slate-100 to-amber-50/10' : 'border border-gray-100 hover:-translate-y-1'} group ${className}`}
     >
-      <img
+      <img loading="lazy" decoding="async"
         src={imageSrc}
         alt={displayName}
         className="absolute inset-0 w-full h-full object-cover rounded-[1.25rem] md:rounded-[1.5rem] transition-transform duration-700 group-hover:scale-105"
@@ -1229,4 +1229,4 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
   );
 };
 
-export default PropertyCard;
+export default React.memo(PropertyCard);

@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* Inter is loaded from index.html (with preconnect) rather than a CSS @import,
+   which would only start downloading after this stylesheet had arrived. */
 @import "tailwindcss";
 
 

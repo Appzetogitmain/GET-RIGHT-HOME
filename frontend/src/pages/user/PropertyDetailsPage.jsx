@@ -394,8 +394,21 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
       setActiveTab(currentSection);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // At most one layout read per frame instead of one per scroll event.
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        handleScroll();
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
   }, []);
 
   const scrollToSection = (sectionId) => {

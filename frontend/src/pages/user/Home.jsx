@@ -85,6 +85,21 @@ const THEME_MAP = {
 
 const homeSectionCache = {};
 
+// Every HomeSection needs the user's saved list; share one request between
+// them (briefly cached) instead of firing the same call once per section.
+let savedPlacesPromise = null;
+let savedPlacesAt = 0;
+const getSavedPlacesShared = () => {
+    if (!savedPlacesPromise || Date.now() - savedPlacesAt > 5000) {
+        savedPlacesAt = Date.now();
+        savedPlacesPromise = userService.getSavedPlaces().catch((err) => {
+            savedPlacesPromise = null;
+            throw err;
+        });
+    }
+    return savedPlacesPromise;
+};
+
 const HomeSection = ({ title, typeId, subtitle, extraFilters = {}, sectionIds, onTypeSelect, theme, onViewAll, selectedCity }) => {
     const cacheKey = `${typeId}::${selectedCity || 'all'}::${JSON.stringify(extraFilters)}`;
     const [properties, setProperties] = useState(homeSectionCache[cacheKey] || []);
@@ -121,7 +136,7 @@ const HomeSection = ({ title, typeId, subtitle, extraFilters = {}, sectionIds, o
 
                 const promises = [propertyService.getPublic(filters)];
                 if (localStorage.getItem('user')) {
-                    promises.push(userService.getSavedPlaces());
+                    promises.push(getSavedPlacesShared());
                 }
 
                 const [data, savedRes] = await Promise.all(promises);

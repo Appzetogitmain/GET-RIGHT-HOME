@@ -17,16 +17,22 @@ const ListPropertyWizard = () => {
   const user = userStr ? JSON.parse(userStr) : null;
   const isLoggedIn = !!user;
 
-  // Clear any unsaved/draft property listings when starting fresh
+  // If the user left a half-filled listing (closed the app / navigated away),
+  // jump straight back into the form at the step they stopped on. Drafts are
+  // only cleared after a successful submit (see DynamicFormEngine).
   useEffect(() => {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('draft_property_') || key.startsWith('draft_step_') || key.includes('_wizard_draft_new'))) {
-        keysToRemove.push(key);
+    if (!isLoggedIn || location.state?.fresh) return;
+    try {
+      const raw = localStorage.getItem('draft_resume_state');
+      if (!raw) return;
+      const resume = JSON.parse(raw);
+      if (resume?.transactionType && resume?.category && (resume.propertySubType || resume.propertyType)) {
+        navigate('/list-property/dynamic-form', { replace: true, state: resume });
       }
+    } catch {
+      localStorage.removeItem('draft_resume_state');
     }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Builders already have a dedicated 15-step project stepper, so skip this

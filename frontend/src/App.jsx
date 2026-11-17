@@ -418,6 +418,48 @@ function App() {
     }
   }, []);
 
+  // Router navigations run inside startTransition, so a tap keeps showing the
+  // old screen until the next page's chunk has downloaded — on a phone that
+  // reads as the app "hanging". Warm the chunks of the most-visited user pages
+  // once the current page has settled, so those taps switch instantly.
+  React.useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/admin') || path.startsWith('/manager') || path.startsWith('/worker') || path.startsWith('/hotel')) return;
+    // Respect data-saver / very slow connections.
+    const conn = navigator.connection;
+    if (conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || ''))) return;
+
+    const loaders = [
+      () => import('./pages/user/Home'),
+      () => import('./pages/user/BuyPage'),
+      () => import('./pages/user/RentPage'),
+      () => import('./pages/user/PlotPage'),
+      () => import('./pages/user/SearchPage'),
+      () => import('./pages/user/PropertyDetailsDispatcher'),
+      () => import('./pages/user/ReelsPage'),
+      () => import('./pages/user/UserReceivedEnquiriesPage'),
+      () => import('./pages/user/ProfileEdit'),
+    ];
+
+    const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+    const cancelIdle = window.cancelIdleCallback || clearTimeout;
+    let handle;
+    let cancelled = false;
+    // One chunk per idle slot so prefetching never competes with scrolling.
+    const next = (i) => {
+      if (cancelled || i >= loaders.length) return;
+      handle = idle(() => {
+        loaders[i]().catch(() => {}).finally(() => next(i + 1));
+      }, { timeout: 4000 });
+    };
+    const start = setTimeout(() => next(0), 2500);
+    return () => {
+      cancelled = true;
+      clearTimeout(start);
+      cancelIdle(handle);
+    };
+  }, []);
+
   React.useEffect(() => {
     const initFcm = async () => {
       // 1. Check if running in a WebView with a native bridge (e.g. Flutter)
