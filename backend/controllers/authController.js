@@ -8,6 +8,11 @@ import Manager from '../models/Manager.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
+import { generateOtp, isDefaultOtpMode, otpMatches } from '../utils/otp.js';
+
+// Phone/OTP must be plain strings — objects like {"$ne": null} would otherwise
+// be passed into Mongo queries (NoSQL injection).
+const asStr = (v) => (typeof v === 'string' || typeof v === 'number' ? String(v).trim() : '');
 import referralService from '../services/referralService.js';
 import { uploadToCloudinary, deleteFromCloudinary, uploadBase64ToCloudinary } from '../utils/cloudinary.js';
 
@@ -34,7 +39,8 @@ const setTokenCookie = (res, token, req) => {
 
 export const sendOtp = async (req, res) => {
   try {
-    const { phone, type, role = 'user' } = req.body; // type: 'login' or 'register'
+    const { type, role = 'user' } = req.body; // type: 'login' or 'register'
+    const phone = asStr(req.body.phone);
 
     if (!phone) {
       return res.status(400).json({ message: 'Phone number is required' });
@@ -69,13 +75,7 @@ export const sendOtp = async (req, res) => {
       }
     }
 
-    // 🔐 TEST NUMBER: Always use fixed OTP for testing
-    const TEST_NUMBERS = { '7869549428': '123456' };
-    const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
-    const otp = TEST_NUMBERS[cleanPhone] || Math.floor(100000 + Math.random() * 900000).toString();
-    if (TEST_NUMBERS[cleanPhone]) {
-      console.log(`🔐 [TEST] Using fixed OTP for test number ${cleanPhone}`);
-    }
+    const otp = generateOtp(phone);
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     if (user) {
@@ -92,7 +92,9 @@ export const sendOtp = async (req, res) => {
     }
 
     // Send real OTP via SMSIndiaHub
-    const smsResponse = await smsService.sendOTP(phone, otp, `${type || 'auth'}/verification`);
+    const smsResponse = isDefaultOtpMode()
+      ? { success: true }
+      : await smsService.sendOTP(phone, otp, `${type || 'auth'}/verification`);
     if (!smsResponse.success) {
       console.error(`❌ [SMS] Failed to send OTP to ${phone}:`, smsResponse.error);
     } else {
@@ -111,7 +113,7 @@ export const sendOtp = async (req, res) => {
 
 export const sendEnquiryOtp = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const phone = asStr(req.body.phone);
 
     if (!phone) {
       return res.status(400).json({ message: 'Phone number is required' });
@@ -120,13 +122,7 @@ export const sendEnquiryOtp = async (req, res) => {
     let user = await User.findOne({ phone });
     let type = user ? 'login' : 'register';
 
-    // 🔐 TEST NUMBER: Always use fixed OTP for testing
-    const TEST_NUMBERS = { '7869549428': '123456' };
-    const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
-    const otp = TEST_NUMBERS[cleanPhone] || Math.floor(100000 + Math.random() * 900000).toString();
-    if (TEST_NUMBERS[cleanPhone]) {
-      console.log(`🔐 [TEST] Using fixed OTP for test number ${cleanPhone}`);
-    }
+    const otp = generateOtp(phone);
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     if (user) {
@@ -143,7 +139,9 @@ export const sendEnquiryOtp = async (req, res) => {
     }
 
     // Send real OTP via SMSIndiaHub
-    const smsResponse = await smsService.sendOTP(phone, otp, 'enquiry');
+    const smsResponse = isDefaultOtpMode()
+      ? { success: true }
+      : await smsService.sendOTP(phone, otp, 'enquiry');
     if (!smsResponse.success) {
       console.error(`❌ [SMS] Failed to send Enquiry OTP to ${phone}:`, smsResponse.error);
     } else {
@@ -289,9 +287,17 @@ export const registerPartner = async (req, res) => {
 export const verifyOtp = async (req, res) => {
   try {
     // ... (existing verification logic)
-    const { phone, otp, name, email, role = 'user', referralCode } = req.body;
+    const { name, email, role = 'user', referralCode } = req.body;
+    const phone = asStr(req.body.phone);
+    const otp = asStr(req.body.otp);
 
-    // ... (logic to verify OTP)
+    // SECURITY: both must be present. Previously, omitting `otp` for an account
+    // with no pending OTP made `undefined !== undefined` false and
+    // `undefined < Date.now()` false — logging in as ANY phone number.
+    if (!phone || !otp) {
+      return res.status(400).json({ message: 'Phone number and OTP are required' });
+    }
+
     // Select Model based on Role
     let Model = role === 'partner' ? Partner : User;
 
@@ -306,11 +312,13 @@ export const verifyOtp = async (req, res) => {
           isBlocked: true
         });
       }
-      // ... (existing login logic)
-      if (user.otp !== otp) {
+      if (!user.otp || !user.otpExpires) {
+        return res.status(400).json({ message: 'No OTP requested for this number. Please request a new OTP.' });
+      }
+      if (!otpMatches(user.otp, otp)) {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
-      if (user.otpExpires < Date.now()) {
+      if (new Date(user.otpExpires).getTime() < Date.now()) {
         return res.status(400).json({ message: 'OTP has expired' });
       }
       user.otp = undefined;
@@ -324,8 +332,12 @@ export const verifyOtp = async (req, res) => {
       if (!otpRecord) {
         return res.status(400).json({ message: 'Invalid request or OTP expired. Please request OTP again.' });
       }
-      if (otpRecord.otp !== otp) {
+      if (!otpMatches(otpRecord.otp, otp)) {
         return res.status(400).json({ message: 'Invalid OTP' });
+      }
+      // The TTL index only sweeps about once a minute; enforce expiry here too.
+      if (new Date(otpRecord.expiresAt).getTime() < Date.now()) {
+        return res.status(400).json({ message: 'OTP has expired' });
       }
       if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
         return res.status(400).json({ message: 'Invalid role context.' });
@@ -457,7 +469,8 @@ export const verifyOtp = async (req, res) => {
 
 export const verifyPartnerOtp = async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    const phone = asStr(req.body.phone);
+    const otp = asStr(req.body.otp);
 
     if (!phone || !otp) {
       return res.status(400).json({ message: 'Phone and OTP are required' });
@@ -470,7 +483,7 @@ export const verifyPartnerOtp = async (req, res) => {
       return res.status(400).json({ message: 'Invalid request or OTP expired. Please register again.' });
     }
 
-    if (otpRecord.otp !== otp) {
+    if (!otpMatches(otpRecord.otp, otp)) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
@@ -557,11 +570,11 @@ export const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const admin = await Admin.findOne({ email }).select('+password');
+    const admin = await Admin.findOne({ email: email.trim().toLowerCase() }).select('+password');
 
     if (!admin) {
       return res.status(401).json({ message: 'Invalid admin credentials' });
@@ -691,8 +704,9 @@ export const updateProfile = async (req, res) => {
     if (req.body.languages !== undefined) user.languages = Array.isArray(req.body.languages) ? req.body.languages : (req.body.languages ? req.body.languages.split(',').map(s => s.trim()) : []);
     if (req.body.specialization !== undefined) user.specialization = Array.isArray(req.body.specialization) ? req.body.specialization : (req.body.specialization ? req.body.specialization.split(',').map(s => s.trim()) : []);
 
-    if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
-    if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
+    // SECURITY: isVip / vipExpiry are NOT user-editable — they are set only by
+    // the paid VIP purchase flow (vipController). Accepting them here let any
+    // user grant themselves VIP for free.
 
     if (req.body.builderProfile && user.role === 'builder') {
       const { approvalStatus, verificationMessage, ...safeBuilderProfile } = req.body.builderProfile;
@@ -873,8 +887,15 @@ export const deleteDoc = async (req, res) => {
   try {
     const { publicId } = req.body;
 
-    if (!publicId) {
+    if (typeof publicId !== 'string' || !publicId) {
       return res.status(400).json({ message: 'Public ID is required' });
+    }
+
+    // SECURITY: this route is public (used during partner sign-up, before
+    // login). Without this check anyone could delete ANY file in the
+    // Cloudinary account — property photos, KYC scans, reels — by public id.
+    if (!publicId.startsWith('get-right-home/partner-documents/') || publicId.includes('..')) {
+      return res.status(403).json({ message: 'Not allowed to delete this file' });
     }
 
     const result = await deleteFromCloudinary(publicId);
@@ -931,7 +952,9 @@ export const uploadDocsBase64 = async (req, res) => {
 
 export const lazyEnquiryLoginRegister = async (req, res) => {
   try {
-    const { name, email, phone, otp, message, propertyId } = req.body;
+    const { name, email, message, propertyId } = req.body;
+    const phone = asStr(req.body.phone);
+    const otp = asStr(req.body.otp);
 
     if (!phone || !otp || !name || !propertyId) {
       return res.status(400).json({ success: false, message: 'Name, Phone, OTP and Property ID are required' });
@@ -939,11 +962,11 @@ export const lazyEnquiryLoginRegister = async (req, res) => {
 
     // Verify OTP from Otp db or user.otp
     const otpRecord = await Otp.findOne({ phone });
-    let isOtpValid = otpRecord && otpRecord.otp === otp && otpRecord.expiresAt >= Date.now();
+    let isOtpValid = !!otpRecord && otpMatches(otpRecord.otp, otp) && otpRecord.expiresAt >= Date.now();
 
     if (!isOtpValid) {
       const existingUser = await User.findOne({ phone }).select('+otp +otpExpires');
-      if (existingUser && existingUser.otp === otp && existingUser.otpExpires >= Date.now()) {
+      if (existingUser && otpMatches(existingUser.otp, otp) && existingUser.otpExpires >= Date.now()) {
         isOtpValid = true;
         existingUser.otp = undefined;
         existingUser.otpExpires = undefined;
@@ -1042,7 +1065,9 @@ export const lazyEnquiryLoginRegister = async (req, res) => {
 
 export const lazyListingLoginRegister = async (req, res) => {
   try {
-    const { name, phone, role, otp } = req.body;
+    const { name, role } = req.body;
+    const phone = asStr(req.body.phone);
+    const otp = asStr(req.body.otp);
 
     if (!phone || !otp || !role) {
       return res.status(400).json({ success: false, message: 'Phone, OTP and Role are required' });
@@ -1054,11 +1079,11 @@ export const lazyListingLoginRegister = async (req, res) => {
 
     // Verify OTP from Otp db or user.otp
     const otpRecord = await Otp.findOne({ phone });
-    let isOtpValid = otpRecord && otpRecord.otp === otp && otpRecord.expiresAt >= Date.now();
+    let isOtpValid = !!otpRecord && otpMatches(otpRecord.otp, otp) && otpRecord.expiresAt >= Date.now();
 
     if (!isOtpValid) {
       const existingUser = await User.findOne({ phone }).select('+otp +otpExpires');
-      if (existingUser && existingUser.otp === otp && existingUser.otpExpires >= Date.now()) {
+      if (existingUser && otpMatches(existingUser.otp, otp) && existingUser.otpExpires >= Date.now()) {
         isOtpValid = true;
         existingUser.otp = undefined;
         existingUser.otpExpires = undefined;

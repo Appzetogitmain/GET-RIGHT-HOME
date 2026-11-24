@@ -175,16 +175,22 @@ export const updateUserProfile = async (req, res) => {
 
       if (req.body.profileImage !== undefined) user.profileImage = req.body.profileImage;
       if (req.body.profileImagePublicId !== undefined) user.profileImagePublicId = req.body.profileImagePublicId;
-      if (req.body.isVip !== undefined) user.isVip = req.body.isVip;
-      if (req.body.vipExpiry !== undefined) user.vipExpiry = req.body.vipExpiry;
+      // SECURITY: isVip / vipExpiry are set only by the paid VIP flow, never by
+      // the user themselves (this used to grant free VIP).
       if (req.body.addresses !== undefined) user.addresses = req.body.addresses;
 
       if (req.body.builderProfile && user.role === 'builder') {
-        const { builderApprovalStatus, builderVerificationMessage, ...safeBuilderProfile } = req.body.builderProfile;
+        // Strip the admin-controlled fields. The old code stripped
+        // `builderApprovalStatus`, which doesn't exist — so a builder could send
+        // builderProfile.approvalStatus = 'approved' and approve themselves.
+        const {
+          approvalStatus, verificationMessage, builderApprovalStatus, builderVerificationMessage,
+          ...safeBuilderProfile
+        } = req.body.builderProfile;
         user.builderProfile = {
           ...(user.builderProfile ? user.builderProfile.toObject() : {}),
           ...safeBuilderProfile,
-          builderApprovalStatus: 'pending' // Force re-verification upon edit
+          approvalStatus: 'pending' // Force re-verification upon edit
         };
       }
 
@@ -862,9 +868,18 @@ export const getBrokerProfile = async (req, res) => {
     
     if (!broker.activeSubscription || broker.activeSubscription.length === 0) {
       broker.isSubscriptionExpired = true;
-      broker.originalPhone = broker.phone; // Optional: keep for debugging, but we overwrite phone
+      // SECURITY: the real number used to be sent back as `originalPhone`,
+      // which defeated hiding it. Only the support number is returned now.
       broker.phone = settings.supportPhone || '+916304471791';
       broker.whatsapp = settings.supportWhatsapp || '+916304471791';
+      delete broker.email;
+    }
+    // Internal subscription/payment records are not public.
+    if (Array.isArray(broker.activeSubscription)) {
+      broker.activeSubscription = broker.activeSubscription.map((s) => ({
+        status: s.status,
+        planDetails: s.planDetails ? { name: s.planDetails.name, tier: s.planDetails.tier } : undefined
+      }));
     }
 
     res.json({ success: true, broker });

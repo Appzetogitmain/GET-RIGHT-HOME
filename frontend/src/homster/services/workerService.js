@@ -59,6 +59,12 @@ const workerService = {
     return response.data;
   },
 
+  /** Online/offline verification state + office locations set by admin */
+  getVerificationStatus: async () => {
+    const response = await api.get('/workers/verification-status');
+    return response.data;
+  },
+
   updateProfile: async (profileData) => {
     const response = await api.put('/workers/profile', profileData);
     return response.data;

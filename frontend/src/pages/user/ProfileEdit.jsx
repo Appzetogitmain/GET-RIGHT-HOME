@@ -5,6 +5,7 @@ import { User, Phone, Mail, ArrowLeft, Loader2, Navigation, Home, Camera, Buildi
 import { authService, hsBookingService, bookingService as stayBookingService } from '../../services/apiService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import PhotoSourceSheet from '../../components/common/PhotoSourceSheet';
 import { isFlutterApp, openFlutterCamera, uploadBase64Image } from '../../utils/flutterBridge';
 
 // Comprehensive India state & major cities dictionary
@@ -151,6 +152,8 @@ const SectionCard = ({ icon: Icon, iconClass = 'bg-emerald-50 text-emerald-600',
 const ProfileEdit = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const logoInputRef = useRef(null);
   const { user, updateUser, logout, deleteAccount } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -534,13 +537,19 @@ const ProfileEdit = () => {
     }
   };
 
-  const handleCameraClick = () => {
+  // Tapping the avatar opens a Camera / Gallery chooser instead of jumping
+  // straight into the camera.
+  const handleCameraClick = () => setPhotoSheetOpen(true);
+
+  const pickFromCamera = () => {
     if (isFlutterApp()) {
       handleCameraCapture();
     } else {
-      fileInputRef.current?.click();
+      cameraInputRef.current?.click();
     }
   };
+
+  const pickFromGallery = () => fileInputRef.current?.click();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -815,6 +824,24 @@ const ProfileEdit = () => {
                 onChange={handleImageUpload}
                 disabled={imageUploading}
               />
+              <input
+                type="file"
+                ref={cameraInputRef}
+                className="hidden"
+                accept="image/*"
+                capture="user"
+                onChange={handleImageUpload}
+                disabled={imageUploading}
+              />
+              {/* Wrapper stops clicks bubbling to the avatar's onClick, which would reopen the sheet */}
+              <span onClick={(e) => e.stopPropagation()}>
+                <PhotoSourceSheet
+                  open={photoSheetOpen}
+                  onClose={() => setPhotoSheetOpen(false)}
+                  onCamera={pickFromCamera}
+                  onGallery={pickFromGallery}
+                />
+              </span>
             </div>
 
             <h2 className="mt-3.5 text-base font-black text-slate-900 truncate max-w-full">{formData.name || 'Your Name'}</h2>

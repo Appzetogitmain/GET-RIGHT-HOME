@@ -5,11 +5,16 @@ import User from '../models/User.js';
 
 dotenv.config();
 
-const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URL || "mongodb+srv://sagarchouhan7609_db_user:sagarchouhan7609_db_user@cluster0.od9npjt.mongodb.net/hoomzo";
+// SECURITY: a hardcoded database username/password used to be the fallback here.
+const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URL;
+if (!mongoUri) {
+  console.error('Set MONGODB_URL in backend/.env');
+  process.exit(1);
+}
 
 async function debug() {
   try {
-    console.log('Connecting to MongoDB using:', mongoUri);
+    console.log('Connecting to MongoDB...');
     await mongoose.connect(mongoUri);
     console.log('Connected successfully!');
 

@@ -8,6 +8,7 @@ import { useEnquiryModal } from '../../context/EnquiryModalContext';
 import toast from 'react-hot-toast';
 import PropertyQuickViewModal from './PropertyQuickViewModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getConfigStats } from '../../utils/propertyConfigStats';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 const LOGO_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23E2E8F0'/><text x='50%' y='50%' font-family='sans-serif' font-size='14' font-weight='bold' fill='%2364748B' dominant-baseline='middle' text-anchor='middle'>GRH</text></svg>";
@@ -79,10 +80,10 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     item.avgRating !== undefined ? item.avgRating :
     item.rating !== undefined ? item.rating : rating;
 
-  const floorPlansPrices = (item.dynamicData?.floorPlans || item.floorPlans || [])
-    .map(p => Number(p.price || p.startingPrice || p.expectedPrice || p.minPrice))
-    .filter(p => !isNaN(p) && p > 0);
-  const minFloorPlanPrice = floorPlansPrices.length > 0 ? Math.min(...floorPlansPrices) : null;
+  // Project/villa listings keep price + area per configuration row
+  // (villaConfigurations, unitConfigurations, floorPlans, ...).
+  const configStats = getConfigStats(item);
+  const minFloorPlanPrice = configStats.price?.min ?? null;
 
   const rawPrice =
     startingPrice ??
@@ -122,13 +123,26 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     }
   };
 
-  const formattedPrice = displayPrice
-    ? (displayPrice >= 100000 
-        ? (displayPrice >= 10000000 
-            ? `${(displayPrice / 10000000).toFixed(2).replace(/\.00$/, '')} Cr` 
-            : `${(displayPrice / 100000).toFixed(2).replace(/\.00$/, '')} Lakh`)
-        : displayPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 }))
-    : 'Price on Request';
+  const splitAmount = (n) => {
+    if (n >= 10000000) return [(n / 10000000).toFixed(2).replace(/\.00$/, ''), 'Cr'];
+    if (n >= 100000) return [(n / 100000).toFixed(2).replace(/\.00$/, ''), 'Lakh'];
+    return [n.toLocaleString('en-IN', { maximumFractionDigits: 0 }), ''];
+  };
+  const formatAmount = (n) => splitAmount(n).join(' ').trim();
+
+  // When the price came from configuration rows with different prices, show a range.
+  const configPrice = configStats.price;
+  const showsPriceRange = !!(displayPrice && configPrice && displayPrice === configPrice.min && configPrice.max > configPrice.min);
+
+  const formattedPrice = (() => {
+    if (!displayPrice) return 'Price on Request';
+    if (!showsPriceRange) return formatAmount(displayPrice);
+    const [lo, loUnit] = splitAmount(configPrice.min);
+    const [hi, hiUnit] = splitAmount(configPrice.max);
+    return loUnit === hiUnit
+      ? `${lo} - ${hi} ${hiUnit}`.trim()
+      : `${formatAmount(configPrice.min)} - ${formatAmount(configPrice.max)}`;
+  })();
 
   // Determine correct price suffix based on category/type
   const isHotelOrResort = ['Hotel', 'Resort', 'Homestay'].includes(badgeTypeKey) || 
@@ -353,8 +367,11 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
     cleanImageUrl(Array.isArray(item.propertyImages) ? item.propertyImages[0] : '') ||
     '/src/assets/grh-logo.png';
 
-  const areaValue = item.carpetArea || item.superArea || item.plotDetails?.plotArea || item.dynamicData?.plotArea || item.dynamicData?.carpetArea || '';
-  const areaUnit = item.carpetAreaUnit || item.areaUnit || item.dynamicData?.carpetAreaUnit || 'sqft';
+  const configArea = configStats.area
+    ? (configStats.area.max > configStats.area.min ? `${configStats.area.min}-${configStats.area.max}` : `${configStats.area.min}`)
+    : '';
+  const areaValue = item.carpetArea || item.superArea || item.plotDetails?.plotArea || item.dynamicData?.plotArea || item.dynamicData?.carpetArea || configArea || '';
+  const areaUnit = item.carpetAreaUnit || item.areaUnit || item.dynamicData?.carpetAreaUnit || item.dynamicData?.superAreaUnit || 'sqft';
 
   if (isSearchPage) {
     const imageList = propertyImagesList;
@@ -367,17 +384,26 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       setCurrentImageIndex((prev) => (prev - 1 + imageList.length) % imageList.length);
     };
 
-    const postedByName = item.buyDetails?.builderName || 
-                         (item.user?.role === 'builder' && item.user?.builderProfile?.companyName) ||
-                         (item.userId?.role === 'builder' && item.userId?.builderProfile?.companyName) ||
-                         item.partner?.name || 
-                         item.partnerId?.name || 
-                         item.user?.name || 
-                         item.userId?.name || 
-                         'Owner';
+    // Only names the lister actually entered — no "Owner" placeholder.
+    const listingBuilderName = (
+      item.builderProfile?.companyName ||
+      item.dynamicData?.builderName ||
+      item.buyDetails?.builderName ||
+      ''
+    ).toString().trim();
+    const postedByName = (
+      listingBuilderName ||
+      (item.user?.role === 'builder' && item.user?.builderProfile?.companyName) ||
+      (item.userId?.role === 'builder' && item.userId?.builderProfile?.companyName) ||
+      item.partner?.name ||
+      item.partnerId?.name ||
+      item.user?.name ||
+      item.userId?.name ||
+      ''
+    ).toString().trim();
 
     const postedByRole = (() => {
-      if (item.buyDetails?.builderName) return 'Builder';
+      if (listingBuilderName) return 'Builder';
       const roleStr = item.partner?.role || item.partnerId?.role || item.user?.role || item.userId?.role;
       if (roleStr) {
         if (roleStr === 'user') return 'Owner';
@@ -389,9 +415,9 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       if (item.partner || item.partnerId) return 'Broker';
       return 'Owner';
     })();
-    
-    const displayPostedName = postedByName === 'Owner' ? 'Owner Listing' : postedByName;
-    const postedByNameTruncated = displayPostedName.length > 18 ? `${displayPostedName.slice(0, 18)}...` : displayPostedName;
+
+    const displayPostedName = postedByName;
+    const postedByNameTruncated = displayPostedName.length > 22 ? `${displayPostedName.slice(0, 22)}...` : displayPostedName;
 
     const isVerifiedBuilder = item.user?.builderProfile?.approvalStatus === 'approved' || 
                               item.userId?.builderProfile?.approvalStatus === 'approved' || 
@@ -399,7 +425,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                               item.partnerId?.builderProfile?.approvalStatus === 'approved';
 
     const getPostedTimeStr = () => {
-      if (!item.createdAt) return 'recently';
+      if (!item.createdAt) return '';
       const diffMs = new Date() - new Date(item.createdAt);
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       if (diffDays <= 0) return 'today';
@@ -409,20 +435,77 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       return `${diffWeeks}w ago`;
     };
 
-    const constructionStatus = item.buyDetails?.propertyAge 
-      ? item.buyDetails.propertyAge 
-      : item.dynamicData?.constructionStatus 
-        ? item.dynamicData.constructionStatus 
-        : item.availabilityStatus 
-          ? item.availabilityStatus 
-          : 'Ready to Move';
+    // Status exactly as the lister entered it; nothing shown if they left it blank.
+    // (availabilityStatus is a schema default "Available", so it is only a last resort.)
+    const constructionStatus =
+      item.dynamicData?.projectStatus ||
+      item.constructionStatus?.currentStatus ||
+      (typeof item.dynamicData?.constructionStatus === 'string' ? item.dynamicData.constructionStatus : '') ||
+      item.buyDetails?.propertyAge ||
+      item.dynamicData?.availability ||
+      item.availabilityStatus ||
+      '';
+    const possessionRaw = item.dynamicData?.possessionDate || item.projectSummary?.possessionDate || item.constructionStatus?.expectedPossession;
+    const possessionDate = possessionRaw && !isNaN(new Date(possessionRaw))
+      ? new Date(possessionRaw).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+      : '';
 
-    const carpet = item.carpetArea;
-    const superA = item.superArea || item.plotDetails?.plotArea || item.buyDetails?.area?.superBuiltUp || '';
-    const exactArea = carpet || superA || item.dynamicData?.plotArea || item.dynamicData?.carpetArea || '';
-    const exactAreaUnit = item.carpetAreaUnit || item.areaUnit || item.plotDetails?.unit || item.buyDetails?.area?.unit || 'sqft';
+    const carpet = item.carpetArea || item.buyDetails?.area?.carpet || '';
+    const superBuilt = item.superArea || item.buyDetails?.area?.superBuiltUp || item.dynamicData?.superArea || '';
+    const plotA = item.plotDetails?.plotArea || item.dynamicData?.plotArea || '';
+    const superA = superBuilt || plotA;
+    const exactArea = carpet || superA || item.dynamicData?.carpetArea || '';
+    // plotDetails.unit / buyDetails.area.unit are schema defaults ("sqyrd"/"sqft") that get
+    // saved even when no area was entered, so only trust them alongside an actual area value.
+    const exactAreaUnit =
+      item.carpetAreaUnit ||
+      item.areaUnit ||
+      (item.plotDetails?.plotArea ? item.plotDetails?.unit : '') ||
+      (item.buyDetails?.area?.superBuiltUp || item.buyDetails?.area?.carpet ? item.buyDetails?.area?.unit : '') ||
+      item.dynamicData?.superAreaUnit ||
+      item.dynamicData?.carpetAreaUnit ||
+      item.dynamicData?.areaUnit ||
+      (!exactArea && configStats.areaUnit) ||
+      'sqft';
+    const areaDisplay = (carpet && superA && carpet !== superA ? `${carpet}-${superA}` : exactArea) || configArea;
+    // Label follows whichever area field was actually filled.
+    const areaLabel = carpet && superA && carpet !== superA
+      ? (superBuilt ? 'Carpet - Super Built-up' : 'Carpet - Plot Area')
+      : carpet || item.dynamicData?.carpetArea ? 'Carpet Area'
+      : superBuilt ? 'Super Built-up Area'
+      : plotA ? 'Plot Area'
+      : configStats.areaLabel || '';
 
-    const typeBadgeLabel = dynamicCatName || normalizedType || typeRaw || 'Property';
+    const isNegotiable = !!(item.isNegotiable || item.dynamicData?.priceNegotiable === true || item.dynamicData?.priceNegotiable === 'Yes' || item.dynamicData?.isNegotiable === true);
+    const singleAreaNum = Number(String(exactArea).replace(/,/g, ''));
+    const unitShort = String(exactAreaUnit).replace(/\./g, '').replace(/\s+/g, '').toLowerCase();
+    const priceSubtext = showsPriceRange
+      ? `${configStats.count} configurations`
+      : displayPrice && singleAreaNum > 0
+        ? `₹${Math.round(displayPrice / singleAreaNum).toLocaleString('en-IN')} /${unitShort}`
+        : isNegotiable ? 'Price Negotiable' : '';
+
+    const typeBadgeLabel = dynamicCatName || normalizedType || typeRaw || '';
+    const bhkLabel = item.bhk
+      ? `${item.bhk} BHK`
+      : (Array.isArray(item.dynamicData?.villaTypes) && item.dynamicData.villaTypes.length
+          ? item.dynamicData.villaTypes
+          : configStats.types
+        ).join(', ');
+
+    // RERA badge only when the listing is actually RERA registered/verified.
+    const reraNumber = item.reraNumber || item.dynamicData?.reraNumber || item.dynamicData?.reraId || '';
+    const isReraRegistered = !!(item.reraVerified || reraNumber || /^registered$/i.test(String(item.reraStatus || item.dynamicData?.reraStatus || '')));
+
+    const brochureUrl =
+      item.brochureUrl ||
+      item.dynamicData?.brochureUrl ||
+      item.dynamicData?.brochure ||
+      item.projectDetails?.brochureUrl ||
+      (Array.isArray(item.projectDocuments)
+        ? (item.projectDocuments.find(d => /brochure/i.test(`${d?.type || ''} ${d?.name || ''} ${d?.title || ''}`)) || {}).url
+        : '') ||
+      '';
 
     const isProject =
       (badgeTypeKey || '').toLowerCase() === 'project' ||
@@ -440,11 +523,13 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
       (postedByName || '').toLowerCase() === 'builder' ||
       (postedByRole || '').toLowerCase() === 'builder';
 
-    const isFeatured = !!(item.isFeatured || item.featuredDetails?.isFeatured);
+    const isFeatured = !!(item.isFeatured || item.featuredDetails?.isFeatured || item.homeFeatured?.isActive);
     const description = (item.description || '').trim();
     const amenitiesList = Array.isArray(item.amenities) ? item.amenities.filter(Boolean) : [];
-    const isNewBooking = (item.purchaseType || item.buyDetails?.propertyAge || '').toString().toLowerCase().includes('new');
-    const dealTag = isProject || isNewBooking ? 'NEW' : 'RESALE';
+    const purchaseText = `${item.purchaseType || ''} ${item.buyDetails?.propertyAge || ''} ${item.dynamicData?.purchaseType || ''}`.toLowerCase();
+    const isNewBooking = purchaseText.includes('new');
+    // Tag only when we actually know it — no default "RESALE".
+    const dealTag = isProject || isNewBooking ? 'NEW' : purchaseText.includes('resale') ? 'RESALE' : '';
 
     // Side thumbnail rail (99acres-style: main image + a 2-up stack, with a
     // "+N more" overlay on the last tile once there are more photos than fit).
@@ -530,7 +615,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
             {localEnquiryCount > 0 && (
               <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[11px] py-1.5 px-3 flex items-center gap-1.5 z-20 font-bold">
                 <span>⭐</span>
-                <span>{localEnquiryCount} {localEnquiryCount === 1 ? 'person' : 'people'} already contacted this week</span>
+                <span>{localEnquiryCount} {localEnquiryCount === 1 ? 'person has' : 'people have'} contacted</span>
               </div>
             )}
           </div>
@@ -543,22 +628,33 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                 <h4 className="font-bold text-[15px] text-gray-900 truncate">
                   {displayName}
                 </h4>
-                {item.isVerified && (
-                  <span className="shrink-0 bg-gray-100 text-gray-600 text-[9px] px-1.5 py-0.5 rounded font-black flex items-center gap-0.5">
+                {isReraRegistered && (
+                  <span className="shrink-0 bg-gray-100 text-gray-600 text-[9px] px-1.5 py-0.5 rounded font-black flex items-center gap-0.5" title={reraNumber || 'RERA Registered'}>
                     <BadgeCheck size={10} className="text-blue-500 fill-blue-500" />
                     RERA
                   </span>
                 )}
+                {item.isVerified && (
+                  <span className="shrink-0 bg-gray-100 text-gray-600 text-[9px] px-1.5 py-0.5 rounded font-black flex items-center gap-0.5">
+                    <BadgeCheck size={10} className="text-emerald-500 fill-emerald-500" />
+                    VERIFIED
+                  </span>
+                )}
               </div>
-              <span className="shrink-0 text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wide">
-                {dealTag}
-              </span>
+              {dealTag && (
+                <span className="shrink-0 text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded uppercase tracking-wide">
+                  {dealTag}
+                </span>
+              )}
             </div>
 
             {/* Row 2: Subtitle / Location */}
-            <p className="text-xs text-gray-500 mt-0.5 truncate">
-              <span className="font-semibold text-gray-700">{item.bhk ? `${item.bhk} BHK ` : ''}{typeBadgeLabel}</span> in {locationText}
-            </p>
+            {(bhkLabel || typeBadgeLabel || locationText) && (
+              <p className="text-xs text-gray-500 mt-0.5 truncate">
+                <span className="font-semibold text-gray-700">{[bhkLabel, typeBadgeLabel].filter(Boolean).join(' ')}</span>
+                {locationText ? `${bhkLabel || typeBadgeLabel ? ' in ' : ''}${locationText}` : ''}
+              </p>
+            )}
 
             {/* Row 3: Price · Area · Type/Status */}
             <div className="flex items-start gap-6 mt-3 pb-3 border-b border-gray-100 flex-wrap">
@@ -567,24 +663,36 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                   ₹ {formattedPrice}
                   {priceSuffix && <span className="text-[10px] font-normal text-gray-500"> {priceSuffix}</span>}
                 </span>
-                <span className="text-[11px] text-gray-400 mt-0.5">
-                  {displayPrice && exactArea ? `₹${Math.round(displayPrice / exactArea)} /sqft` : 'Price Negotiable'}
-                </span>
+                {priceSubtext && (
+                  <span className="text-[11px] text-gray-400 mt-0.5">
+                    {priceSubtext}
+                  </span>
+                )}
               </div>
 
-              <div className="flex flex-col">
-                <span className="text-[15px] font-extrabold text-gray-900">
-                  {carpet && superA && carpet !== superA ? `${carpet}-${superA}` : exactArea || 'N/A'} {exactAreaUnit}
-                </span>
-                <span className="text-[11px] text-gray-400 mt-0.5">
-                  {item.carpetArea ? 'Carpet Area' : 'Super Built-up Area'}
-                </span>
-              </div>
+              {areaDisplay && (
+                <div className="flex flex-col">
+                  <span className="text-[15px] font-extrabold text-gray-900">
+                    {areaDisplay} {exactAreaUnit}
+                  </span>
+                  {areaLabel && (
+                    <span className="text-[11px] text-gray-400 mt-0.5">
+                      {areaLabel}
+                    </span>
+                  )}
+                </div>
+              )}
 
-              <div className="flex flex-col">
-                <span className="text-[13px] font-bold text-gray-800">{typeBadgeLabel}</span>
-                <span className="text-[11px] text-gray-400 mt-0.5">{constructionStatus}</span>
-              </div>
+              {(constructionStatus || possessionDate) && (
+                <div className="flex flex-col">
+                  <span className="text-[13px] font-bold text-gray-800">{constructionStatus || 'Possession'}</span>
+                  {possessionDate && (
+                    <span className="text-[11px] text-gray-400 mt-0.5">
+                      {constructionStatus ? `Possession ${possessionDate}` : possessionDate}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Row 4: Amenity tags */}
@@ -610,12 +718,14 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
             <div className="mt-auto pt-3 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-gray-400 font-medium">
-                  {postedByRole} · {getPostedTimeStr()}
+                  {[postedByRole, getPostedTimeStr()].filter(Boolean).join(' · ')}
                 </span>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold text-gray-900 truncate max-w-[160px]" title={displayPostedName}>
-                    {postedByNameTruncated}
-                  </span>
+                  {displayPostedName && (
+                    <span className="text-xs font-bold text-gray-900 truncate max-w-[160px]" title={displayPostedName}>
+                      {postedByNameTruncated}
+                    </span>
+                  )}
                   {isVerifiedBuilder && (
                     <div title="Verified Builder" className="shrink-0 flex items-center justify-center w-3.5 h-3.5 bg-gradient-to-r from-amber-400 to-yellow-600 rounded-full shadow-sm">
                       <BadgeCheck size={8} className="text-white fill-amber-100" />
@@ -626,30 +736,28 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
               {isProject ? (
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      captureLeadAndExecute({
-                        targetId: _id,
-                        targetType: 'property',
-                        actionType: 'brochure_download',
-                        sourceContext: isSearchPage ? 'search_card' : 'property_card',
-                        propertyData: item,
-                        onExecute: () => {
-                          const brochure = item.brochureUrl || item.dynamicData?.brochureUrl || item.projectDetails?.brochureUrl;
-                          if (brochure) {
+                  {/* Only offer a brochure when one was actually uploaded */}
+                  {brochureUrl && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        captureLeadAndExecute({
+                          targetId: _id,
+                          targetType: 'property',
+                          actionType: 'brochure_download',
+                          sourceContext: isSearchPage ? 'search_card' : 'property_card',
+                          propertyData: item,
+                          onExecute: () => {
                             toast.success('Brochure downloading...');
-                            window.open(brochure, "_blank");
-                          } else {
-                            toast.error("Brochure not available.");
+                            window.open(brochureUrl, "_blank");
                           }
-                        }
-                      });
-                    }}
-                    className="px-3 py-1.5 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    Brochure
-                  </button>
+                        });
+                      }}
+                      className="px-3 py-1.5 bg-[#E0EFFF] text-[#0056B8] hover:bg-[#cde4ff] text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      Brochure
+                    </button>
+                  )}
                   <button
                     onClick={handleCall}
                     className="px-3 py-1.5 bg-[#0069E0] hover:bg-[#0056b8] text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
@@ -882,11 +990,11 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
                   <span className="bg-slate-100 text-slate-700 text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-full tracking-wider">
                     {areaValue} {areaUnit}
                   </span>
-                ) : (
+                ) : normalizedType ? (
                   <span className="bg-slate-100 text-slate-700 text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-full tracking-wider">
-                    Apartment
+                    {normalizedType}
                   </span>
-                )}
+                ) : null}
               </div>
 
               {/* Title with Serif font style and emerald color transition */}

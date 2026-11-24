@@ -278,6 +278,7 @@ const AllWorkers = () => {
                 ? worker.serviceCategories.join(', ')
                 : worker.serviceCategory || 'N/A',
             approvalStatus: worker.approvalStatus || 'pending',
+            offlineVerificationStatus: worker.offlineVerification?.status || null,
             profilePhoto: worker.profilePhoto || '',
             nameOnAadhar: worker.aadhar?.nameOnAadhar || '',
             vendorType: worker.vendorType || 'Unregistered',
@@ -343,6 +344,8 @@ const AllWorkers = () => {
           ? true
           : filterStatus === 'signup_only'
           ? worker.approvalStatus === 'pending'
+          : filterStatus === 'offline_pending'
+          ? worker.approvalStatus === 'approved' && worker.offlineVerificationStatus === 'pending'
           : filterStatus === 'pending_skills'
           ? worker.pendingServiceCategories && worker.pendingServiceCategories.length > 0
           : worker.approvalStatus === filterStatus;
@@ -370,7 +373,7 @@ const AllWorkers = () => {
         setWorkers((prev) =>
           prev.map((w) => (w.id === workerId ? { ...w, approvalStatus: 'approved' } : w))
         );
-        toast.success('Worker approved successfully!');
+        toast.success(response.message || 'Worker approved successfully!');
         loadWorkers();
       } else {
         toast.error(response.message || 'Failed to approve worker');
@@ -378,6 +381,29 @@ const AllWorkers = () => {
     } catch (error) {
       console.error('Error approving worker:', error);
       toast.error('Failed to approve worker. Please try again.');
+    }
+  };
+
+  // Office (offline) verification done -> worker becomes fully verified
+  const handleCompleteOfflineVerification = async (workerId, workerName) => {
+    const remarks = window.prompt(
+      `Confirm ${workerName || 'this worker'}'s original documents were verified at the office.\n\nRemarks (optional):`,
+      ''
+    );
+    if (remarks === null) return;
+    try {
+      const response = await adminWorkerService.completeOfflineVerification(workerId, remarks);
+      if (response.success) {
+        setWorkers((prev) =>
+          prev.map((w) => (w.id === workerId ? { ...w, offlineVerificationStatus: 'completed' } : w))
+        );
+        toast.success(response.message || 'Office verification completed');
+        loadWorkers();
+      } else {
+        toast.error(response.message || 'Failed to complete office verification');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to complete office verification');
     }
   };
 
@@ -836,6 +862,7 @@ const AllWorkers = () => {
             {[
               { id: 'all', label: 'All' },
               { id: 'signup_only', label: 'Signup Only' },
+              { id: 'offline_pending', label: `Office Verification (${counts.offlinePending || 0})` },
               { id: 'approved', label: 'Approved' },
               { id: 'rejected', label: 'Rejected' },
               { id: 'pending_skills', label: `Pending Skills (${counts.pendingSkills || 0})` }
@@ -1165,9 +1192,21 @@ const AllWorkers = () => {
                                     : 'bg-amber-50 text-amber-700 border-amber-200'
                                 }`}
                               >
-                                {worker.approvalStatus === 'pending' ? 'SIGNUP ONLY' : worker.approvalStatus}
+                                {worker.approvalStatus === 'pending'
+                                  ? 'SIGNUP ONLY'
+                                  : worker.approvalStatus === 'approved' && worker.offlineVerificationStatus === 'pending'
+                                  ? 'ONLINE APPROVED'
+                                  : worker.approvalStatus}
                               </span>
                             </div>
+
+                            {worker.approvalStatus === 'approved' && worker.offlineVerificationStatus === 'pending' && (
+                              <div>
+                                <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">
+                                  Office verification pending
+                                </span>
+                              </div>
+                            )}
 
                             <div>
                               <span
@@ -1232,6 +1271,17 @@ const AllWorkers = () => {
                                 title="Approve Worker"
                               >
                                 <FiCheck className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {/* Complete office (offline) verification */}
+                            {worker.approvalStatus === 'approved' && worker.offlineVerificationStatus === 'pending' && (
+                              <button
+                                onClick={() => handleCompleteOfflineVerification(worker.id, worker.name)}
+                                className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                title="Mark Office Verification Done"
+                              >
+                                <FiShield className="w-4 h-4" />
                               </button>
                             )}
 

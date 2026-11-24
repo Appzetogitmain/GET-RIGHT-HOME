@@ -210,6 +210,18 @@ const platformSettingsSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // Offline (in-office) document verification after online approval.
+    workerOfflineVerification: {
+      enabled: { type: Boolean, default: true },
+      requiredDocuments: {
+        type: [String],
+        default: ['Original Aadhaar Card', 'Original PAN Card', '2 Passport size photos']
+      },
+      instructions: {
+        type: String,
+        default: 'Your online verification is approved. Please visit our office with your original documents to complete verification. You will start receiving jobs once the office verification is done.'
+      }
+    },
     supportEmail: {
       type: String,
       default: 'getrighthome7@gmail.com'

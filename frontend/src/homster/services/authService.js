@@ -165,8 +165,8 @@ export const workerAuthService = {
   },
 
   // Send OTP
-  sendOTP: async (phone, email = null) => {
-    const response = await api.post('/workers/auth/send-otp', { phone, email });
+  sendOTP: async (phone, email = null, type = undefined) => {
+    const response = await api.post('/workers/auth/send-otp', { phone, email, type });
     return response.data;
   },
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiUsers, FiClock, FiActivity, FiDollarSign } from 'react-icons/fi';
+import { FiUsers, FiClock, FiActivity, FiDollarSign, FiMapPin } from 'react-icons/fi';
 
 // Import sub-components
 // Import sub-components
@@ -17,6 +17,7 @@ import WorkerComplaints from './WorkerComplaints';
 import WorkerPrivacyPolicy from './WorkerPrivacyPolicy';
 import WorkerOfflineRequests from './WorkerOfflineRequests';
 import Professions from './Professions';
+import VerificationOffices from './VerificationOffices';
 
 const Workers = () => {
   const location = useLocation();
@@ -24,6 +25,7 @@ const Workers = () => {
   const navTabs = [
     { name: 'All Workers', path: '/admin/home-service/workers/all', icon: FiUsers },
     { name: 'Professions', path: '/admin/home-service/workers/professions', icon: FiActivity },
+    { name: 'Office Verification', path: '/admin/home-service/workers/office-verification', icon: FiMapPin },
     { name: 'Leave & Availability', path: '/admin/home-service/workers/offline-requests', icon: FiClock },
     { name: 'Worker Jobs', path: '/admin/home-service/workers/jobs', icon: FiClock },
     { name: 'Withdrawals', path: '/admin/home-service/workers/withdrawals', icon: FiDollarSign },
@@ -76,6 +78,7 @@ const Workers = () => {
           <Route path="/" element={<Navigate to="all" replace />} />
           <Route path="all" element={<AllWorkers />} />
           <Route path="professions" element={<Professions />} />
+          <Route path="office-verification" element={<VerificationOffices />} />
           <Route path="offline-requests" element={<WorkerOfflineRequests />} />
           <Route path="jobs" element={<WorkerJobs />} />
           <Route path="withdrawals" element={<WorkerWithdrawals />} />

@@ -89,6 +89,25 @@ const workerSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected', 'suspended'],
     default: 'pending'
   },
+  // Second verification step: after the online (document upload) approval the
+  // worker visits an admin-configured office with original documents. While
+  // `status` is 'pending' the worker can log in but receives no jobs.
+  // Workers that predate this step have no status and count as verified.
+  offlineVerification: {
+    status: {
+      type: String,
+      enum: ['not_required', 'pending', 'completed']
+    },
+    officeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VerificationOffice',
+      default: null
+    },
+    requestedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
+    remarks: { type: String, trim: true, default: '' }
+  },
   serviceCategories: [{
     type: String
   }],

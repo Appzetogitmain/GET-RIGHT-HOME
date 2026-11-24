@@ -153,6 +153,14 @@ const projectSchema = new mongoose.Schema({
     pausedAt: { type: Date },
     adminNotes: { type: String }
   },
+  // Admin-picked "Featured Properties" home-screen carousel. Separate from
+  // featuredDetails above, which drives the Handpicked Projects section.
+  homeFeatured: {
+    isActive: { type: Boolean, default: false, index: true },
+    order: { type: Number, default: 0 },
+    startDate: { type: Date },
+    endDate: { type: Date, default: null }
+  },
   isUrgent: { type: Boolean, default: false },
   isNegotiable: { type: Boolean, default: false },
   availabilityStatus: { type: String, enum: ['Available', 'Sold', 'Rented'], default: 'Available' },

@@ -33,48 +33,15 @@ const server = createServer(app); // Create HTTP server
 const PORT = process.env.PORT || 5000;
 
 // Single allowlist shared by the REST CORS middleware AND the Socket.IO CORS
-// config below. These used to be defined twice: the REST list (a real
-// multi-origin allowlist) and the Socket.IO list, which fell back to
-// `process.env.FRONTEND_URL` — a single hardcoded origin — whenever that env
-// var was set. Since FRONTEND_URL is set in .env, Socket.IO's fallback array
-// was never actually reached; every dev frontend NOT running on that exact
-// origin (e.g. port 5174 instead of 5173) got real-time features silently
-// broken by a CORS rejection, while ordinary REST calls kept working fine
-// because they went through the separate, correct allowlist. One function
-// now backs both, so they cannot drift apart again.
-const isOriginAllowed = (origin) => {
-  if (!origin) return true; // mobile apps, curl, server-to-server
+// config below — one function backs both so they cannot drift apart.
+// It does exact origin matching (see middlewares/security.js); the old
+// substring/prefix checks accepted attacker domains like getrighthome.com.evil.io.
+import { isOriginAllowed, sanitizeBody, hideServerErrors, securityHeaders } from './middlewares/security.js';
 
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://126.0.0.1:5173',
-    'https://rukkoo.in',
-    'https://www.rukkoo.in',
-    'https://rukkoo-project.vercel.app',
-    'https://homezoo.vercel.app',
-    'https://homezoo.onrender.com',
-    'https://get-right-home.vercel.app',
-    'https://get-right-home.onrender.com',
-    'https://getrighthome.com',
-    'https://www.getrighthome.com'
-  ];
-
-  const isLocalNetwork =
-    origin.startsWith('http://192.168.') ||
-    origin.startsWith('http://10.') ||
-    origin.startsWith('http://172.');
-
-  return (
-    allowedOrigins.indexOf(origin) !== -1 ||
-    isLocalNetwork ||
-    origin.includes('get-right-home.vercel.app') ||
-    origin.includes('get-right-home.onrender.com') ||
-    origin.includes('getrighthome.com')
-  );
-};
+// A short/guessable JWT secret lets anyone forge an admin token offline.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('🚨 SECURITY: JWT_SECRET is missing or too short (< 32 chars). Anyone who guesses it can forge admin logins. Set a long random value in backend/.env and on the server.');
+}
 
 import { initIO } from './sockets.js';
 
@@ -111,6 +78,10 @@ import { startJobReminderScheduler } from './cron/jobReminderScheduler.js';
 startJobReminderScheduler(io);
 
 // Middleware
+app.disable('x-powered-by'); // don't advertise the framework/version
+app.set('trust proxy', 1); // behind Render/Vercel proxy: real client IP for rate limiting
+app.use(securityHeaders);
+app.use(hideServerErrors); // production: mask internal 5xx error details
 // gzip API responses (JSON compresses ~5-10x). Skipped for the live-tracking/SSE style
 // streams, which must not be buffered.
 app.use(compression({ filter: (req, res) => (req.headers.accept || '').includes('text/event-stream') ? false : compression.filter(req, res) }));
@@ -120,7 +91,8 @@ app.use(morgan('dev'));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use('/uploads', express.static(join(__dirname, 'uploads')));
+app.use(sanitizeBody); // strip MongoDB operators ($ne, $gt, ...) from request bodies
+app.use('/uploads', express.static(join(__dirname, 'uploads'), { dotfiles: 'deny', index: false }));
 
 // Dynamic CORS to allow local network IPs (192.168.x.x) and localhost
 app.use(cors({

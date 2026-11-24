@@ -6,11 +6,14 @@
 // dynamicData remains the source of truth for every raw answer; this only lifts
 // the fields we need to query, filter or build SEO URLs from.
 
+// `fallbackKeys`: the RERA certificate is now uploaded only in Step 1 and the
+// master plan only in Step 8; the legacy Step 9 keys are still read so older
+// submissions keep their documents.
 const DOCUMENT_FIELDS = [
-  { key: 'docReraCertificate', type: 'reraCertificate', name: 'RERA Certificate' },
+  { key: 'reraCertificate', fallbackKeys: ['docReraCertificate'], type: 'reraCertificate', name: 'RERA Certificate' },
   { key: 'docApprovalLetter', type: 'approvalLetter', name: 'Approval Letter' },
   { key: 'docBrochure', type: 'brochure', name: 'e-Brochure' },
-  { key: 'docMasterPlan', type: 'masterPlan', name: 'Master Plan' },
+  { key: 'masterPlan', fallbackKeys: ['plotMasterLayout', 'docMasterPlan'], type: 'masterPlan', name: 'Master Plan' },
   { key: 'docPriceSheet', type: 'priceSheet', name: 'Price Sheet' },
   { key: 'docOther', type: 'other', name: 'Other Document' }
 ];
@@ -165,7 +168,11 @@ export const mapBuilderProjectFields = (dynamicData) => {
     openSpacePercentage: toNum(get('openSpacePercentage')),
     clubHouseSize: toNum(get('clubHouseSize')),
     launchDate: toDate(get('launchDate')),
-    possessionDate: toDate(get('possessionDate'))
+    // Possession is now asked only in Step 10 (status-specific field); the old
+    // Step 1/3 `possessionDate` is still honoured for earlier submissions.
+    possessionDate: toDate(
+      get('possessionDate') || get('expectedPossession') || get('expectedPossessionPL') || get('expectedPossessionNL')
+    )
   });
   if (towers.length) projectSummary.towers = towers;
   if (Object.keys(projectSummary).length) mapped.projectSummary = projectSummary;
@@ -312,8 +319,8 @@ export const mapBuilderProjectFields = (dynamicData) => {
 
   // --- Step 9: Documents ---
   const documents = DOCUMENT_FIELDS
-    .map(({ key, type, name }) => {
-      const fileUrl = toStr(get(key));
+    .map(({ key, fallbackKeys = [], type, name }) => {
+      const fileUrl = [key, ...fallbackKeys].map(k => toStr(get(k))).find(Boolean);
       return fileUrl ? { type, name, fileUrl } : null;
     })
     .filter(Boolean);

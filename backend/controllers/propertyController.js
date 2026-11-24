@@ -1712,10 +1712,20 @@ export const getPublicProperties = async (req, res) => {
           // `otp` on normal queries) does NOT apply inside an aggregation
           // $lookup, so it has to be an explicit allow-list here.
           //
-          // Only `role` (postedBy filter) and `subscription.planId` (the plan
-          // lookup below) are actually used downstream.
+          // `role` (postedBy filter), `subscription.planId` (the plan lookup
+          // below), plus the public display fields the listing card shows
+          // ("Posted by <name>", builder company + verified badge).
           pipeline: [
-            { $project: { _id: 1, role: 1, 'subscription.planId': 1 } }
+            {
+              $project: {
+                _id: 1,
+                role: 1,
+                name: 1,
+                'subscription.planId': 1,
+                'builderProfile.companyName': 1,
+                'builderProfile.approvalStatus': 1
+              }
+            }
           ]
         }
       },
@@ -3029,11 +3039,22 @@ export const getPropertyDetails = async (req, res) => {
     // (sujay-global-elara-hyderabad-npxid-1a2b3c4d) new links now use.
     const lookup = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
 
+    // SECURITY: this endpoint is public. Populating the whole owner document
+    // exposed their password hash, Aadhaar/PAN numbers and scans, FCM tokens,
+    // wallet, addresses, phone and email to anyone. Only public profile
+    // fields are returned now (builder certificate files stay private too).
+    const PUBLIC_OWNER_FIELDS = [
+      'name', 'role', 'profileImage', 'createdAt', 'memberSinceDate', 'totalListingsCount', 'partnerSince',
+      'builderProfile.companyName', 'builderProfile.brandLogo', 'builderProfile.description',
+      'builderProfile.establishedYear', 'builderProfile.activeProjects', 'builderProfile.completedProjects',
+      'builderProfile.awards', 'builderProfile.reraRegistrationNumber', 'builderProfile.approvalStatus'
+    ].join(' ');
+
     let property = await Property.findOneAndUpdate(
       lookup,
       { $inc: { views: 1 } },
       { new: true }
-    ).populate('userId').populate('builderProjectDetails');
+    ).populate('userId', PUBLIC_OWNER_FIELDS).populate('builderProjectDetails');
 
     // Fallback to Project collection if not found in Property
     if (!property) {
@@ -3041,7 +3062,7 @@ export const getPropertyDetails = async (req, res) => {
         lookup,
         { $inc: { views: 1 } },
         { new: true }
-      ).populate('userId');
+      ).populate('userId', PUBLIC_OWNER_FIELDS);
 
       // If found in project, map embedded fields to builderProjectDetails for frontend compatibility
       if (property) {
@@ -3066,7 +3087,16 @@ export const getPropertyDetails = async (req, res) => {
     // this still work.
     const realId = property._id;
     const roomTypes = await RoomType.find({ propertyId: realId, isActive: true });
-    const documents = await PropertyDocument.findOne({ propertyId: realId });
+
+    // Verification documents (licences, certificates, ownership proof) are only
+    // for the listing's owner (edit wizards) and admins — not the public.
+    const ownerId = String(property.userId?._id || property.userId || '');
+    const viewer = req.user;
+    const canSeeDocuments = !!viewer && (
+      String(viewer._id) === ownerId ||
+      ['admin', 'superadmin', 'manager'].includes(viewer.role)
+    );
+    const documents = canSeeDocuments ? await PropertyDocument.findOne({ propertyId: realId }) : null;
     res.json({ success: true, property, roomTypes, documents });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -3337,6 +3367,58 @@ export const getAdminPropertiesByLocation = async (req, res) => {
     res.status(200).json({ success: true, properties: sortedProperties });
   } catch (error) {
     console.error('Get Admin Properties By Location Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Admin-picked "Featured Properties" for the home screen
+ * @route   GET /api/properties/featured?city=
+ * @access  Public
+ * Listings in the requested city come first; the rest follow so the section
+ * is never empty just because the admin featured listings elsewhere.
+ */
+export const getHomeFeaturedProperties = async (req, res) => {
+  try {
+    const now = new Date();
+    const query = {
+      status: 'approved',
+      isLive: true,
+      'homeFeatured.isActive': true,
+      $or: [{ 'homeFeatured.endDate': null }, { 'homeFeatured.endDate': { $gt: now } }]
+    };
+
+    const [projects, properties] = await Promise.all([
+      Project.find(query).populate({ path: 'dynamicCategory', strictPopulate: false }).lean().catch(() => []),
+      Property.find(query).populate({ path: 'dynamicCategory', strictPopulate: false }).lean().catch(() => [])
+    ]);
+
+    const seen = new Set();
+    const list = [...projects, ...properties].filter(p => {
+      const id = String(p._id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    const city = String(req.query.city || '').trim().toLowerCase();
+    const inCity = (p) => {
+      if (!city || city === 'all' || city === 'any') return 0;
+      const pc = String(p.address?.city || p.address?.district || '').trim().toLowerCase();
+      return pc && (pc === city || pc.includes(city) || city.includes(pc)) ? 1 : 0;
+    };
+
+    list.sort((a, b) => {
+      const cd = inCity(b) - inCity(a);
+      if (cd !== 0) return cd;
+      const od = (a.homeFeatured?.order || 0) - (b.homeFeatured?.order || 0);
+      if (od !== 0) return od;
+      return new Date(b.homeFeatured?.startDate || b.createdAt) - new Date(a.homeFeatured?.startDate || a.createdAt);
+    });
+
+    res.status(200).json({ success: true, properties: list.slice(0, 20) });
+  } catch (error) {
+    console.error('Get Home Featured Properties Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

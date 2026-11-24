@@ -49,6 +49,44 @@ const getAmenityIcon = (name) => {
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
+// Builder projects keep their per-unit prices/areas in configuration repeaters
+// (Apartment → unitConfigurations, Villa → villaConfigurations, Plot → plotConfigurations,
+// Commercial → commercialConfigurations, Rent/Lease → rentalConfigurations), not in
+// buyDetails.expectedPrice. Without reading these, every such project showed "On Request".
+const CONFIG_KEYS = ['unitConfigurations', 'villaConfigurations', 'plotConfigurations', 'commercialConfigurations', 'rentalConfigurations'];
+const toPositiveNum = (v) => {
+  const n = Number(typeof v === 'string' ? v.replace(/,/g, '') : v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+const getConfigRows = (item) => {
+  const rows = [];
+  for (const src of [item, item?.dynamicData]) {
+    if (!src) continue;
+    for (const key of CONFIG_KEYS) {
+      if (Array.isArray(src[key])) rows.push(...src[key]);
+    }
+  }
+  return rows;
+};
+/** Lowest unit price across priceRange + all configurations (0 if none). */
+const getConfigMinPrice = (item) => {
+  const prices = [
+    toPositiveNum(item?.priceRange?.min),
+    ...getConfigRows(item).map(r => toPositiveNum(r?.price ?? r?.totalPrice ?? r?.expectedPrice ?? r?.startingPrice ?? r?.monthlyRent ?? r?.rent))
+  ].filter(Boolean);
+  return prices.length ? Math.min(...prices) : 0;
+};
+/** { min, max, unit } of unit areas across configurations, or null. */
+const getConfigAreaRange = (item) => {
+  const rows = getConfigRows(item);
+  const areas = rows
+    .map(r => toPositiveNum(r?.carpetArea ?? r?.builtUpArea ?? r?.superArea ?? r?.plotArea ?? r?.area))
+    .filter(Boolean);
+  if (!areas.length) return null;
+  const unit = rows.find(r => r?.areaUnit)?.areaUnit || 'sq.ft.';
+  return { min: Math.min(...areas), max: Math.max(...areas), unit };
+};
+
 const HandpickedDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -527,6 +565,17 @@ const HandpickedDetailsPage = () => {
   const pImages = property?.propertyImages && property.propertyImages.length > 0 ? property.propertyImages : [property?.coverImage || NO_IMAGE_PLACEHOLDER];
   const dynamicData = property?.dynamicData || {};
   const builderDetails = property?.builderProjectDetails || {};
+
+  // Possession is collected once in the builder wizard (Step 10, status-specific
+  // "Expected Possession"); older listings stored it as `possessionDate`.
+  const possessionLabel = (() => {
+    const dd = property?.dynamicData || {};
+    const raw = dd.possessionDate || dd.expectedPossession || dd.expectedPossessionPL || dd.expectedPossessionNL
+      || property?.projectSummary?.possessionDate || property?.constructionStatus?.expectedPossession;
+    if (!raw) return dd.possessionYear || '';
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? String(raw) : d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  })();
   const isApartmentOrVilla = ['apartment', 'penthouse', 'villa', 'independent house', 'builder floor'].includes(property?.propertyType?.toLowerCase());
   const isPlot = ['plot', 'land', 'residential land', 'commercial land', 'farm land'].includes(property?.propertyType?.toLowerCase());
   const isCommercial = ['commercial', 'office', 'shop', 'showroom', 'warehouse', 'factory'].includes(property?.propertyType?.toLowerCase());
@@ -782,11 +831,15 @@ const HandpickedDetailsPage = () => {
                    property?.dynamicData?.expectedPrice || 
                    property?.dynamicData?.startingPrice || 
                    property?.dynamicData?.minPrice || 
-                   property?.dynamicData?.price || 
-                   minFloorPlanPrice;
+                   property?.dynamicData?.price ||
+                   minFloorPlanPrice ||
+                   getConfigMinPrice(property);
 
+  // Price taken from a list of units/plans is the cheapest one → "Onwards"
+  const isFromUnitList = !property?.buyDetails?.expectedPrice && rawPrice > 0 &&
+    (rawPrice === minFloorPlanPrice || rawPrice === getConfigMinPrice(property));
   let dispPriceStr = formatPriceLakhCrore(rawPrice);
-  if (minFloorPlanPrice > 0 && rawPrice === minFloorPlanPrice && !property?.buyDetails?.expectedPrice) {
+  if (isFromUnitList) {
     dispPriceStr = `${dispPriceStr} Onwards`;
   }
 
@@ -853,6 +906,13 @@ const HandpickedDetailsPage = () => {
     if (property?.dynamicData?.carpetArea) return `${property.dynamicData.carpetArea} ${property.dynamicData.carpetAreaUnit || 'sq.ft.'} Carpet Area`;
     if (property?.dynamicData?.superArea) return `${property.dynamicData.superArea} ${property.dynamicData.superAreaUnit || 'sq.ft.'} Super Area`;
     if (property?.plotDetails?.plotArea) return `${property.plotDetails.plotArea} ${property.plotDetails.unit || 'sq.yrd.'} Plot Area`;
+    const range = getConfigAreaRange(property);
+    if (range) {
+      const fmt = (n) => Number(n).toLocaleString('en-IN');
+      return range.min === range.max
+        ? `${fmt(range.min)} ${range.unit}`
+        : `${fmt(range.min)} – ${fmt(range.max)} ${range.unit}`;
+    }
     return 'Contact for exact area/price details';
   };
   // Derive locality review variables using real state
@@ -1059,7 +1119,7 @@ const HandpickedDetailsPage = () => {
                       return <span className="text-slate-900 font-bold text-xs md:text-sm">Ready to Move</span>;
                     }
                     
-                    const pDate = property?.dynamicData?.possessionDate || property?.dynamicData?.possessionYear || builderDetails?.possessionDate || 'Contact for date';
+                    const pDate = possessionLabel || builderDetails?.possessionDate || 'Contact for date';
                     return (
                       <>
                         <span className="text-slate-900 font-bold text-xs md:text-sm">{statusStr}</span>
@@ -1112,7 +1172,7 @@ const HandpickedDetailsPage = () => {
                       </div>
                       <div className="flex-1">
                         <h4 className="text-xs font-bold text-slate-800">{String(builderDetails.possessionStatus || property?.dynamicData?.projectStatus || property?.status || 'Under Construction')}</h4>
-                        <p className="text-[11px] text-slate-500 mt-1">Completion: {property?.dynamicData?.possessionDate || property?.dynamicData?.possessionYear || 'Contact for date'}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">Completion: {possessionLabel || 'Contact for date'}</p>
                       </div>
                     </div>
                   )}
@@ -2065,7 +2125,7 @@ const HandpickedDetailsPage = () => {
                           name: simItem.propertyName || simItem.name || simItem.title || 'Project',
                           locality: simItem.address?.locality || simItem.address?.city || '',
                           cover: simItem.coverImage || simItem.images?.cover || simItem.propertyImages?.[0] || simItem.gallery?.[0] || NO_IMAGE_PLACEHOLDER,
-                          rawP: simItem.buyDetails?.expectedPrice || simItem.price || simItem.expectedPrice || simItem.startingPrice || simItem.dynamicData?.expectedPrice || simItem.dynamicData?.startingPrice || simItem.dynamicData?.minPrice
+                          rawP: simItem.buyDetails?.expectedPrice || simItem.price || simItem.expectedPrice || simItem.startingPrice || simItem.dynamicData?.expectedPrice || simItem.dynamicData?.startingPrice || simItem.dynamicData?.minPrice || getConfigMinPrice(simItem)
                         };
                         const simPrice = info.rawP ? formatPriceLakhCrore(info.rawP) : 'Contact for Price';
 
@@ -2093,7 +2153,7 @@ const HandpickedDetailsPage = () => {
                         name: simItem.propertyName || simItem.name || simItem.title || 'Project',
                         locality: simItem.address?.locality || simItem.address?.city || '',
                         cover: simItem.coverImage || simItem.images?.cover || simItem.propertyImages?.[0] || simItem.gallery?.[0] || NO_IMAGE_PLACEHOLDER,
-                        rawP: simItem.buyDetails?.expectedPrice || simItem.price || simItem.expectedPrice || simItem.startingPrice || simItem.dynamicData?.expectedPrice || simItem.dynamicData?.startingPrice || simItem.dynamicData?.minPrice,
+                        rawP: simItem.buyDetails?.expectedPrice || simItem.price || simItem.expectedPrice || simItem.startingPrice || simItem.dynamicData?.expectedPrice || simItem.dynamicData?.startingPrice || simItem.dynamicData?.minPrice || getConfigMinPrice(simItem),
                         ratingVal: simItem.avgRating || 0,
                         type: simItem.propertyType ? (simItem.propertyType.charAt(0).toUpperCase() + simItem.propertyType.slice(1)) : 'Residential'
                       };
@@ -2346,7 +2406,7 @@ const HandpickedDetailsPage = () => {
                       const simTitle = sim.propertyName || sim.name || sim.title || 'Project';
                       const simLocality = sim.address?.locality || sim.address?.city || '';
                       const simCover = sim.coverImage || sim.images?.cover || sim.propertyImages?.[0] || NO_IMAGE_PLACEHOLDER;
-                      const simRawPrice = sim.buyDetails?.expectedPrice || sim.price || sim.expectedPrice || sim.startingPrice || sim.dynamicData?.expectedPrice || sim.dynamicData?.startingPrice || sim.dynamicData?.minPrice;
+                      const simRawPrice = sim.buyDetails?.expectedPrice || sim.price || sim.expectedPrice || sim.startingPrice || sim.dynamicData?.expectedPrice || sim.dynamicData?.startingPrice || sim.dynamicData?.minPrice || getConfigMinPrice(sim);
                       const simPriceStr = simRawPrice ? formatPriceLakhCrore(simRawPrice) : 'Contact for Price';
 
                       return (

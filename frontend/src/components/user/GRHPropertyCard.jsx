@@ -6,6 +6,7 @@ import PropertyQuickViewModal from './PropertyQuickViewModal';
 import { userService } from '../../services/apiService';
 import { usePropertyNavigate } from '../../hooks/usePropertyNavigate';
 import { useLeadCapture } from '../../hooks/useLeadCapture';
+import { getConfigStats } from '../../utils/propertyConfigStats';
 
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23F1F5F9'/><text x='50%' y='50%' font-family='sans-serif' font-size='16' font-weight='bold' fill='%2394A3B8' dominant-baseline='middle' text-anchor='middle'>No Image Available</text></svg>";
 
@@ -82,10 +83,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
     return `₹${num.toLocaleString('en-IN')}`;
   };
 
-  const floorPlansPrices = (item.dynamicData?.floorPlans || item.floorPlans || [])
-    .map(p => Number(p.price || p.startingPrice || p.expectedPrice || p.minPrice))
-    .filter(p => !isNaN(p) && p > 0);
-  const minFloorPlanPrice = floorPlansPrices.length > 0 ? Math.min(...floorPlansPrices) : null;
+  const minFloorPlanPrice = getConfigStats(item).price?.min ?? null;
 
   const rawPrice =
     startingPrice ??
@@ -127,7 +125,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
   };
 
   const getDisplayLocation = (prop) => {
-    if (!prop) return 'Anantapur';
+    if (!prop) return 'Location not specified';
     const addr = prop.address;
     if (typeof addr === 'string' && addr.trim()) return addr;
     
@@ -135,11 +133,12 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
     const city = addr?.city || prop.city || prop.dynamicData?.city || '';
     
     if (locality && city) return `${locality}, ${city}`;
-    return locality || city || 'Anantapur';
+    return locality || city || 'Location not specified';
   };
   const locationText = getDisplayLocation(item);
 
-  const phoneNum = item.contactNumber || item.phoneNumber || '9123456789';
+  // Never fall back to a made-up number — users would end up calling a stranger.
+  const phoneNum = item.contactNumber || item.phoneNumber || item.contactDetails?.mobile || '';
 
   const handleCall = (e) => {
     e.stopPropagation();
@@ -150,6 +149,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
       sourceContext: 'property_card',
       propertyData: item,
       onExecute: () => {
+        if (!phoneNum) { toast.error('Contact number not available for this listing'); return; }
         window.location.href = `tel:${phoneNum}`;
       }
     });
@@ -164,6 +164,7 @@ const GRHPropertyCard = ({ property, data, theme, initialIsSaved = false, onTogg
       sourceContext: 'property_card',
       propertyData: item,
       onExecute: () => {
+        if (!phoneNum) { toast.error('Contact number not available for this listing'); return; }
         const message = encodeURIComponent(`Hi, I am interested in your property "${displayName}" listed on Get Right Home.`);
         window.open(`https://wa.me/${phoneNum}?text=${message}`, '_blank');
       }

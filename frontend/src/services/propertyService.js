@@ -28,6 +28,15 @@ export const propertyService = {
     }
   },
 
+  getHomeFeaturedProperties: async (params) => {
+    try {
+      const response = await api.get('/properties/featured', { params });
+      return handleResponse(response);
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
   getAdminPropertyCities: async () => {
     try {
       const response = await api.get('/properties/admin-cities');

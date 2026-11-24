@@ -19,7 +19,8 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: false
+    required: false,
+    select: false // never include the hash in query results / API responses
   },
   role: {
     type: String,
@@ -186,6 +187,14 @@ const userSchema = new mongoose.Schema({
       type: String,
       default: '' // Reason for rejection or requested docs
     }
+  },
+
+  // Admin-controlled: show this builder in the home-page "Popular builders"
+  // section. Kept outside builderProfile so a builder editing their own
+  // profile can't change it.
+  popularBuilder: {
+    isActive: { type: Boolean, default: false, index: true },
+    order: { type: Number, default: 0 }
   },
 
   // Status tracking

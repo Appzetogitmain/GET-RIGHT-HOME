@@ -403,26 +403,7 @@ const AdminUserDetail = () => {
         });
     };
 
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-                <Loader2 className="animate-spin text-gray-400" size={48} />
-                <p className="text-gray-500 font-bold uppercase text-xs tracking-widest">Loading user profile...</p>
-            </div>
-        );
-    }
-
-    if (!user) {
-        return (
-            <div className="text-center py-20">
-                <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
-                <h2 className="text-2xl font-bold text-gray-900">User Not Found</h2>
-                <p className="text-gray-500 mt-2">The user you're looking for doesn't exist or has been deleted.</p>
-                <Link to={`${basePath}/users`} className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Users</Link>
-            </div>
-        );
-    }
-
+    // Must run before any early return (Rules of Hooks)
     const activePlanInfo = React.useMemo(() => {
         const sub = activeSubscription || (
             user?.subscription?.status === 'active' &&
@@ -458,6 +439,27 @@ const AdminUserDetail = () => {
         };
     }, [user, activeSubscription]);
 
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                <Loader2 className="animate-spin text-gray-400" size={48} />
+                <p className="text-gray-500 font-bold uppercase text-xs tracking-widest">Loading user profile...</p>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="text-center py-20">
+                <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900">User Not Found</h2>
+                <p className="text-gray-500 mt-2">The user you're looking for doesn't exist or has been deleted.</p>
+                <Link to={`${basePath}/users`} className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Users</Link>
+            </div>
+        );
+    }
+
+
     const tabs = [
         { id: 'enquiries', label: `Enquiries (${enquiries.length})`, icon: MessageSquare },
         { id: 'properties', label: `Properties (${properties.length})`, icon: Home },
@@ -482,7 +484,7 @@ const AdminUserDetail = () => {
             <div className={`rounded-2xl p-8 border shadow-sm flex flex-col md:flex-row gap-8 transition-colors ${user.isBlocked ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
                 <div className="flex flex-col items-center md:items-start gap-4 min-w-[200px]">
                     <div className="w-24 h-24 rounded-full bg-black text-white flex items-center justify-center text-3xl font-bold border-4 border-white shadow-lg relative uppercase">
-                        {user.name.charAt(0)}
+                        {(user.name || "?").charAt(0)}
                         {user.isBlocked && (
                             <div className="absolute -bottom-2 -right-2 bg-red-600 text-white p-1.5 rounded-full border-4 border-white">
                                 <Ban size={16} />

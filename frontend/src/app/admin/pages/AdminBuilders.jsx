@@ -7,6 +7,7 @@ import { Link, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
+import PortalMenu from '../components/PortalMenu';
 
 const AdminBuilders = () => {
     const location = useLocation();
@@ -66,13 +67,16 @@ const AdminBuilders = () => {
     useEffect(() => {
         let result = builders;
         
-        if (filterStatus !== 'all') {
+        if (filterStatus === 'popular') {
+            result = result.filter(b => b.popularBuilder?.isActive)
+                .sort((a, b) => (a.popularBuilder?.order || 0) - (b.popularBuilder?.order || 0));
+        } else if (filterStatus !== 'all') {
             result = result.filter(b => {
                 const status = b.builderProfile?.approvalStatus || 'pending';
                 return status === filterStatus;
             });
         }
-        
+
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             result = result.filter(b => 
@@ -131,6 +135,39 @@ const AdminBuilders = () => {
                     }
                 }
             });
+        }
+    };
+
+    const [popularSaving, setPopularSaving] = useState(null);
+
+    // Update one builder's popularBuilder locally so the table doesn't reload.
+    const patchBuilder = (id, popularBuilder) => {
+        setBuilders(prev => prev.map(b => (b._id === id ? { ...b, popularBuilder } : b)));
+    };
+
+    const handleTogglePopular = async (builder) => {
+        const next = !builder.popularBuilder?.isActive;
+        try {
+            setPopularSaving(builder._id);
+            const res = await adminService.setPopularBuilder(builder._id, { isActive: next });
+            patchBuilder(builder._id, res.popularBuilder);
+            toast.success(res.message || 'Updated');
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to update');
+        } finally {
+            setPopularSaving(null);
+        }
+    };
+
+    const handlePopularOrder = async (builder, value) => {
+        const order = Number(value) || 0;
+        if (order === (builder.popularBuilder?.order || 0)) return;
+        try {
+            const res = await adminService.setPopularBuilder(builder._id, { isActive: true, order });
+            patchBuilder(builder._id, res.popularBuilder);
+            toast.success('Display order updated');
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to update order');
         }
     };
 
@@ -363,7 +400,7 @@ const AdminBuilders = () => {
                     />
                 </div>
                 <div className="flex gap-2 w-full md:w-auto overflow-x-auto hide-scrollbar">
-                    {['all', 'pending', 'approved', 'rejected'].map(status => (
+                    {['all', 'pending', 'approved', 'rejected', 'popular'].map(status => (
                         <button
                             key={status}
                             onClick={() => setFilterStatus(status)}
@@ -371,7 +408,8 @@ const AdminBuilders = () => {
                                 filterStatus === status 
                                     ? (status === 'approved' ? 'bg-green-600 text-white' : 
                                        status === 'rejected' ? 'bg-red-600 text-white' : 
-                                       status === 'pending' ? 'bg-yellow-500 text-white' : 
+                                       status === 'pending' ? 'bg-yellow-500 text-white' :
+                                       status === 'popular' ? 'bg-amber-500 text-white' :
                                        'bg-black text-white') 
                                     : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'
                             }`}
@@ -393,6 +431,7 @@ const AdminBuilders = () => {
                                 <th className="p-4">RERA & GST</th>
                                 <th className="p-4">Projects (Active / Completed)</th>
                                 <th className="p-4">Joined Date</th>
+                                <th className="p-4">Popular (Home Page)</th>
                                 <th className="p-4 text-center">Actions</th>
                             </tr>
                         </thead>
@@ -400,7 +439,7 @@ const AdminBuilders = () => {
                             {loading ? (
                                 [1, 2, 3].map(i => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan="6" className="p-4"><div className="h-10 bg-gray-50 rounded-lg"></div></td>
+                                        <td colSpan="7" className="p-4"><div className="h-10 bg-gray-50 rounded-lg"></div></td>
                                     </tr>
                                 ))
                             ) : (
@@ -469,6 +508,35 @@ const AdminBuilders = () => {
                                                         day: '2-digit', month: 'short', year: 'numeric'
                                                     })}
                                                 </td>
+                                                <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={!!builder.popularBuilder?.isActive}
+                                                            title={builder.popularBuilder?.isActive ? 'Shown in Popular Builders — click to hide' : 'Hidden — click to show in Popular Builders'}
+                                                            disabled={popularSaving === builder._id}
+                                                            onClick={() => handleTogglePopular(builder)}
+                                                            className={`relative w-10 h-5 rounded-full transition-colors shrink-0 disabled:opacity-50 ${builder.popularBuilder?.isActive ? 'bg-amber-500' : 'bg-gray-300'}`}
+                                                        >
+                                                            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${builder.popularBuilder?.isActive ? 'translate-x-5' : ''}`} />
+                                                        </button>
+                                                        {builder.popularBuilder?.isActive && (
+                                                            <input
+                                                                type="number"
+                                                                title="Display order (lower shows first)"
+                                                                defaultValue={builder.popularBuilder?.order || 0}
+                                                                key={`${builder._id}-${builder.popularBuilder?.order || 0}`}
+                                                                onBlur={(e) => handlePopularOrder(builder, e.target.value)}
+                                                                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                                                className="w-14 px-2 py-1 border border-gray-200 rounded-lg text-xs font-bold outline-none focus:border-black"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    {builder.popularBuilder?.isActive && (builder.builderProfile?.approvalStatus || 'pending') !== 'approved' && (
+                                                        <p className="text-[9px] text-yellow-600 uppercase mt-1">Not approved yet</p>
+                                                    )}
+                                                </td>
                                                 <td className="p-4 text-center relative">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === builder._id ? null : builder._id); }}
@@ -478,7 +546,7 @@ const AdminBuilders = () => {
                                                     </button>
 
                                                     {activeDropdown === builder._id && (
-                                                        <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
+                                                        <PortalMenu className="w-40 bg-white border border-gray-200 py-1 text-left rounded-xl shadow-2xl overflow-hidden">
                                                             <button onClick={() => handleAction('edit', builder)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Edit size={14} /> Edit Builder
                                                             </button>
@@ -486,14 +554,14 @@ const AdminBuilders = () => {
                                                             <button onClick={() => handleAction('delete', builder)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
                                                                 <Trash2 size={14} /> Delete
                                                             </button>
-                                                        </div>
+                                                        </PortalMenu>
                                                     )}
                                                 </td>
                                             </motion.tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="6" className="p-8 text-center text-gray-500">
+                                            <td colSpan="7" className="p-8 text-center text-gray-500">
                                                 <div className="flex flex-col items-center gap-2">
                                                     <Building2 size={32} className="text-gray-300" />
                                                     <p className="text-xs font-bold uppercase">No builders found</p>

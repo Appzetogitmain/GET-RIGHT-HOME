@@ -55,6 +55,17 @@ import {
 } from '../controllers/professionController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import { getWorkerAvailabilityAdmin, updateWorkerAvailabilityAdmin } from '../controllers/workerControllers/workerAvailabilityController.js';
+import {
+  listVerificationOffices,
+  createVerificationOffice,
+  updateVerificationOffice,
+  deleteVerificationOffice,
+  getVerificationSettings,
+  updateVerificationSettings,
+  completeOfflineVerification,
+  markOfflineVerificationPending,
+  assignVerificationOffice
+} from '../controllers/workerVerificationController.js';
 
 const router = express.Router();
 
@@ -95,6 +106,14 @@ router.post('/offline-requests/:id/reject', rejectOfflineRequest);
 router.patch('/offline-requests/:id/adjust-time', adjustOfflineRequestTime);
 router.put('/offline-requests/:id/adjust-time', adjustOfflineRequestTime);
 
+// Offline (office) verification: offices + settings
+router.get('/verification-offices', listVerificationOffices);
+router.post('/verification-offices', createVerificationOffice);
+router.put('/verification-offices/:officeId', updateVerificationOffice);
+router.delete('/verification-offices/:officeId', deleteVerificationOffice);
+router.get('/offline-verification/settings', getVerificationSettings);
+router.put('/offline-verification/settings', updateVerificationSettings);
+
 // Reference Data for Dropdowns
 router.get('/zones', getZones);
 router.get('/plans', getWorkerPlans);
@@ -113,6 +132,9 @@ router.post('/:id/plan', assignWorkerPlan);
 router.post('/:id/approve', approveWorker);
 router.post('/:id/reject', rejectWorker);
 router.post('/:id/suspend', suspendWorker);
+router.post('/:id/offline-verification/complete', completeOfflineVerification);
+router.post('/:id/offline-verification/pending', markOfflineVerificationPending);
+router.patch('/:id/offline-verification/office', assignVerificationOffice);
 router.patch('/:id/status', toggleStatus);
 router.delete('/:id', deleteWorker);
 router.get('/:id/jobs', getWorkerJobs);

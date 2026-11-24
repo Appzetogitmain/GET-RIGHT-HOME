@@ -126,6 +126,37 @@ export const updateBuilder = async (req, res) => {
   }
 };
 
+// @desc    Show/hide builder in the home-page "Popular builders" section
+// @route   PUT /api/admin/builders/:id/popular   { isActive, order? }
+// @access  Private (Admin/Manager)
+export const setPopularBuilder = async (req, res) => {
+  try {
+    const builder = await User.findById(req.params.id).select('role popularBuilder').lean();
+    if (!builder || builder.role !== 'builder') {
+      return res.status(404).json({ success: false, message: 'Builder not found' });
+    }
+
+    const { isActive, order } = req.body;
+    const popularBuilder = {
+      isActive: Boolean(isActive),
+      order: order !== undefined && order !== null && order !== ''
+        ? Number(order) || 0
+        : (builder.popularBuilder?.order || 0)
+    };
+
+    // updateOne avoids re-validating the whole user document.
+    await User.updateOne({ _id: req.params.id }, { $set: { popularBuilder } });
+    res.json({
+      success: true,
+      popularBuilder,
+      message: popularBuilder.isActive ? 'Builder will show in Popular Builders' : 'Builder removed from Popular Builders'
+    });
+  } catch (error) {
+    console.error('Set Popular Builder Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
 // @desc    Delete builder
 // @route   DELETE /api/admin/builders/:id
 // @access  Private (Admin/Manager)
@@ -271,11 +302,12 @@ export const getPublicBuilders = async (req, res) => {
     const { locality, city } = req.query;
     const targetLocality = (locality || city || '').trim().toLowerCase();
 
-    // Query non-rejected builders
-    const builders = await User.find({ 
+    // Only builders the admin has picked (Admin → Builders → "Popular" toggle).
+    const builders = await User.find({
       role: 'builder',
+      'popularBuilder.isActive': true,
       'builderProfile.approvalStatus': { $ne: 'rejected' }
-    }).select('name companyName builderProfile createdAt').lean();
+    }).select('name companyName builderProfile popularBuilder createdAt').lean();
     
     const buildersWithStats = await Promise.all(builders.map(async (builder) => {
       // Find all approved properties for this builder (as owner userId or partnerId)
@@ -321,6 +353,7 @@ export const getPublicBuilders = async (req, res) => {
         name: builder.name,
         companyName: builder.companyName || builder.builderProfile?.companyName || builder.name,
         profile: builder.builderProfile,
+        popularOrder: builder.popularBuilder?.order || 0,
         brandLogo: builder.builderProfile?.brandLogo || builder.builderProfile?.logo || '',
         stats: {
           ongoingProjects: ongoingCount,
@@ -335,14 +368,18 @@ export const getPublicBuilders = async (req, res) => {
 
     // Sort:
     // 1. If locality filter is provided, builders with projects in that locality first
-    // 2. Builders with live approved properties first
-    // 3. Builders with more total projects first
-    // 4. Approved builders first
+    // 2. Admin-set display order (lower first)
+    // 3. Builders with live approved properties first
+    // 4. Builders with more total projects first
+    // 5. Approved builders first
     buildersWithStats.sort((a, b) => {
       if (targetLocality && targetLocality !== 'all') {
         if (b.stats.localProjectsCount !== a.stats.localProjectsCount) {
           return b.stats.localProjectsCount - a.stats.localProjectsCount;
         }
+      }
+      if (a.popularOrder !== b.popularOrder) {
+        return a.popularOrder - b.popularOrder;
       }
       const aHasProps = a.stats.cityList.length > 0 ? 1 : 0;
       const bHasProps = b.stats.cityList.length > 0 ? 1 : 0;

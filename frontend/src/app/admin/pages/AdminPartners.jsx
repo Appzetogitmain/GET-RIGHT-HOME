@@ -9,6 +9,7 @@ import { Link, useLocation } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
+import PortalMenu from '../components/PortalMenu';
 
 const StatusBadge = ({ label, type }) => {
     const map = {
@@ -342,7 +343,7 @@ const AdminPartners = () => {
                                                     </button>
 
                                                     {activeDropdown === user._id && (
-                                                        <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
+                                                        <PortalMenu className="w-40 bg-white border border-gray-200 py-1 text-left rounded-xl shadow-2xl overflow-hidden">
                                                             <Link to={`${basePath}/partners/${user._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
@@ -369,7 +370,7 @@ const AdminPartners = () => {
                                                             <button onClick={() => handleAction('delete', user)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
                                                                 <Trash2 size={14} /> Delete Partner
                                                             </button>
-                                                        </div>
+                                                        </PortalMenu>
                                                     )}
                                                 </td>
                                             </motion.tr>

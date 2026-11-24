@@ -340,6 +340,10 @@ const adminService = {
     const response = await axiosInstance.put(`/admin/builders/${id}/verify`, data);
     return response.data;
   },
+  setPopularBuilder: async (id, data) => {
+    const response = await axiosInstance.put(`/admin/builders/${id}/popular`, data);
+    return response.data;
+  },
   deleteBuilder: async (id) => {
     const response = await axiosInstance.delete(`/admin/builders/${id}`);
     return response.data;

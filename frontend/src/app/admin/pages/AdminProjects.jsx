@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PortalMenu from '../components/PortalMenu';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -389,13 +390,13 @@ const AdminProjects = () => {
                                                 <td className="p-4 text-center relative">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === project._id ? null : project._id); }}
-                                                        className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-black transition-colors"
+                                                        className={`p-2 hover:bg-gray-100 rounded-full hover:text-black transition-colors ${activeDropdown === project._id ? 'bg-gray-100 text-black' : 'text-gray-400'}`}
                                                     >
                                                         <MoreVertical size={16} />
                                                     </button>
 
                                                     {activeDropdown === project._id && (
-                                                        <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
+                                                        <PortalMenu className="w-44 bg-white border border-gray-200 rounded-xl shadow-2xl py-1.5 text-left overflow-hidden">
                                                             <Link to={`${basePath}/projects/${project._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
@@ -424,7 +425,7 @@ const AdminProjects = () => {
                                                             <button onClick={() => handleAction('delete', project)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
                                                                 <Trash2 size={14} /> Delete Project
                                                             </button>
-                                                        </div>
+                                                        </PortalMenu>
                                                     )}
                                                 </td>
                                             </motion.tr>

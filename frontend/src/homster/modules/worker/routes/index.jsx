@@ -5,6 +5,7 @@ import PageTransition from '../components/common/PageTransition';
 import BottomNav from '../components/layout/BottomNav';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import useFeatureFlags from '../../../hooks/useFeatureFlags';
+import { isOfflineVerificationPendingCached, VERIFICATION_PENDING_PATH } from '../utils/offlineVerification';
 // Removed SocketProvider import since it's now global
 
 // Redirects away from a page whose admin feature switch is OFF.
@@ -21,7 +22,15 @@ export const hasWorkerSession = () => Boolean(
   localStorage.getItem('workerAccessToken') || sessionStorage.getItem('workerAccessToken')
 );
 
-const WorkerProtectedRoute = ({ children }) => (
+// Approved workers still waiting for office (offline) verification only get
+// the verification screen; the server also refuses them jobs and going online.
+const WorkerProtectedRoute = ({ children }) => {
+  if (!hasWorkerSession()) return <Navigate to="/worker/login" replace />;
+  if (isOfflineVerificationPendingCached()) return <Navigate to={VERIFICATION_PENDING_PATH} replace />;
+  return children;
+};
+
+const WorkerVerificationRoute = ({ children }) => (
   hasWorkerSession() ? children : <Navigate to="/worker/login" replace />
 );
 
@@ -81,6 +90,7 @@ const PrivacyPolicy = lazyLoad(() => import('../pages/PrivacyPolicy'));
 const LegalDocument = lazyLoad(() => import('../pages/LegalDocument'));
 const DigitalId = lazyLoad(() => import('../pages/DigitalId'));
 const Availability = lazyLoad(() => import('../pages/Availability'));
+const VerificationPending = lazyLoad(() => import('../pages/VerificationPending'));
 
 // Loading fallback component
 import LogoLoader from '../../../components/common/LogoLoader';
@@ -112,6 +122,7 @@ const WorkerRoutes = () => {
     !isAuthenticated ||
     location.pathname === '/worker/login' ||
     location.pathname === '/worker/signup' ||
+    location.pathname === VERIFICATION_PENDING_PATH ||
     location.pathname.endsWith('/map') ||
     location.pathname.includes('/billing');
 
@@ -128,6 +139,9 @@ const WorkerRoutes = () => {
                 {/* Public routes */}
                 <Route path="/login" element={<WorkerPublicRoute><Login /></WorkerPublicRoute>} />
                 <Route path="/signup" element={<WorkerPublicRoute><Signup /></WorkerPublicRoute>} />
+
+                {/* Approved online, waiting for office verification */}
+                <Route path="/verification-pending" element={<WorkerVerificationRoute><VerificationPending /></WorkerVerificationRoute>} />
 
                 {/* Protected routes (auth required) */}
                 <Route path="/" element={<WorkerProtectedRoute><Navigate to="dashboard" replace /></WorkerProtectedRoute>} />
@@ -163,7 +177,7 @@ const WorkerRoutes = () => {
 
         <Suspense fallback={null}><GlobalWorkerJobAlert /></Suspense>
         {/* Logged-in workers must keep device location on */}
-        {isAuthenticated && !['/worker/login', '/worker/signup', '/worker/terms', '/worker/privacy', '/worker/support', '/worker/privacy-policy'].includes(location.pathname) && <WorkerLocationGuard />}
+        {isAuthenticated && !['/worker/login', '/worker/signup', '/worker/terms', '/worker/privacy', '/worker/support', '/worker/privacy-policy', VERIFICATION_PENDING_PATH].includes(location.pathname) && <WorkerLocationGuard />}
         <Suspense fallback={null}><JobReminderModal /></Suspense>
       </ErrorBoundary>
 

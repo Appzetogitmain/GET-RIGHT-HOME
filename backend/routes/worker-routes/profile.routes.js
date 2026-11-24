@@ -4,6 +4,7 @@ import {  body  } from 'express-validator';
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
 import { getActiveProfessions } from '../../controllers/professionController.js';
+import { getMyVerificationStatus } from '../../controllers/workerVerificationController.js';
 import {  getProfile, updateProfile, updateLocation, toggleOnline, getReferrals, deleteWorkerAccount  } from '../../controllers/workerControllers/workerProfileController.js';
 
 // Validation rules
@@ -22,6 +23,7 @@ router.delete('/delete-account', authenticate, isWorker, deleteWorkerAccount);
 router.put('/profile/location', authenticate, isWorker, updateLocation);
 router.post('/toggle-online', authenticate, isWorker, toggleOnline);
 router.get('/referrals', authenticate, isWorker, getReferrals);
+router.get('/verification-status', authenticate, isWorker, getMyVerificationStatus);
 
 export default router;
 

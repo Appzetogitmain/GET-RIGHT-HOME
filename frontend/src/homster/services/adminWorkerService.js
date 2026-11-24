@@ -44,6 +44,54 @@ const adminWorkerService = {
     return response.data;
   },
 
+  /** Mark the in-office (offline) document verification as done */
+  completeOfflineVerification: async (id, remarks) => {
+    const response = await api.post(`/admin/workers/${id}/offline-verification/complete`, { remarks });
+    return response.data;
+  },
+
+  /** Send a worker back to office-verification pending */
+  markOfflineVerificationPending: async (id, remarks) => {
+    const response = await api.post(`/admin/workers/${id}/offline-verification/pending`, { remarks });
+    return response.data;
+  },
+
+  /** Assign a specific verification office to a worker (null = all offices) */
+  assignVerificationOffice: async (id, officeId) => {
+    const response = await api.patch(`/admin/workers/${id}/offline-verification/office`, { officeId });
+    return response.data;
+  },
+
+  getVerificationOffices: async () => {
+    const response = await api.get('/admin/workers/verification-offices');
+    return response.data;
+  },
+
+  createVerificationOffice: async (payload) => {
+    const response = await api.post('/admin/workers/verification-offices', payload);
+    return response.data;
+  },
+
+  updateVerificationOffice: async (officeId, payload) => {
+    const response = await api.put(`/admin/workers/verification-offices/${officeId}`, payload);
+    return response.data;
+  },
+
+  deleteVerificationOffice: async (officeId) => {
+    const response = await api.delete(`/admin/workers/verification-offices/${officeId}`);
+    return response.data;
+  },
+
+  getOfflineVerificationSettings: async () => {
+    const response = await api.get('/admin/workers/offline-verification/settings');
+    return response.data;
+  },
+
+  updateOfflineVerificationSettings: async (payload) => {
+    const response = await api.put('/admin/workers/offline-verification/settings', payload);
+    return response.data;
+  },
+
   /**
    * Suspend worker
    */

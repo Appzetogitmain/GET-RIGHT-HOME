@@ -1,6 +1,6 @@
 import express from 'express';
 import { checkManagerPermission } from '../middlewares/managerPermission.js';
-import { getBuilders, getPendingBuilders, verifyBuilder, addBuilder, updateBuilder, deleteBuilder } from '../controllers/builderController.js';
+import { getBuilders, getPendingBuilders, verifyBuilder, addBuilder, updateBuilder, deleteBuilder, setPopularBuilder } from '../controllers/builderController.js';
 
 const router = express.Router();
 
@@ -10,6 +10,7 @@ router.put('/:id/verify', checkManagerPermission('builder_verification', 'approv
 
 router.get('/', checkManagerPermission('builders', 'view'), getBuilders);
 router.post('/', checkManagerPermission('builders', 'add'), addBuilder);
+router.put('/:id/popular', checkManagerPermission('builders', 'edit'), setPopularBuilder);
 router.put('/:id', checkManagerPermission('builders', 'edit'), updateBuilder);
 router.delete('/:id', checkManagerPermission('builders', 'delete'), deleteBuilder);
 

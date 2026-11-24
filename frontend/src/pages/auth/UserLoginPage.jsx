@@ -49,10 +49,7 @@ const UserLoginPage = () => {
                 rawMsg.toLowerCase().includes('not found');
 
             if (isNotFound) {
-                setError('Account not found in database. Redirecting to Sign Up...');
-                setTimeout(() => {
-                    navigate('/signup', { state: { phone } });
-                }, 1500);
+                navigate('/signup', { state: { phone } });
             } else if (rawMsg.toLowerCase().includes('network error') || rawMsg.toLowerCase().includes('econnrefused')) {
                 setError('Cannot connect to backend server. Make sure backend is running on port 5056.');
             } else {

@@ -119,6 +119,7 @@ export const claimWorkerCapacity = async (workerId, excludeBookingId = null) => 
       _id: workerId,
       isActive: true,
       approvalStatus: 'approved',
+      'offlineVerification.status': { $ne: 'pending' },
       status: { $nin: [WORKER_STATUS.BUSY, WORKER_STATUS.INACTIVE] }
     },
     { $set: { status: WORKER_STATUS.BUSY } },

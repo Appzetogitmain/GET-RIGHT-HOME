@@ -154,8 +154,8 @@ const projectSummaryFields = () => [
   // ---- shared tail
   { name: 'commonArea', label: 'Common Area (sq.ft)', type: 'number', placeholder: 'e.g. 8000', required: false, order: 6, dependsOn: onType([...PLOT, ...COMMERCIAL]) },
   { name: 'openSpacePercentage', label: 'Open Space (%)', type: 'number', placeholder: 'e.g. 70', required: false, order: 7 },
-  { name: 'launchDate', label: 'Launch Date', type: 'date', required: false, order: 8 },
-  { name: 'possessionDate', label: 'Possession Date', type: 'date', required: false, order: 9 }
+  { name: 'launchDate', label: 'Launch Date', type: 'date', required: false, order: 8 }
+  // Possession date is collected once, in Step 10 (status-specific "Expected Possession").
 ];
 
 // --- STEP 4 — Unit Details & Pricing --------------------------------------
@@ -346,12 +346,12 @@ const galleryFields = () => [
   { name: 'propertyImages', label: 'Gallery Images', type: 'file', required: true, order: 1 },
 
   // Status-specific media (built property)
-  { name: 'conceptImages', label: 'Concept / Elevation / Master Plan Images', type: 'file', required: false, order: 2, dependsOn: [onStatus(['Pre Launch', 'New Launch']), onType(BUILT)] },
+  { name: 'conceptImages', label: 'Concept / Elevation Images', type: 'file', required: false, order: 2, dependsOn: [onStatus(['Pre Launch', 'New Launch']), onType(BUILT)] },
   { name: 'constructionImages', label: 'Construction Progress Images', type: 'file', required: false, order: 3, dependsOn: [onStatus(['Under Construction']), onType(BUILT)] },
   { name: 'completedImages', label: 'Completed Exterior & Actual Interior Images', type: 'file', required: false, order: 4, dependsOn: [onStatus(['Ready To Move', 'Completed']), onType(BUILT)] },
 
   // Plot / Land media
-  { name: 'layoutImages', label: 'Master Layout & Plot Map Images', type: 'file', required: false, order: 5, dependsOn: onType(PLOT) },
+  // Plot master layout / plot map are uploaded once, in Step 8 (Floor Plans).
   { name: 'infrastructureImages', label: 'Roads & Infrastructure Site Photos', type: 'file', required: false, order: 6, dependsOn: onType(PLOT) },
 
   { name: 'amenityImages', label: 'Amenity Images', type: 'file', required: false, order: 7 },
@@ -440,9 +440,8 @@ export const createBuilderSteps = () => [
       { name: 'reraVerified', label: 'RERA Verified?', type: 'pill', options: ['Yes', 'No'], required: false, order: 9.3, dependsOn: onRera('Registered') },
       { name: 'reraApplicationNumber', label: 'RERA Application Number', type: 'text', placeholder: 'e.g. APP/2026/00871', required: true, order: 9.4, dependsOn: onRera('Applied') },
       { name: 'reraApplicationDate', label: 'Application Date', type: 'date', required: false, order: 9.5, dependsOn: onRera('Applied') },
-      { name: 'reraComplianceReason', label: 'Reason / Compliance Information', type: 'textarea', placeholder: 'Explain why RERA registration is not applicable or pending...', required: true, order: 9.6, dependsOn: onRera(['Not Registered', 'Not Applicable / Exempt']) },
-
-      { name: 'possessionDate', label: 'Possession Date', type: 'date', required: false, order: 10, dependsOn: onTxn(SALE) }
+      { name: 'reraComplianceReason', label: 'Reason / Compliance Information', type: 'textarea', placeholder: 'Explain why RERA registration is not applicable or pending...', required: true, order: 9.6, dependsOn: onRera(['Not Registered', 'Not Applicable / Exempt']) }
+      // Possession date is collected once, in Step 10.
     ]
   },
   {
@@ -505,12 +504,11 @@ export const createBuilderSteps = () => [
     title: 'Documents',
     description: 'Upload approvals and project documents',
     fields: [
-      { name: 'docReraCertificate', label: 'RERA Certificate', type: 'single_file', required: false, order: 1, dependsOn: onRera('Registered') },
+      // RERA certificate is uploaded in Step 1 and master plan in Step 8 — not repeated here.
       { name: 'docReraApplication', label: 'RERA Application / Supporting Document', type: 'single_file', required: false, order: 2, dependsOn: onRera('Applied') },
       { name: 'docApprovalLetter', label: 'Approval Letter', type: 'single_file', required: false, order: 3 },
       { name: 'docLayoutApproval', label: 'Layout Approval', type: 'single_file', required: false, order: 4, dependsOn: onType(PLOT) },
       { name: 'docBrochure', label: 'e-Brochure', type: 'single_file', required: false, order: 5 },
-      { name: 'docMasterPlan', label: 'Master Plan', type: 'single_file', required: false, order: 6 },
       { name: 'docPriceSheet', label: 'Price Sheet', type: 'single_file', required: false, order: 7 },
       { name: 'docOther', label: 'Other Document', type: 'single_file', required: false, order: 8 }
     ]
@@ -523,13 +521,12 @@ export const createBuilderSteps = () => [
       // Branches purely off Step 1's `projectStatus` — each block only shows for its status.
       { name: 'expectedLaunchDate', label: 'Expected Launch Date', type: 'date', required: true, order: 1, dependsOn: onStatus('Pre Launch') },
       { name: 'expectedPossessionPL', label: 'Expected Possession', type: 'date', required: false, order: 2, dependsOn: onStatus('Pre Launch') },
-      { name: 'priceStartingFrom', label: 'Price Starting From (₹)', type: 'number', placeholder: 'e.g. 5500000', required: false, order: 3, dependsOn: [onStatus('Pre Launch'), onTxn(SALE)] },
+      // Starting price is derived from Step 4 unit pricing, so it isn't asked again here.
       { name: 'bookingEoiStatus', label: 'Booking / EOI Status', type: 'dropdown', options: ['Not Started', 'EOI Open', 'Booking Open'], required: false, order: 4, dependsOn: onStatus('Pre Launch') },
       { name: 'plannedDevelopment', label: 'Planned Development', type: 'textarea', placeholder: 'Describe the planned phases and timelines...', required: false, order: 5, dependsOn: onStatus('Pre Launch') },
 
       { name: 'launchDate', label: 'Launch Date', type: 'date', required: true, order: 1, dependsOn: onStatus('New Launch') },
       { name: 'bookingOpen', label: 'Booking Open?', type: 'pill', options: ['Yes', 'No'], required: false, order: 2, dependsOn: onStatus('New Launch') },
-      { name: 'launchPrice', label: 'Launch Price (₹)', type: 'number', placeholder: 'e.g. 6000000', required: false, order: 3, dependsOn: [onStatus('New Launch'), onTxn(SALE)] },
       { name: 'launchOffer', label: 'Launch Offer', type: 'text', placeholder: 'e.g. No GST till March', required: false, order: 4, dependsOn: onStatus('New Launch') },
       { name: 'availableInventory', label: 'Available Inventory', type: 'number', placeholder: 'e.g. 80', required: false, order: 5, dependsOn: onStatus('New Launch') },
       { name: 'expectedPossessionNL', label: 'Expected Possession', type: 'date', required: false, order: 6, dependsOn: onStatus('New Launch') },
@@ -563,12 +560,12 @@ export const createBuilderSteps = () => [
     stepNumber: 12,
     title: 'Builder Profile',
     description: 'About the developer',
+    // Builder / developer name comes from Step 1 and the company logo from the
+    // builder's account profile, so neither is asked again here.
     fields: [
-      { name: 'builderCompanyName', label: 'Company Name', type: 'text', placeholder: 'e.g. Sujay Constructions', required: true, order: 1 },
       { name: 'builderEstablishedYear', label: 'Established Year', type: 'number', placeholder: 'e.g. 2010', required: false, order: 2 },
       { name: 'builderCompanyType', label: 'Company Type', type: 'dropdown', options: ['Private Limited', 'Public Limited', 'Partnership', 'LLP', 'Proprietorship'], required: false, order: 3 },
       { name: 'builderTotalProjects', label: 'Total Projects Delivered', type: 'number', placeholder: 'e.g. 18', required: false, order: 4 },
-      { name: 'builderLogo', label: 'Company Logo', type: 'single_file', required: false, order: 5 },
       { name: 'builderWebsite', label: 'Website', type: 'text', placeholder: 'e.g. https://sujayconstructions.com', required: false, order: 6 },
       { name: 'builderOfficeAddress', label: 'Office Address', type: 'textarea', placeholder: 'e.g. Nallagandla, Hyderabad, Telangana 500019', required: false, order: 7 },
       { name: 'builderWorkingHours', label: 'Working Hours', type: 'text', placeholder: 'e.g. 10:00 AM - 7:00 PM', required: false, order: 8 },

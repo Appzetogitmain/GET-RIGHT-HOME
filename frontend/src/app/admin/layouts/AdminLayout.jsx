@@ -133,7 +133,8 @@ const AdminLayout = () => {
                     icon: Home, label: 'Properties', children: [
                         { label: 'All Properties', path: '/admin/properties' },
                         { label: 'Add Property', path: '/admin/properties/add' },
-                        { label: 'Featured Projects', path: '/admin/featured-projects' },
+                        { label: 'Featured Properties', path: '/admin/featured-properties' },
+                        { label: 'Handpicked Projects', path: '/admin/featured-projects' },
                     ]
                 },
                 { icon: Building2, label: 'Projects', path: '/admin/projects' },

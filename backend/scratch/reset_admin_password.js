@@ -13,10 +13,16 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 import Admin from '../models/Admin.js';
 
-const EMAIL = 'getrighthome7@gmail.com';
-const NEW_PASSWORD = 'GrhAdmin@123';
+// Usage: node scratch/reset_admin_password.js <admin-email> <new-password>
+// SECURITY: the email and password used to be hardcoded here (and that
+// password is probably still the live superadmin password — change it).
+const [, , EMAIL, NEW_PASSWORD] = process.argv;
 
 async function run() {
+  if (!EMAIL || !NEW_PASSWORD || NEW_PASSWORD.length < 12) {
+    console.error('Usage: node scratch/reset_admin_password.js <admin-email> <new-password (12+ chars)>');
+    process.exit(1);
+  }
   await mongoose.connect(process.env.MONGODB_URL);
   console.log('Connected!');
 

@@ -132,6 +132,8 @@ export const findNearbyWorkers = async (location, radius, filters) => {
     // Category filtering done in JS to allow flexible matching
     const baseQuery = {
       approvalStatus: 'approved',
+      // Workers still waiting for office (offline) verification get no jobs.
+      'offlineVerification.status': { $ne: 'pending' },
       isActive: true,
       // Busy workers are filtered afterwards by filterAvailableWorkers, which
       // looks at the jobs they hold right now. The stored `busy` flag is not

@@ -221,8 +221,16 @@ export const deleteImage = async (req, res) => {
       pid = `${folder1}/${folder2}/${filename.split('.')[0]}`;
     }
 
-    if (!pid) {
+    if (!pid || typeof pid !== 'string') {
       return res.status(400).json({ message: 'publicId or url is required' });
+    }
+
+    // SECURITY: any logged-in account can call this. Identity/KYC documents
+    // must not be deletable by non-admins (previously anyone could wipe
+    // another partner's or worker's verification files by public id).
+    const isAdmin = ['admin', 'superadmin'].includes(req.user?.role);
+    if (!isAdmin && /(partner-documents|workers\/documents|\bkyc\b|aadhaa?r|pan[-_]?card)/i.test(pid)) {
+      return res.status(403).json({ message: 'Not allowed to delete this file' });
     }
 
     console.log(`[Delete Image] Attempting to delete: ${pid}`);

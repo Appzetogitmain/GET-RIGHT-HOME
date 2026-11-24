@@ -15,7 +15,10 @@ import {
 // one-row-per-property-type seeding.
 // v5 = Step 13 no longer repeats Office Address / Working Hours / Website
 // (they live in Step 12, Builder Profile).
-export const BUILDER_TEMPLATE_VERSION = 5;
+// v6 = duplicate fields removed: possession date (Steps 1/3 -> Step 10 only),
+// Company Name + Company Logo (Step 12), RERA certificate + master plan (Step 9),
+// Price Starting From / Launch Price (Step 10), plot layout images (Step 7).
+export const BUILDER_TEMPLATE_VERSION = 6;
 
 // The wizard is now self-describing: Step 1 collects transactionType and
 // propertyType, and later steps branch on them via `dependsOn`. So exactly one

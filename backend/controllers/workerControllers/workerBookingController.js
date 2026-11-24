@@ -1298,7 +1298,14 @@ const respondToJob = async (req, res) => {
     }
 
     if (status === 'ACCEPTED') {
-      const acceptingWorker = await Worker.findById(workerId).select('name bookingModes').lean();
+      const acceptingWorker = await Worker.findById(workerId).select('name bookingModes offlineVerification.status').lean();
+      if (acceptingWorker?.offlineVerification?.status === 'pending') {
+        return res.status(403).json({
+          success: false,
+          code: 'OFFLINE_VERIFICATION_PENDING',
+          message: 'Your office verification is pending. You can accept jobs once it is completed.'
+        });
+      }
       const bookingMode = booking.bookingType === 'instant' ? 'instant' : 'slot';
       // A job the admin offered to this worker was approved by the admin,
       // possibly as an override of zone / profession / type / day-off rules.

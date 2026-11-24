@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import { protect, authorizedRoles, optionalProtect } from '../middlewares/authMiddleware.js';
 import {
   createProperty,
   updateProperty,
@@ -26,8 +26,8 @@ import {
   getRecommendedSellers,
   getAdminPropertiesByLocation,
   getAdminPropertyCities,
+  getHomeFeaturedProperties,
   getPropertyStats,
-  debugProperties,
   getPartnerPublicDetails,
   getPublicBuilders
 } from '../controllers/propertyController.js';
@@ -44,10 +44,12 @@ router.get('/listing-suggestions', getListingSuggestions);
 router.get('/popular-cities', getPopularCities);
 router.get('/popular-areas', getPopularAreas);
 router.get('/admin/search-analytics', protect, authorizedRoles('admin', 'superadmin', 'manager'), getSearchAnalyticsReport);
-router.get('/debug-data', debugProperties); // TEMP - remove after debugging
+// SECURITY: the public '/debug-data' route (dumped every listing incl. drafts
+// and pending ones) has been removed.
 router.get('/recommended-sellers', getRecommendedSellers);
 router.get('/admin-added', getAdminPropertiesByLocation);
 router.get('/admin-cities', getAdminPropertyCities);
+router.get('/featured', getHomeFeaturedProperties);
 router.get('/partner-public-details/:id', getPartnerPublicDetails);
 
 // User & Partner can manage their own properties
@@ -60,7 +62,7 @@ router.post('/listing-eligibility/paywall', protect, ownerRoles, reportPaywallHi
 router.get('/:id/reveal-contact', revealContact);
 router.get('/:id/similar', getSimilarProperties);
 router.get('/:id/stats', protect, ownerRoles, getPropertyStats);
-router.get('/:id', getPropertyDetails);
+router.get('/:id', optionalProtect, getPropertyDetails); // optional login: owners/admins also get documents
 
 // Anonymous attribution of a click/enquiry back to the session's last search.
 router.post('/:id/search-outcome', trackSearchOutcome);

@@ -9,17 +9,10 @@ import cloudinaryService from '../../services/cloudinaryService.js';
 import { validProfessionIds } from '../professionController.js';
 import Otp from '../../models/Otp.js';
 import smsService from '../../utils/smsService.js';
+import { generateOtp, isDefaultOtpMode, otpMatches } from '../../utils/otp.js';
 
 // Stubs for services not yet configured in Hoomzo
-const TEST_PHONE_OTPS = { '7869549428': '123456' }; // 🔐 Fixed OTP for test numbers
-const generateOTP = (phone) => {
-  const cleanPhone = String(phone || '').replace(/\D/g, '').slice(-10);
-  if (TEST_PHONE_OTPS[cleanPhone]) {
-    console.log(`🔐 [TEST] Using fixed OTP for worker test number ${cleanPhone}`);
-    return TEST_PHONE_OTPS[cleanPhone];
-  }
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
+const generateOTP = (phone) => generateOtp(phone);
 const hashOTP = (otp) => otp;
 const storeOTP = async (phone, otp) => {
   await Otp.findOneAndUpdate(
@@ -29,8 +22,12 @@ const storeOTP = async (phone, otp) => {
   );
 };
 const verifyOTP = async (phone, otp) => {
+  if (typeof otp === 'number') otp = String(otp);
+  if (typeof phone !== 'string' || typeof otp !== 'string') {
+    return { success: false, message: 'Invalid or expired OTP' };
+  }
   const otpRecord = await Otp.findOne({ phone });
-  if (otpRecord && otpRecord.otp === otp && otpRecord.expiresAt >= Date.now()) {
+  if (otpRecord && otpMatches(otpRecord.otp, otp) && otpRecord.expiresAt >= Date.now()) {
     await Otp.deleteOne({ phone });
     return { success: true };
   }
@@ -44,8 +41,19 @@ const generateTokenPair = (data) => {
 const verifyRefreshToken = (token) => {
   try { return jwt.verify(token, process.env.JWT_SECRET); } catch { return null; }
 };
-const generateVerificationToken = (phone) => Buffer.from(phone).toString('base64');
-const verifyVerificationToken = (token) => { try { return Buffer.from(token, 'base64').toString(); } catch { return null; } };
+// SECURITY: the verification token proves "this phone passed OTP". It used to
+// be plain base64(phone), so anyone could forge one for any number and
+// register without an OTP. It is now a signed JWT that expires in 30 minutes.
+const generateVerificationToken = (phone) =>
+  jwt.sign({ phone, purpose: 'worker-registration' }, process.env.JWT_SECRET, { expiresIn: '30m' });
+const verifyVerificationToken = (token) => {
+  try {
+    const decoded = jwt.verify(String(token), process.env.JWT_SECRET);
+    return decoded.purpose === 'worker-registration' && typeof decoded.phone === 'string' ? decoded.phone : null;
+  } catch {
+    return null;
+  }
+};
 const sendSMSOTP = async (phone, otp) => {
   return smsService.sendOTP(phone, otp, 'worker-auth');
 };
@@ -68,10 +76,37 @@ const sendOTP = async (req, res) => {
       });
     }
 
-    const { phone, email } = req.body;
+    const { phone, email, type } = req.body; // type: 'login' (from login page) or undefined/'register'
 
     // Check if worker exists and their approval status before sending OTP
     const worker = await Worker.findOne({ phone }).select(WORKER_LIGHT);
+
+    // LOGIN: unregistered number -> don't send OTP, let the client redirect to signup
+    if (type === 'login' && !worker) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found. Please register first.',
+        requiresRegistration: true
+      });
+    }
+
+    // REGISTER: reject duplicates up front so no OTP is sent for a doomed signup
+    if (type === 'register') {
+      if (worker) {
+        return res.status(409).json({
+          success: false,
+          message: 'Worker already exists with this phone number. Please login.',
+          requiresLogin: true
+        });
+      }
+      if (email && await Worker.exists({ email: String(email).trim().toLowerCase() })) {
+        return res.status(409).json({
+          success: false,
+          message: 'This email is already registered with another account. Please use a different email.'
+        });
+      }
+    }
+
     if (worker) {
       if (!worker.isActive) {
         return res.status(403).json({ success: false, message: 'Account deactivated.' });
@@ -108,11 +143,11 @@ const sendOTP = async (req, res) => {
     await storeOTP(phone, otpHash);
 
     // 4. Send OTP via SMS
-    const smsResult = await sendSMSOTP(phone, otp);
+    const smsResult = isDefaultOtpMode() ? { success: true } : await sendSMSOTP(phone, otp);
 
-    // Log OTP
-    if (process.env.NODE_ENV === 'development' || process.env.USE_DEFAULT_OTP === 'true') {
-      console.log(`[DEV] Worker OTP for ${phone}: ${otp}`);
+    // Never log real OTPs (server logs are readable by hosting staff / log tools).
+    if (isDefaultOtpMode()) {
+      console.log(`[DEV] Worker OTP for ${phone}: default OTP mode`);
     }
 
     if (!smsResult.success) {
@@ -191,6 +226,8 @@ const verifyLogin = async (req, res) => {
           email: worker.email,
           phone: worker.phone,
           status: worker.status,
+          approvalStatus: worker.approvalStatus,
+          offlineVerificationStatus: worker.offlineVerification?.status || null,
           serviceCategories: worker.serviceCategories || [],
           aadhar: worker.aadhar || null
         },
@@ -241,24 +278,32 @@ const register = async (req, res) => {
     } = req.body;
     let phone = req.body.phone;
 
+    let verifiedPhone = null;
     if (verificationToken) {
-      const verifiedPhone = verifyVerificationToken(verificationToken);
+      verifiedPhone = verifyVerificationToken(verificationToken);
       if (!verifiedPhone) return res.status(400).json({ success: false, message: 'Invalid verification session.' });
       phone = verifiedPhone;
-    } else {
-      // Fallback OTP
-      if (!req.body.otp) return res.status(400).json({ success: false, message: 'Verification required.' });
-      const ver = await verifyOTP(phone, req.body.otp);
-      if (!ver.success) return res.status(400).json({ success: false, message: ver.message });
+    } else if (!req.body.otp) {
+      return res.status(400).json({ success: false, message: 'Verification required.' });
     }
 
-    // Check existing
-    const existingWorker = await Worker.findOne({ $or: [{ phone }, { email }] });
+    // Check existing BEFORE consuming the OTP, so a duplicate phone/email
+    // doesn't burn the OTP and turn every retry into "Invalid or expired OTP".
+    const existingWorker = await Worker.findOne({ $or: [{ phone }, { email }] }).select('phone email');
     if (existingWorker) {
+      const phoneTaken = existingWorker.phone === phone;
       return res.status(400).json({
         success: false,
-        message: 'Worker already exists. Please login.'
+        message: phoneTaken
+          ? 'Worker already exists with this phone number. Please login.'
+          : 'This email is already registered with another account. Please use a different email.'
       });
+    }
+
+    if (!verifiedPhone) {
+      // Fallback OTP
+      const ver = await verifyOTP(phone, req.body.otp);
+      if (!ver.success) return res.status(400).json({ success: false, message: ver.message });
     }
 
     // Process Referral Code
@@ -453,6 +498,8 @@ const login = async (req, res) => {
         email: worker.email,
         phone: worker.phone,
         status: worker.status,
+        approvalStatus: worker.approvalStatus,
+        offlineVerificationStatus: worker.offlineVerification?.status || null,
         serviceCategories: worker.serviceCategories || [],
         aadhar: worker.aadhar || null
       },

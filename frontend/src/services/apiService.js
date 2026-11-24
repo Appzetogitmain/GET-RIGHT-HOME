@@ -540,6 +540,15 @@ export const propertyService = {
   create: async (propertyData) => {
     return propertyService.createProperty(propertyData);
   },
+  // Home page "Featured Properties" section (admin-picked). Returns { success, properties }.
+  getHomeFeaturedProperties: async (params = {}) => {
+    try {
+      const response = await api.get('/properties/featured', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   upsertDocuments: async (propertyId, documents) => {
     try {
       const response = await api.post(`/properties/${propertyId}/documents`, { documents });

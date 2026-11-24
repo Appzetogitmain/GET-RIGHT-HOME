@@ -616,6 +616,13 @@ export const forceWorkerOnline = async (req, res) => {
     if (!worker) {
       return res.status(404).json({ success: false, message: 'Worker not found' });
     }
+    if (worker.offlineVerification?.status === 'pending') {
+      return res.status(409).json({
+        success: false,
+        code: 'OFFLINE_VERIFICATION_PENDING',
+        message: `${worker.name}'s office verification is pending. Mark it done before bringing the worker online.`
+      });
+    }
 
     const todayYmd = istYmd(new Date());
     const todayWeekday = weekdayOfYmd(todayYmd);

@@ -69,7 +69,7 @@ const WorkerLogin = () => {
     setIsLoading(true);
     setIsPendingApproval(false);
     try {
-      const response = await workerAuthService.sendOTP(cleanPhone);
+      const response = await workerAuthService.sendOTP(cleanPhone, null, 'login');
       if (response.success) {
         setOtpToken(response.token);
         setIsLoading(false);
@@ -82,7 +82,11 @@ const WorkerLogin = () => {
       }
     } catch (error) {
       setIsLoading(false);
-      if (error.response?.data?.pendingApproval) {
+      if (error.response?.status === 404 || error.response?.data?.requiresRegistration) {
+        // New number: no OTP sent, go straight to registration
+        toast('No account found. Please register first.', { icon: 'ℹ️' });
+        navigate('/worker/signup', { state: { phone: cleanPhone } });
+      } else if (error.response?.data?.pendingApproval) {
         setIsPendingApproval(true);
         toast.error('Account pending approval');
       } else {
@@ -142,6 +146,9 @@ const WorkerLogin = () => {
           navigate('/worker/signup', {
             state: { phone: phoneNumber.replace(/\D/g, ''), verificationToken: response.verificationToken }
           });
+        } else if (response.worker?.offlineVerificationStatus === 'pending') {
+          toast('Online verification approved. Please complete office verification.', { icon: '🏢' });
+          navigate('/worker/verification-pending', { replace: true });
         } else {
           toast.success(
             <div className="flex flex-col">
@@ -195,8 +202,7 @@ const WorkerLogin = () => {
                     Your account is pending admin approval.
                   </p>
                   <p className="mt-1 text-sm text-yellow-700 font-medium">
-                    Visit our office for approval:<br/>
-                    <span className="font-bold">2nd floor Lakshmi residency Navodaya colony housing board colony Anantapur Andhra Pradesh</span>
+                    Our team is reviewing your documents. Once approved, you can log in to see the office address for your offline document verification.
                   </p>
                 </div>
               </div>
@@ -297,7 +303,7 @@ const WorkerLogin = () => {
                     type="button"
                     onClick={async () => {
                       try {
-                        const response = await workerAuthService.sendOTP(phoneNumber.replace(/\D/g, ''));
+                        const response = await workerAuthService.sendOTP(phoneNumber.replace(/\D/g, ''), null, 'login');
                         if (response.success) {
                           setOtpToken(response.token);
                           setResendTimer(120);

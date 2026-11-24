@@ -149,6 +149,130 @@ export const updateFeaturedProperty = async (req, res) => {
 };
 
 // ==========================================
+// HOME-SCREEN "FEATURED PROPERTIES"
+// ==========================================
+
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const HOME_FEATURED_LIST_FIELDS =
+  'propertyName slug propertyType propertyCategory address coverImage propertyImages images status isLive homeFeatured createdAt userId partnerId isAddedByAdmin';
+
+// GET /admin/home-featured?search=&page=&limit=&filter=all|featured
+export const getHomeFeaturedCandidates = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100);
+    const search = req.query.search ? String(req.query.search).trim() : '';
+    const onlyFeatured = req.query.filter === 'featured';
+
+    const query = { status: 'approved' };
+    if (onlyFeatured) query['homeFeatured.isActive'] = true;
+    if (search) {
+      const rx = new RegExp(escapeRegex(search), 'i');
+      query.$or = [
+        { propertyName: rx },
+        { propertyType: rx },
+        { 'address.city': rx },
+        { 'address.area': rx }
+      ];
+    }
+
+    const [projects, properties] = await Promise.all([
+      Project.find(query).select(HOME_FEATURED_LIST_FIELDS)
+        .populate({ path: 'userId', select: 'name companyName role', strictPopulate: false })
+        .lean().catch(() => []),
+      Property.find(query).select(HOME_FEATURED_LIST_FIELDS)
+        .populate({ path: 'userId', select: 'name companyName role', strictPopulate: false })
+        .populate({ path: 'partnerId', select: 'name companyName role', strictPopulate: false })
+        .lean().catch(() => [])
+    ]);
+
+    const seen = new Set();
+    const combined = [];
+    [...projects.map(p => ({ ...p, sourceModel: 'Project' })), ...properties.map(p => ({ ...p, sourceModel: 'Property' }))]
+      .forEach(p => {
+        const id = String(p._id);
+        if (seen.has(id)) return;
+        seen.add(id);
+        combined.push(p);
+      });
+
+    // Featured ones first (by display order), then newest.
+    combined.sort((a, b) => {
+      const af = a.homeFeatured?.isActive ? 1 : 0;
+      const bf = b.homeFeatured?.isActive ? 1 : 0;
+      if (af !== bf) return bf - af;
+      if (af && bf) {
+        const od = (a.homeFeatured.order || 0) - (b.homeFeatured.order || 0);
+        if (od !== 0) return od;
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    const total = combined.length;
+    const featuredCount = combined.filter(p => p.homeFeatured?.isActive).length;
+    const items = combined.slice((page - 1) * limit, page * limit);
+
+    res.status(200).json({
+      success: true,
+      properties: items,
+      meta: { total, featuredCount, page, limit, totalPages: Math.ceil(total / limit) || 1 }
+    });
+  } catch (error) {
+    console.error('Error fetching home featured candidates:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching properties' });
+  }
+};
+
+// PUT /admin/home-featured/:id  { isActive, durationDays?, order? }
+export const updateHomeFeatured = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive, durationDays, order } = req.body;
+
+    let Model = Property;
+    let doc = await Property.findById(id).select('homeFeatured').lean();
+    if (!doc) {
+      Model = Project;
+      doc = await Project.findById(id).select('homeFeatured').lean();
+    }
+    if (!doc) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    const current = doc.homeFeatured || {};
+    const next = {
+      isActive: Boolean(isActive),
+      order: order !== undefined && order !== null && order !== '' ? Number(order) || 0 : (current.order || 0),
+      startDate: current.startDate || null,
+      endDate: current.endDate || null
+    };
+
+    if (next.isActive) {
+      if (!current.isActive) next.startDate = new Date();
+      if (durationDays !== undefined) {
+        const days = parseInt(durationDays);
+        next.endDate = days > 0 ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+      }
+    } else {
+      next.endDate = null;
+      next.startDate = null;
+    }
+
+    // updateOne skips full-document validation, so legacy listings with
+    // missing required fields can still be featured.
+    await Model.updateOne({ _id: id }, { $set: { homeFeatured: next } });
+
+    res.status(200).json({
+      success: true,
+      message: next.isActive ? 'Property added to Featured' : 'Property removed from Featured',
+      homeFeatured: next
+    });
+  } catch (error) {
+    console.error('Error updating home featured:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+// ==========================================
 // FEATURED PLAN TAGS CRUD
 // ==========================================
 

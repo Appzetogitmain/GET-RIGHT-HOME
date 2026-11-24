@@ -14,6 +14,7 @@ import { getPublicProfessions } from '../../controllers/professionController.js'
 import { deleteWorkerAccount } from '../../controllers/workerControllers/workerProfileController.js';
 import {  authenticate  } from '../../middlewares/authMiddleware.js';
 import {  isWorker  } from '../../middlewares/authMiddleware.js';
+import { otpSendLimiter, otpVerifyLimiter } from '../../middlewares/security.js';
 
 // Validation rules
 const sendOTPValidation = [
@@ -42,10 +43,10 @@ const loginValidation = [
 // Routes
 router.get('/professions', getPublicProfessions); // public: shown on the signup form
 router.get('/validate-referral/:code', validateReferralCode); // public: signup form check
-router.post('/send-otp', sendOTPValidation, sendOTP);
-router.post('/verify-login', verifyLoginValidation, verifyLogin); // New Unified Entry
-router.post('/register', registerValidation, register);
-router.post('/login', loginValidation, login);
+router.post('/send-otp', otpSendLimiter, sendOTPValidation, sendOTP);
+router.post('/verify-login', otpVerifyLimiter, verifyLoginValidation, verifyLogin); // New Unified Entry
+router.post('/register', otpVerifyLimiter, registerValidation, register);
+router.post('/login', otpVerifyLimiter, loginValidation, login);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', authenticate, isWorker, logout);
 router.delete('/delete-account', authenticate, isWorker, deleteWorkerAccount);

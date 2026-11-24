@@ -20,6 +20,7 @@ import { getIO } from '../sockets.js';
 import { claimWorkerCapacity, findWorkerActiveJob, isImmediateBooking, syncWorkerCapacityStatus } from '../services/workerCapacityService.js';
 import { directAssign, reassignSlotBooking } from '../services/bookingDispatchService.js';
 import { normalizeBookingModes, supportsBookingMode } from '../utils/bookingModes.js';
+import { startOfflineVerificationIfRequired, processWorkerReferralBonus } from '../services/workerVerificationService.js';
 
 import Zone from '../models/Zone.js';
 import WorkerSubscriptionPlan from '../models/WorkerSubscriptionPlan.js';
@@ -67,6 +68,9 @@ export const getAllWorkers = async (req, res) => {
         query['pendingServiceCategories.0'] = { $exists: true };
       } else if (approvalStatus === 'signup_only') {
         query.approvalStatus = 'pending';
+      } else if (approvalStatus === 'offline_pending') {
+        query.approvalStatus = 'approved';
+        query['offlineVerification.status'] = 'pending';
       } else {
         query.approvalStatus = approvalStatus;
       }
@@ -88,7 +92,7 @@ export const getAllWorkers = async (req, res) => {
         .sort({ createdAt: -1 })
         .lean(),
       Zone.find().select('_id name status').sort({ name: 1 }).lean(),
-      isFiltered ? Worker.find().select('approvalStatus pendingServiceCategories zoneIds zones').lean() : Promise.resolve(null)
+      isFiltered ? Worker.find().select('approvalStatus offlineVerification.status pendingServiceCategories zoneIds zones').lean() : Promise.resolve(null)
     ]);
 
     // Build counts and zone summary from memory
@@ -98,6 +102,7 @@ export const getAllWorkers = async (req, res) => {
     const approvedCount = sourceForCounts.filter(w => w.approvalStatus === 'approved').length;
     const rejectedCount = sourceForCounts.filter(w => w.approvalStatus === 'rejected').length;
     const pendingSkillsCount = sourceForCounts.filter(w => w.pendingServiceCategories && w.pendingServiceCategories.length > 0).length;
+    const offlinePendingCount = sourceForCounts.filter(w => w.approvalStatus === 'approved' && w.offlineVerification?.status === 'pending').length;
 
     const zonesSummary = [
       { id: 'all', name: 'All Zones', count: totalCount },
@@ -155,7 +160,8 @@ export const getAllWorkers = async (req, res) => {
         signupOnly: pendingCount,
         approved: approvedCount,
         rejected: rejectedCount,
-        pendingSkills: pendingSkillsCount
+        pendingSkills: pendingSkillsCount,
+        offlinePending: offlinePendingCount
       },
       zonesSummary,
       zones: allZones
@@ -249,15 +255,35 @@ export const updateWorker = async (req, res) => {
       worker.zones = zones;
     }
 
+    let officeStepStarted = false;
     if (approvalStatus && ['pending', 'approved', 'rejected', 'suspended'].includes(approvalStatus)) {
+      const wasPending = worker.approvalStatus === 'pending';
       worker.approvalStatus = approvalStatus;
       if (approvalStatus === 'approved' && worker.pendingServiceCategories?.length > 0) {
         worker.serviceCategories = Array.from(new Set([...(worker.serviceCategories || []), ...worker.pendingServiceCategories]));
         worker.pendingServiceCategories = [];
       }
+      // First-time approval from the edit form follows the same two-step flow
+      // as the Approve button. Re-activating a suspended worker does not.
+      if (approvalStatus === 'approved' && wasPending) {
+        officeStepStarted = await startOfflineVerificationIfRequired(worker);
+      }
     }
 
     await worker.save();
+
+    if (officeStepStarted) {
+      await createNotification({
+        workerId: worker._id,
+        type: 'offline_verification_pending',
+        title: 'Online Verification Approved',
+        message: 'Your online verification is approved. Please visit our office with your original documents to complete offline verification.',
+        relatedId: worker._id,
+        relatedType: 'worker',
+        priority: 'high',
+        pushData: { type: 'offline_verification_pending', link: '/worker/verification-pending' }
+      }).catch((error) => console.error('Worker approval notification failed:', error));
+    }
 
     const updatedWorker = await Worker.findById(id)
       .populate('zoneIds', 'name status')
@@ -412,98 +438,38 @@ export const approveWorker = async (req, res) => {
       worker.serviceCategories = Array.from(new Set([...existing, ...worker.pendingServiceCategories]));
       worker.pendingServiceCategories = [];
     }
+    // Online approval done -> worker must now visit the office (when enabled).
+    const officeStepStarted = await startOfflineVerificationIfRequired(worker);
     await worker.save();
 
     await createNotification({
       workerId: worker._id,
-      type: 'account_approved',
-      title: 'Account Approved',
-      message: 'Your expert account has been approved. You can now go online and receive orders.',
+      type: officeStepStarted ? 'offline_verification_pending' : 'account_approved',
+      title: officeStepStarted ? 'Online Verification Approved' : 'Account Approved',
+      message: officeStepStarted
+        ? 'Your online verification is approved. Please visit our office with your original documents to complete offline verification.'
+        : 'Your expert account has been approved. You can now go online and receive orders.',
       relatedId: worker._id,
       relatedType: 'worker',
       priority: 'high',
-      pushData: { type: 'account_approved', link: '/worker/dashboard' }
+      pushData: {
+        type: officeStepStarted ? 'offline_verification_pending' : 'account_approved',
+        link: officeStepStarted ? '/worker/verification-pending' : '/worker/dashboard'
+      }
     }).catch((error) => console.error('Worker approval notification failed:', error));
 
-    // Process Referral Bonus
-    if (worker.referredBy && !worker.referralBonusCredited) {
-      const platformSettings = await PlatformSettings.getSettings();
-      const bonusReferrer = platformSettings.workerReferralBonusReferrer || 0;
-      const bonusReferee = platformSettings.workerReferralBonusReferee || 0;
-
-      if (bonusReferrer > 0 || bonusReferee > 0) {
-        const referrer = await Worker.findById(worker.referredBy);
-        
-        if (referrer) {
-          // 1. Credit Referrer
-          if (bonusReferrer > 0) {
-            if (!referrer.wallet) referrer.wallet = { balance: 0, earnings: 0, totalCashCollected: 0, totalWithdrawn: 0, dues: 0 };
-            referrer.wallet.balance = (referrer.wallet.balance || 0) + bonusReferrer;
-            referrer.wallet.earnings = (referrer.wallet.earnings || 0) + bonusReferrer;
-            await referrer.save();
-
-            await Transaction.create({
-              workerId: referrer._id,
-              modelType: 'Worker',
-              type: 'credit',
-              category: 'referral_bonus',
-              amount: bonusReferrer,
-              balanceAfter: referrer.wallet.balance,
-              description: `Referral bonus for inviting ${worker.name}`,
-              reference: `ref_${worker._id}`,
-              status: 'completed'
-            });
-
-            await createNotification({
-              workerId: referrer._id,
-              type: 'referral_bonus',
-              title: 'Referral Bonus! 🎉',
-              message: `You received ₹${bonusReferrer} for referring ${worker.name}.`,
-              relatedId: referrer._id,
-              relatedType: 'wallet',
-              priority: 'high',
-              pushData: { type: 'referral_bonus', link: '/worker/wallet' }
-            }).catch(e => console.error(e));
-          }
-
-          // 2. Credit Referee (New Worker)
-          if (bonusReferee > 0) {
-            if (!worker.wallet) worker.wallet = { balance: 0, earnings: 0, totalCashCollected: 0, totalWithdrawn: 0, dues: 0 };
-            worker.wallet.balance = (worker.wallet.balance || 0) + bonusReferee;
-            worker.wallet.earnings = (worker.wallet.earnings || 0) + bonusReferee;
-            
-            await Transaction.create({
-              workerId: worker._id,
-              modelType: 'Worker',
-              type: 'credit',
-              category: 'referral_bonus',
-              amount: bonusReferee,
-              balanceAfter: worker.wallet.balance,
-              description: `Welcome referral bonus via ${referrer.name}`,
-              reference: `ref_welcome_${worker._id}`,
-              status: 'completed'
-            });
-
-            await createNotification({
-              workerId: worker._id,
-              type: 'referral_bonus',
-              title: 'Welcome Bonus! 🎉',
-              message: `You received ₹${bonusReferee} referral bonus for joining via ${referrer.name}.`,
-              relatedId: worker._id,
-              relatedType: 'wallet',
-              priority: 'high',
-              pushData: { type: 'referral_bonus', link: '/worker/wallet' }
-            }).catch(e => console.error(e));
-          }
-        }
-        
-        // Mark as credited
-        worker.referralBonusCredited = true;
-        await worker.save();
-      }
+    // Referral bonus is paid only once the worker is fully verified.
+    if (!officeStepStarted) {
+      await processWorkerReferralBonus(worker).catch((e) => console.error('Referral bonus failed:', e));
     }
 
-    res.json({ success: true, message: 'Worker approved successfully', worker });
+    res.json({
+      success: true,
+      message: officeStepStarted
+        ? 'Online verification approved. Worker must now complete office verification.'
+        : 'Worker approved successfully',
+      worker
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -1188,6 +1154,13 @@ export const assignWorkerToBooking = async (req, res) => {
 
     const worker = await Worker.findById(workerId);
     if (!worker) return res.status(404).json({ success: false, message: 'Worker not found' });
+    if (worker.offlineVerification?.status === 'pending') {
+      return res.status(409).json({
+        success: false,
+        code: 'OFFLINE_VERIFICATION_PENDING',
+        message: `${worker.name}'s office verification is pending. Complete it before assigning jobs.`
+      });
+    }
 
     const ineligible = !override && await findWorkerIneligibility(worker, booking);
     if (ineligible) {

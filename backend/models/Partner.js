@@ -20,7 +20,8 @@ const partnerSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: true,
+    select: false // never include the hash in query results / API responses
   },
   role: {
     type: String,

@@ -409,10 +409,15 @@ const Dashboard = () => {
             professions: profile.professions,
             address: profile.address,
             approvalStatus: profile.approvalStatus,
+            offlineVerificationStatus: profile.offlineVerificationStatus || null,
             status: profile.status
           }));
         } catch {
           // Storage can be unavailable in restricted webviews; live state still works.
+        }
+        if (profile.approvalStatus === 'approved' && profile.offlineVerificationStatus === 'pending') {
+          navigate('/worker/verification-pending', { replace: true });
+          return;
         }
       }
 

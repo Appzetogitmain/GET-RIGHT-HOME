@@ -28,6 +28,9 @@ const pricingFieldsToFilter = [
 // Builder templates flag their location step explicitly so that steps such as
 // "Location Advantages" don't also render the country/state/city selector.
 // Older property templates have no flag, so they keep matching on title.
+// Every field that holds a 10-digit Indian mobile number.
+const PHONE_FIELD_NAMES = ['contactNumber', 'contactWhatsapp', 'contactAltNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'];
+
 const stepUsesLocationSelector = (step) => {
   if (!step) return false;
   if (typeof step.showLocationSelector === 'boolean') return step.showLocationSelector;
@@ -78,7 +81,8 @@ const DynamicFormEngine = () => {
 
   const [currentStepIndex, setCurrentStepIndex] = useState(() => {
     const savedStep = localStorage.getItem(stepStorageKey);
-    return (savedStep && stepStorageKey !== 'draft_step_default') ? parseInt(savedStep, 10) : 0;
+    const n = (savedStep && stepStorageKey !== 'draft_step_default') ? parseInt(savedStep, 10) : 0;
+    return Number.isInteger(n) && n > 0 ? n : 0;
   });
   const [errors, setErrors] = useState({});
 
@@ -191,6 +195,10 @@ const DynamicFormEngine = () => {
         if (res.data.success && res.data.template?.steps?.length) {
           // Sort steps
           const sortedSteps = res.data.template.steps.sort((a, b) => a.stepNumber - b.stepNumber);
+          // The saved step comes from an older draft. The draft key doesn't include the
+          // user's role, and admins can remove steps, so a builder's step 10 can land on
+          // a 4-step owner form. Clamp it or `template.steps[i]` is undefined and the page crashes.
+          setCurrentStepIndex(i => Math.min(Math.max(0, i), sortedSteps.length - 1));
           setTemplate({ ...res.data.template, steps: sortedSteps });
         } else {
           // `success: false` (or an empty/malformed template) leaves `template`
@@ -457,7 +465,7 @@ const DynamicFormEngine = () => {
           if (!firstErrorField) firstErrorField = field.name;
         } else if (!isValEmpty) {
           // Custom validations
-          const isPhoneField = ['contactNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'].includes(field.name);
+          const isPhoneField = PHONE_FIELD_NAMES.includes(field.name);
           if (isPhoneField) {
             if (!/^[6-9]\d{9}$/.test(value)) {
               newErrors[field.name] = 'Mobile number must be exactly 10 digits starting with 6-9';
@@ -760,7 +768,8 @@ const DynamicFormEngine = () => {
     );
   }
 
-  const currentStep = template.steps[currentStepIndex];
+  // Fallback in case the index is ever out of range for a render (see fetchTemplate).
+  const currentStep = template.steps[currentStepIndex] || template.steps[template.steps.length - 1];
 
   // Dynamic Field Renderer
   const renderField = (field) => {
@@ -834,7 +843,7 @@ const DynamicFormEngine = () => {
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </label>
             {(() => {
-              const isPhoneField = ['contactNumber', 'phone', 'mobile', 'mobileNumber', 'phoneNumber'].includes(field.name);
+              const isPhoneField = PHONE_FIELD_NAMES.includes(field.name);
               if (isPhoneField) {
                 return (
                   <div className={`flex items-center bg-white border rounded-xl px-4 py-3.5 transition-all focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 ${errors[field.name] ? 'border-red-400' : 'border-slate-200'

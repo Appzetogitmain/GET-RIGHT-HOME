@@ -233,12 +233,16 @@ const WorkerSignup = () => {
   const nameInputRef = useRef(null);
   const otpInputRefs = useRef([]);
   const referralInputRef = useRef(null);
+  const submittingRef = useRef(false);
 
   // Pre-fill from navigation state (Unified Flow)
   useEffect(() => {
     if (location.state?.phone && location.state?.verificationToken) {
       setFormData(prev => ({ ...prev, phoneNumber: location.state.phone }));
       setVerificationToken(location.state.verificationToken);
+    } else if (location.state?.phone) {
+      // Redirected from login with an unregistered number: just prefill the phone
+      setFormData(prev => ({ ...prev, phoneNumber: location.state.phone }));
     }
   }, [location.state]);
 
@@ -465,7 +469,7 @@ const WorkerSignup = () => {
     }
 
     try {
-      const response = await workerAuthService.sendOTP(formData.phoneNumber, formData.email);
+      const response = await workerAuthService.sendOTP(formData.phoneNumber, formData.email, 'register');
       if (response.success) {
         setOtpToken(response.token);
         setIsLoading(false);
@@ -518,6 +522,9 @@ const WorkerSignup = () => {
       toast.error('Please request OTP first');
       return;
     }
+    // Auto-verify + button click could both fire; only one request may consume the OTP
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setIsLoading(true);
     try {
       const aadharDoc = documentPreview.aadhar || null;
@@ -555,6 +562,8 @@ const WorkerSignup = () => {
     } catch (error) {
       setIsLoading(false);
       toast.error(error.response?.data?.message || 'Registration failed');
+    } finally {
+      submittingRef.current = false;
     }
   };
 
@@ -871,7 +880,7 @@ const WorkerSignup = () => {
                     onClick={async () => {
                       if (resendTimer > 0) return;
                       try {
-                        const response = await workerAuthService.sendOTP(formData.phoneNumber, formData.email);
+                        const response = await workerAuthService.sendOTP(formData.phoneNumber, formData.email, 'register');
                         if (response.success) {
                           setOtpToken(response.token);
                           setResendTimer(120);

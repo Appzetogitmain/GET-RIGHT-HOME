@@ -16,6 +16,7 @@ import { z } from "zod";
 
 // Zod schema
 import flutterBridge from '../../../../utils/flutterBridge';
+import PhotoSourceSheet from '../../../../../components/common/PhotoSourceSheet';
 
 const workerProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -61,6 +62,7 @@ const EditProfile = () => {
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -391,7 +393,7 @@ const EditProfile = () => {
           <div className="relative">
             <div
               className="w-24 h-24 rounded-full bg-white border-4 border-white shadow-md overflow-hidden flex items-center justify-center cursor-pointer"
-              onClick={() => flutterBridge.isFlutter ? handleNativeCamera() : document.getElementById('photo-upload').click()}
+              onClick={() => setPhotoSheetOpen(true)}
             >
               {photoPreview || formData.profilePhoto ? (
                 <img src={photoPreview || formData.profilePhoto} className="w-full h-full object-cover" alt="Profile" />
@@ -404,19 +406,33 @@ const EditProfile = () => {
             {/* Camera Icon */}
             <div
               className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full text-white ring-2 ring-white shadow-sm cursor-pointer"
-              onClick={() => flutterBridge.isFlutter ? handleNativeCamera() : document.getElementById('photo-upload').click()}
+              onClick={() => setPhotoSheetOpen(true)}
             >
               <FiCamera className="w-4 h-4" />
             </div>
-            {!flutterBridge.isFlutter && (
-              <input
-                type="file"
-                id="photo-upload"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoChange}
-              />
-            )}
+            {/* Gallery picker — also rendered inside the Flutter app now */}
+            <input
+              type="file"
+              id="photo-upload"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { handlePhotoChange(e); e.target.value = ''; }}
+            />
+            {/* Camera picker for plain browsers (Flutter uses the native camera) */}
+            <input
+              type="file"
+              id="photo-camera"
+              accept="image/*"
+              capture="user"
+              className="hidden"
+              onChange={(e) => { handlePhotoChange(e); e.target.value = ''; }}
+            />
+            <PhotoSourceSheet
+              open={photoSheetOpen}
+              onClose={() => setPhotoSheetOpen(false)}
+              onCamera={() => (flutterBridge.isFlutter ? handleNativeCamera() : document.getElementById('photo-camera').click())}
+              onGallery={() => document.getElementById('photo-upload').click()}
+            />
           </div>
           <p className="text-xs text-gray-400 mt-2 font-medium">Tap to change photo</p>
         </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Star } from 'lucide-react';
 import HeroSection from '../../components/user/HeroSection';
 import ExclusiveOffers from '../../components/user/ExclusiveOffers';
 import PropertyTypeFilter from '../../components/user/PropertyTypeFilter';
@@ -242,7 +243,71 @@ const HomeSection = ({ title, typeId, subtitle, extraFilters = {}, sectionIds, o
     );
 };
 
+// Admin-picked listings (Admin → Properties → Featured Properties).
+const featuredSectionCache = {};
+const FeaturedPropertiesSection = ({ theme, selectedCity }) => {
+    const cacheKey = selectedCity || 'all';
+    const [properties, setProperties] = useState(featuredSectionCache[cacheKey] || []);
+    const [savedIds, setSavedIds] = useState([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const promises = [propertyService.getHomeFeaturedProperties({ city: selectedCity || undefined })];
+                if (localStorage.getItem('user')) promises.push(getSavedPlacesShared().catch(() => null));
+                const [res, savedRes] = await Promise.all(promises);
+                if (cancelled) return;
+                const list = res?.properties || [];
+                featuredSectionCache[cacheKey] = list;
+                setProperties(list);
+                if (savedRes) {
+                    const saved = [
+                        ...(savedRes.savedProperties || []),
+                        ...(savedRes.savedProjects || []),
+                        ...(savedRes.savedHotels || [])
+                    ];
+                    setSavedIds(saved.map(h => (typeof h === 'object' ? (h._id || h.id) : h)));
+                }
+            } catch (err) {
+                console.error('Failed to fetch featured properties:', err);
+            }
+        };
+        load();
+        return () => { cancelled = true; };
+    }, [cacheKey]);
+
+    if (properties.length === 0) return null;
+
+    return (
+        <div id="home-section-featured-properties" className="py-4 border-b border-gray-100 last:border-0 relative">
+            <div className="flex justify-between items-start md:items-end px-3 md:px-2 mb-3">
+                <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-1.5 md:gap-2 mb-0.5">
+                        <div className={`w-1 h-4 md:h-5 ${theme?.bg || 'bg-emerald-500'} rounded-full shrink-0`} />
+                        <h2 className="text-[17px] md:text-[22px] font-black text-gray-900 leading-tight">Featured Properties</h2>
+                        <Star size={16} className="text-amber-500 fill-amber-500 shrink-0" />
+                    </div>
+                    <p className="text-[11px] md:text-[13px] text-gray-500 mt-0.5 ml-2.5 md:ml-3 truncate">Top picks selected by Get Right Home</p>
+                </div>
+            </div>
+            <div className="flex overflow-x-auto gap-4 no-scrollbar snap-x snap-mandatory py-2 px-5 md:mx-0 md:px-0 pb-3 w-full">
+                {properties.map(property => (
+                    <PropertyCard
+                        key={property._id}
+                        data={property}
+                        isSaved={savedIds.includes(property._id)}
+                        className="min-w-[280px] max-w-[280px] flex-shrink-0"
+                    />
+                ))}
+                <div className="w-2 shrink-0" />
+            </div>
+        </div>
+    );
+};
+
 const DEFAULT_LAYOUT = [
+    { id: 'featured_properties', isVisible: true },
     { id: 'video_curations', isVisible: true },
     { id: 'admin_curated', isVisible: true },
     { id: 'pg_stays', isVisible: true },
@@ -399,6 +464,8 @@ const Home = () => {
                                 switch (section.id) {
                                     case 'video_curations':
                                         return <PropertyVideoCurations key={section.id} pageType="home" theme={activeTheme} />;
+                                    case 'featured_properties':
+                                        return <FeaturedPropertiesSection key={section.id} theme={activeTheme} selectedCity={homeSearchCity} />;
                                     case 'admin_curated':
                                         return <AdminPropertiesSection key={section.id} searchCity={homeSearchCity} theme={activeTheme} />;
                                     case 'pg_stays':

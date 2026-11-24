@@ -8,6 +8,7 @@ import {
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
+import PortalMenu from '../components/PortalMenu';
 
 // Fallback module list in case api fails temporarily
 const FALLBACK_MODULES = [
@@ -515,7 +516,7 @@ const AdminManagers = () => {
                                                     </button>
 
                                                     {activeDropdown === manager._id && (
-                                                        <div className="absolute right-8 top-8 w-44 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1.5 text-left">
+                                                        <PortalMenu className="w-44 bg-white border border-gray-200 rounded-xl py-1.5 text-left shadow-2xl overflow-hidden">
                                                             <button
                                                                 onClick={() => handleOpenEditPanel(manager)}
                                                                 className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-xs font-bold uppercase text-gray-700"
@@ -562,7 +563,7 @@ const AdminManagers = () => {
                                                             >
                                                                 <Trash2 size={13} /> Delete Account
                                                             </button>
-                                                        </div>
+                                                        </PortalMenu>
                                                     )}
                                                 </td>
                                             </motion.tr>

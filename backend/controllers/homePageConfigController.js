@@ -2,6 +2,7 @@ import HomePageConfig from '../models/HomePageConfig.js';
 
 const DEFAULT_SECTIONS = [
   { id: 'video_curations', name: 'Exclusive Property Tours', isVisible: true },
+  { id: 'featured_properties', name: 'Featured Properties', isVisible: true },
   { id: 'admin_curated', name: 'Handpicked Projects', isVisible: true },
   { id: 'pg_stays', name: 'Scholar & Professional Stays', isVisible: true },
   { id: 'recommended_brokers', name: 'Recommended Brokers', isVisible: true },
@@ -21,6 +22,22 @@ export const getHomePageConfig = async (req, res) => {
     if (!config) {
       // Create default config if it doesn't exist
       config = await HomePageConfig.create({ sections: DEFAULT_SECTIONS });
+    } else {
+      // Layouts saved before a section existed don't list it, so it would
+      // never render. Insert any missing defaults at their default position.
+      const existingIds = new Set(config.sections.map(s => s.id));
+      const missing = DEFAULT_SECTIONS.filter(s => !existingIds.has(s.id));
+      if (missing.length) {
+        missing.forEach(sec => {
+          const defIdx = DEFAULT_SECTIONS.findIndex(d => d.id === sec.id);
+          const nextDefault = DEFAULT_SECTIONS.slice(defIdx + 1).find(d => existingIds.has(d.id));
+          const at = nextDefault ? config.sections.findIndex(s => s.id === nextDefault.id) : -1;
+          if (at >= 0) config.sections.splice(at, 0, sec);
+          else config.sections.push(sec);
+          existingIds.add(sec.id);
+        });
+        await config.save();
+      }
     }
     res.status(200).json({ success: true, sections: config.sections });
   } catch (error) {

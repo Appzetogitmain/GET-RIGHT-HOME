@@ -423,26 +423,7 @@ const AdminPartnerDetail = () => {
         });
     };
 
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-                <Loader2 className="animate-spin text-gray-400" size={48} />
-                <p className="text-gray-500 font-bold uppercase text-xs tracking-widest">Loading partner profile...</p>
-            </div>
-        );
-    }
-
-    if (!partner) {
-        return (
-            <div className="text-center py-20">
-                <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
-                <h2 className="text-2xl font-bold text-gray-900">Partner Not Found</h2>
-                <p className="text-gray-500 mt-2">The partner you're looking for doesn't exist or has been deleted.</p>
-                <Link to={`${basePath}/partners`} className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Partners</Link>
-            </div>
-        );
-    }
-
+    // Must run before any early return (Rules of Hooks)
     const activePlanInfo = React.useMemo(() => {
         const sub = activeSubscription || (
             partner?.subscription?.status === 'active' &&
@@ -478,6 +459,27 @@ const AdminPartnerDetail = () => {
         };
     }, [partner, activeSubscription]);
 
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                <Loader2 className="animate-spin text-gray-400" size={48} />
+                <p className="text-gray-500 font-bold uppercase text-xs tracking-widest">Loading partner profile...</p>
+            </div>
+        );
+    }
+
+    if (!partner) {
+        return (
+            <div className="text-center py-20">
+                <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900">Partner Not Found</h2>
+                <p className="text-gray-500 mt-2">The partner you're looking for doesn't exist or has been deleted.</p>
+                <Link to={`${basePath}/partners`} className="mt-6 inline-block text-black font-bold uppercase text-xs border-b-2 border-black pb-1">Back to Partners</Link>
+            </div>
+        );
+    }
+
+
     const tabs = [
         { id: 'properties', label: 'Properties', icon: Building },
         { id: 'subscriptions', label: `Subscriptions (${subscriptions.length})`, icon: ShieldCheck },
@@ -505,7 +507,7 @@ const AdminPartnerDetail = () => {
                         {partner.profileImage ? (
                             <img src={partner.profileImage} alt={partner.name} className="w-full h-full object-cover rounded-full" />
                         ) : (
-                            partner.name.charAt(0)
+                            (partner.name || "?").charAt(0)
                         )}
                         {partner.isBlocked && (
                             <div className="absolute -bottom-2 -right-2 bg-red-600 text-white p-1.5 rounded-full border-4 border-white">

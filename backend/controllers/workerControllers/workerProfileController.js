@@ -54,6 +54,7 @@ const getProfile = async (req, res) => {
         email: worker.email,
         phone: worker.phone,
         approvalStatus: worker.approvalStatus,
+        offlineVerificationStatus: worker.offlineVerification?.status || null,
         serviceCategories: worker.serviceCategories || [],
         professions: (worker.professionIds || []).map((p) => ({
           id: p._id,
@@ -354,6 +355,7 @@ const updateProfile = async (req, res) => {
         email: worker.email,
         phone: worker.phone,
         approvalStatus: worker.approvalStatus,
+        offlineVerificationStatus: worker.offlineVerification?.status || null,
         serviceCategories: worker.serviceCategories,
         pendingServiceCategories: worker.pendingServiceCategories || [],
         rejectedServiceCategories: worker.rejectedServiceCategories || [],
@@ -437,6 +439,13 @@ const toggleOnline = async (req, res) => {
         return res.status(403).json({
           success: false,
           message: 'Account verification pending. You can only go online after admin approval.'
+        });
+      }
+      if (worker.offlineVerification?.status === 'pending') {
+        return res.status(403).json({
+          success: false,
+          code: 'OFFLINE_VERIFICATION_PENDING',
+          message: 'Office verification pending. Please visit our office with original documents to start receiving jobs.'
         });
       }
 

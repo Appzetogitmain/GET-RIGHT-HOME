@@ -110,7 +110,9 @@ import {
   getFeaturedPlans,
   createFeaturedPlan,
   updateFeaturedPlan,
-  deleteFeaturedPlan 
+  deleteFeaturedPlan,
+  getHomeFeaturedCandidates,
+  updateHomeFeatured
 } from '../controllers/adminPropertyController.js';
 
 router.get('/featured-projects', checkManagerPermission('featured_projects', 'view'), getAdminFeaturedProperties);
@@ -120,6 +122,10 @@ router.get('/featured-plans', checkManagerPermission('featured_projects', 'view'
 router.post('/featured-plans', checkManagerPermission('featured_projects', 'add'), createFeaturedPlan);
 router.put('/featured-plans/:id', checkManagerPermission('featured_projects', 'edit'), updateFeaturedPlan);
 router.delete('/featured-plans/:id', checkManagerPermission('featured_projects', 'delete'), deleteFeaturedPlan);
+
+// Home-screen "Featured Properties" carousel
+router.get('/home-featured', checkManagerPermission('featured_projects', 'view'), getHomeFeaturedCandidates);
+router.put('/home-featured/:id', checkManagerPermission('featured_projects', 'edit'), updateHomeFeatured);
 
 // Notifications
 router.get('/notifications', checkManagerPermission('notifications', 'view'), getAdminNotifications);

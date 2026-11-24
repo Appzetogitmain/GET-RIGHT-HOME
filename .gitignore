@@ -3,7 +3,15 @@ node_modules/
 .pnp
 .pnp.js
 
-# Environment Files
+# Environment Files / secrets (never commit these)
+.env
+**/.env
+.env.*
+!.env.example
+**/serviceAccountKey.json
+**/*firebase-adminsdk*.json
+*.pem
+*.key
 .env.development.local
 .env.test.local
 .env.production.local

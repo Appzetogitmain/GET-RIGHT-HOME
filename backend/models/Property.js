@@ -391,6 +391,15 @@ const propertySchema = new mongoose.Schema({
     adminNotes: { type: String }
   },
 
+  // Admin-picked "Featured Properties" home-screen carousel. Separate from
+  // featuredDetails above, which drives the Handpicked Projects section.
+  homeFeatured: {
+    isActive: { type: Boolean, default: false, index: true },
+    order: { type: Number, default: 0 },
+    startDate: { type: Date },
+    endDate: { type: Date, default: null }
+  },
+
   // ── Paid subscription entitlement (§8, §10) ──────────────────────────────
   // Denormalised from the property's active Subscription on purchase, and
   // cleared on expiry. Search sorts by `weight` on every query, so resolving
