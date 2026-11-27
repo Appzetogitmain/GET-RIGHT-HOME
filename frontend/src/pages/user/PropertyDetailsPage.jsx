@@ -503,9 +503,29 @@ const PropertyDetailsPage = ({ prefetchedDetails = null }) => {
       if (getDdVal('plotArea')) specs.push({ label: 'Plot Area', value: `${getDdVal('plotArea')} ${getDdVal('areaUnit') || 'sq.ft.'}` });
       if (getDdVal('approvalAuthority')) specs.push({ label: 'Approval Authority', value: getDdVal('approvalAuthority') });
       if (getDdVal('boundaryWall')) specs.push({ label: 'Boundary Wall', value: getDdVal('boundaryWall') });
-      
-      if (getDdVal('roadWidth')) specs.push({ label: 'Road Width', value: `${getDdVal('roadWidth')} ft` });
       if (getDdVal('totalLandArea')) specs.push({ label: 'Total Land Area', value: `${getDdVal('totalLandArea')} Acres` });
+    }
+
+    // Owner listing details (Ownership, Overlooking, Facing, Road width, ...).
+    // Always shown when filled, not only in the dynamicData fallback above, and
+    // never duplicated if the structured details already listed the same thing.
+    {
+      const dd = property.dynamicData || {};
+      const getDd = (key) => (typeof dd.get === 'function' ? dd.get(key) : dd[key]);
+      const listText = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : v);
+      const hasSpec = (...labels) => specs.some(s => labels.includes(s.label));
+      const addSpec = (label, value, ...aliases) => {
+        if (value && !hasSpec(label, ...aliases)) specs.push({ label, value });
+      };
+
+      addSpec('Ownership', getDd('ownership'));
+      addSpec('Property Features', listText(getDd('propertyFeatures')));
+      addSpec('Overlooking', listText(getDd('overlooking')));
+      addSpec('Facing', getDd('facing'));
+      if (getDd('roadWidth')) {
+        addSpec('Width of Facing Road', `${getDd('roadWidth')} ${getDd('roadWidthUnit') || 'Feet'}`, 'Road Width');
+      }
+      addSpec('Location Advantages', listText(getDd('locationAdvantages')));
     }
     return specs;
   };

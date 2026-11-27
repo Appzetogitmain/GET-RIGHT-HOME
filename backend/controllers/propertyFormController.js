@@ -370,6 +370,110 @@ const createPGSteps = () => [
   }
 ];
 
+// ---------------------------------------------------------------------------
+// Owner listing details pack: Ownership, Property Features, Amenities,
+// Overlooking, Property Facing, Width of Facing Road, Location Advantages.
+// Each field is only added to a template that doesn't already have it.
+// ---------------------------------------------------------------------------
+export const OWNER_LISTING_FIELD_PACK = 'owner-listing-details-v1';
+
+const FACING_OPTIONS = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
+
+// Treat spelling variants as the same choice when checking what already exists.
+const normalizeOption = (opt) => String(opt || '')
+  .toLowerCase()
+  .replace(/vaastu/g, 'vastu')
+  .replace(/corner plot/g, 'corner property')
+  .trim();
+
+// `step`: which step to place the field in (profile = 2nd, amenities = 3rd, media = last).
+// `dedupeOptions`: drop choices already offered by another field (e.g. Key Highlights).
+const ownerListingFieldsFor = ({ transactionType }) => {
+  const isPG = transactionType === 'Paying Guest';
+  const fields = [];
+
+  if (transactionType === 'Sell') {
+    fields.push({ step: 'profile', field: { name: 'ownership', label: 'Ownership', type: 'pill', options: ['Freehold', 'Leasehold', 'Co-operative society', 'Power of Attorney'], required: false } });
+  }
+  if (!isPG) {
+    fields.push(
+      { step: 'profile', dedupeOptions: true, field: { name: 'propertyFeatures', label: 'Property Features', type: 'multiselect_pill', options: ['Corner Property', 'Vaastu Compliant'], required: false } },
+      { step: 'amenities', field: { name: 'amenities', label: 'Amenities Available', type: 'checkbox_group', options: expandedAmenities, required: false } },
+      { step: 'profile', field: { name: 'overlooking', label: 'Overlooking', type: 'multiselect_pill', options: ['Pool', 'Park', 'Club', 'Main Road', 'Others'], required: false } },
+      { step: 'profile', field: { name: 'facing', label: 'Property Facing', type: 'pill', options: FACING_OPTIONS, required: false } },
+      { step: 'profile', field: { name: 'roadWidth', label: 'Width of Facing Road', type: 'number', placeholder: 'Enter the width', required: false } },
+      { step: 'profile', field: { name: 'roadWidthUnit', label: 'Road Width Unit', type: 'dropdown', options: ['Feet', 'Meter'], required: false } }
+    );
+  }
+  fields.push({
+    step: 'media',
+    field: {
+      name: 'locationAdvantages',
+      label: 'Location Advantages',
+      type: 'multiselect_pill',
+      options: ['Close to Highway', 'Close to Main Road', 'Close to Airport', 'Close to Metro Station', 'Close to School', 'Close to Hospital', 'Close to Market', 'Close to Railway Station', 'Close to Mall'],
+      required: false
+    }
+  });
+  return fields;
+};
+
+/**
+ * Adds the owner listing fields a template is missing. Works on both plain
+ * template objects (seeding) and Mongoose documents. Returns how many fields
+ * were added.
+ */
+export const applyOwnerListingFields = (template) => {
+  const steps = template.steps || [];
+  if (!steps.length) return 0;
+
+  const stepFor = (key) => {
+    if (key === 'media') return steps[steps.length - 1];
+    if (key === 'amenities') return steps[Math.min(2, steps.length - 1)];
+    return steps[Math.min(1, steps.length - 1)];
+  };
+
+  const allFields = () => steps.flatMap(s => s.fields || []);
+  const existingNames = new Set(allFields().map(f => f.name));
+  const existingOptions = new Set(allFields().flatMap(f => (f.options || []).map(normalizeOption)));
+
+  let added = 0;
+  ownerListingFieldsFor(template).forEach(({ step, field, dedupeOptions }) => {
+    if (existingNames.has(field.name)) return; // already available → don't add
+
+    let options = field.options;
+    if (dedupeOptions && options) {
+      options = options.filter(o => !existingOptions.has(normalizeOption(o)));
+      if (!options.length) return; // every choice is already offered elsewhere
+    }
+
+    const target = stepFor(step);
+    const maxOrder = Math.max(0, ...(target.fields || []).map(f => Number(f.order) || 0));
+    target.fields.push({ ...field, ...(options ? { options } : {}), order: maxOrder + 1 });
+    existingNames.add(field.name);
+    added += 1;
+  });
+  return added;
+};
+
+/** One-time, per-template upgrade of templates already stored in the DB. */
+export const syncOwnerListingFields = async () => {
+  try {
+    const templates = await PropertyFormTemplate.find({ fieldPacks: { $ne: OWNER_LISTING_FIELD_PACK } });
+    let updated = 0;
+    for (const tpl of templates) {
+      const added = applyOwnerListingFields(tpl);
+      tpl.fieldPacks = [...(tpl.fieldPacks || []), OWNER_LISTING_FIELD_PACK];
+      tpl.markModified('steps');
+      await tpl.save();
+      if (added) updated += 1;
+    }
+    if (templates.length) console.log(`🧩 Owner listing fields: added to ${updated} of ${templates.length} form templates.`);
+  } catch (err) {
+    console.error('🧩 Owner listing field sync failed:', err.message);
+  }
+};
+
 const generateAllTemplates = () => {
   const templates = [];
 
@@ -431,6 +535,11 @@ const generateAllTemplates = () => {
       propertyType: 'Other',
       steps: createCommercialSteps(isRent, 'Other', 'Other')
     });
+  });
+
+  templates.forEach(tpl => {
+    applyOwnerListingFields(tpl);
+    tpl.fieldPacks = [OWNER_LISTING_FIELD_PACK];
   });
 
   return templates;

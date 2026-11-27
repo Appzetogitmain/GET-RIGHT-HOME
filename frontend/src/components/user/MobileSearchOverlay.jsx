@@ -393,10 +393,32 @@ const MobileSearchOverlay = ({ open, onClose, initialParams = '' }) => {
               className="absolute inset-x-4 top-full z-30 mt-1 max-h-[55vh] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white shadow-xl touch-pan-y"
               style={{ WebkitOverflowScrolling: 'touch' }}
             >
+              {/* "3 bhk", "villa", "2 bhk flat" are filters, not listing names — the name
+                  suggestions below can't find them, so offer to search them directly. */}
+              {(() => {
+                const parsed = parseSearchText(text);
+                if (!parsed.bhks.length && !parsed.subTypes.length) return null;
+                const what = [...parsed.bhks.map((b) => b.replace(/BHK/i, ' BHK')), ...parsed.subTypes].join(', ');
+                return (
+                  <li className="border-b border-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => addPlace(text, true)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50"
+                    >
+                      <Search size={15} className="shrink-0" style={{ color: BRAND }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-semibold text-gray-800">Search "{text.trim()}"</span>
+                        <span className="block truncate text-[11px] text-gray-400">{what}{parsed.places.length ? ` in ${parsed.places[0]}` : ''}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })()}
               {sugLoading && suggestions.length === 0 && (
                 <li className="flex items-center gap-2 px-4 py-3 text-[13px] text-gray-400"><Loader2 size={14} className="animate-spin" /> Searching…</li>
               )}
-              {!sugLoading && suggestions.length === 0 && (
+              {!sugLoading && suggestions.length === 0 && !parseSearchText(text).bhks.length && !parseSearchText(text).subTypes.length && (
                 <li className="px-4 py-3 text-[13px] text-gray-500 text-center">
                   No {(TABS.find((x) => x.key === tab) || TABS[0]).label} listings found for "{text.trim()}"
                 </li>

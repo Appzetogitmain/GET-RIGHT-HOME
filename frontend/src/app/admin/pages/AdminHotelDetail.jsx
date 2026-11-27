@@ -141,14 +141,35 @@ const OverviewTab = ({ hotel, isProject }) => {
                                 return null;
                             }
 
-                            if (typeof val === 'object') return null; // Safe fallback for any other objects
+                            // The unit is shown together with the road width below.
+                            if (key === 'roadWidthUnit') return null;
 
-                            const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
-                            
+                            // Multi-select answers (Overlooking, Property Features, Location
+                            // Advantages, ...) are string arrays: show them as a list.
+                            const isStringList = Array.isArray(val) && val.every(v => typeof v === 'string');
+                            if (isStringList && val.length === 0) return null;
+                            if (typeof val === 'object' && !isStringList) return null; // Safe fallback for any other objects
+
+                            const FIELD_LABELS = {
+                                ownership: 'Ownership',
+                                propertyFeatures: 'Property Features',
+                                overlooking: 'Overlooking',
+                                facing: 'Property Facing',
+                                roadWidth: 'Width of Facing Road',
+                                locationAdvantages: 'Location Advantages'
+                            };
+                            const formattedKey = FIELD_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+
+                            let displayVal;
+                            if (isStringList) displayVal = val.join(', ');
+                            else if (typeof val === 'boolean') displayVal = val ? 'Yes' : 'No';
+                            else if (key === 'roadWidth') displayVal = `${val} ${hotel.dynamicData.roadWidthUnit || 'Feet'}`;
+                            else displayVal = val.toString();
+
                             return (
                                 <div key={key} className="flex justify-between border-b border-gray-100 pb-2">
                                     <span className="text-gray-500 font-bold uppercase text-[10px] pr-4 whitespace-nowrap">{formattedKey}</span>
-                                    <span className="font-bold text-gray-900 text-right break-words max-w-[200px]">{typeof val === 'boolean' ? (val ? 'Yes' : 'No') : val.toString()}</span>
+                                    <span className="font-bold text-gray-900 text-right break-words max-w-[200px]">{displayVal}</span>
                                 </div>
                             );
                         })}

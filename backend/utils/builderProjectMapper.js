@@ -24,6 +24,8 @@ const SPEC_PREFIX = 'spec';
 // starting with the same four letters.
 const SPEC_KEY_RE = /^spec[A-Z]/;
 
+const RERA_STATUSES = ['Registered', 'Applied', 'Not Registered', 'Not Applicable / Exempt'];
+
 const CONSTRUCTION_STATUSES = ['Not Started', 'Under Construction', 'Finishing Stage', 'Completed'];
 
 // dynamicData may be a plain object (req.body) or a Mongoose Map (doc.dynamicData)
@@ -120,7 +122,8 @@ export const mapBuilderProjectFields = (dynamicData) => {
   }
   // Older submissions (pre-branching) never set reraStatus; infer it from the number instead.
   const inferredReraStatus = reraStatus || (reraNumber ? 'Registered' : undefined);
-  if (inferredReraStatus) mapped.reraStatus = inferredReraStatus;
+  // Guard against a value the schema enum doesn't know, which would fail the whole save.
+  if (inferredReraStatus && RERA_STATUSES.includes(inferredReraStatus)) mapped.reraStatus = inferredReraStatus;
 
   // --- Step 2: Location Details ---
   // Promote the map pin into the 2dsphere-indexed field. GeoJSON is [lng, lat].

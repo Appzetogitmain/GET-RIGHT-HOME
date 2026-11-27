@@ -389,8 +389,11 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
 
         // Auto-seed property form templates if new / empty DB
         try {
-          const { seedOnStartup } = await import('./controllers/propertyFormController.js');
+          const { seedOnStartup, syncOwnerListingFields } = await import('./controllers/propertyFormController.js');
           await seedOnStartup();
+          // Adds Ownership / Overlooking / Facing / Road width / Location
+          // advantages etc. to existing templates that don't have them yet.
+          await syncOwnerListingFields();
         } catch (formErr) {
           console.warn('⚠️ Property Form template seeding failed on startup:', formErr.message);
         }

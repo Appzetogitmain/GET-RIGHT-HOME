@@ -75,9 +75,9 @@ const AdminProjects = () => {
     }, []);
 
     const fetchProjects = useCallback(async (page, currentFilters) => {
-        const token = localStorage.getItem('adminToken');
-        if (!token) return;
-
+        // No localStorage token check here: the admin session may live only in the
+        // httpOnly cookie (sent via withCredentials), and bailing out early left
+        // `loading` stuck at true so the table showed skeletons forever.
         try {
             setLoading(true);
             const params = {

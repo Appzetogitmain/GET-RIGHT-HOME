@@ -459,7 +459,15 @@ const SearchPage = () => {
     }, [searchParams, location, propertyTypes, categoriesResolved]);
 
 
+    // Several fetches can be in flight at once (URL change + category ids
+    // resolving + quick filter taps). Only the newest one may write results,
+    // otherwise a slower, older response overwrites the right list — which is
+    // why the same search sometimes showed results and sometimes didn't.
+    const fetchSeqRef = useRef(0);
+
     const fetchProperties = async (silent = false) => {
+        const seq = ++fetchSeqRef.current;
+        const isStale = () => seq !== fetchSeqRef.current;
         if (!silent) setLoading(true);
         try {
             const currentFilters = getInitialFilters();
@@ -487,6 +495,7 @@ const SearchPage = () => {
             }
 
             const [res, savedRes] = await Promise.all(promises);
+            if (isStale()) return;
 
             if (savedRes) {
                 const list = [
@@ -505,10 +514,11 @@ const SearchPage = () => {
                 setProperties([]);
             }
         } catch (err) {
+            if (isStale()) return;
             console.error(err);
             toast.error('Failed to load properties');
         } finally {
-            setLoading(false);
+            if (!isStale()) setLoading(false);
         }
     };
 

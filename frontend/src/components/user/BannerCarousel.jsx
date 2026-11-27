@@ -13,8 +13,7 @@ let cachedBanners = null;
 const BannerCarousel = () => {
     const [banners, setBanners] = useState(cachedBanners || []);
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [loading, setLoading] = useState(!cachedBanners);
-    const navigate = useNavigate();
+    const [loading, setLoading] = useState(!cachedBanners);    const navigate = useNavigate();
     const { navigateToProperty } = usePropertyNavigate();
 
     useEffect(() => {

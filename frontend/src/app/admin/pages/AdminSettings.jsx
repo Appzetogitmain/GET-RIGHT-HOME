@@ -1,50 +1,235 @@
 import React, { useEffect, useState } from 'react';
-import {
-    Settings, Shield, Bell, CreditCard, ToggleLeft,
-    ToggleRight, Save, Globe, Lock, MapPin, Key, Eye, EyeOff
-} from 'lucide-react';
+import { Eye, EyeOff, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAdminStore from '../store/adminStore';
 import useManagerStore from '../../manager/store/managerStore';
 import { useLocation } from 'react-router-dom';
 import adminService from '../../../services/adminService';
 
-const ToggleSwitch = ({ enabled, onChange }) => (
+/* One easing curve and one short duration for every state change on this screen */
+const EASE = 'duration-150 ease-[cubic-bezier(0.22,1,0.36,1)]';
+
+const ToggleSwitch = ({ enabled, onChange, label }) => (
     <button
         type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label={label}
         onClick={() => onChange(!enabled)}
-        className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors ${enabled ? 'bg-black' : 'bg-gray-300'}`}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full outline-none transition-colors ${EASE} focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 ${enabled ? 'bg-neutral-900' : 'bg-neutral-300'}`}
     >
-        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
+        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)] transition-transform ${EASE} ${enabled ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
     </button>
 );
 
-const Section = ({ title, icon: Icon, children }) => (
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
-            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-700">
-                <Icon size={18} />
+const Section = ({ title, description, action, footer, children }) => (
+    <section className="rounded-2xl border border-neutral-900/[0.08] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <header className="flex items-start justify-between gap-6 px-6 pt-6">
+            <div className="flex flex-col gap-1">
+                <h3 className="text-base font-medium leading-6 text-neutral-900">{title}</h3>
+                {description && <p className="text-[13px] leading-5 text-neutral-500">{description}</p>}
             </div>
-            <h3 className="text-lg font-bold text-gray-900 uppercase tracking-tight">{title}</h3>
-        </div>
-        <div className="space-y-6">
-            {children}
-        </div>
+            {action}
+        </header>
+        <div className="p-6">{children}</div>
+        {footer && (
+            <footer className="flex items-center justify-end gap-4 border-t border-neutral-900/[0.06] px-6 py-4">
+                {footer}
+            </footer>
+        )}
+    </section>
+);
+
+const Field = ({ label, htmlFor, hint, error, children }) => (
+    <div className="flex min-w-0 flex-col gap-2">
+        <label htmlFor={htmlFor} className="text-[13px] font-medium leading-5 text-neutral-900">{label}</label>
+        {children}
+        {error
+            ? <p className="text-xs leading-4 text-red-600">{error}</p>
+            : hint && <p className="text-xs leading-4 text-neutral-500">{hint}</p>}
     </div>
 );
 
+const boxClass = (error) => `flex h-10 w-full items-center rounded-lg border bg-white transition-[border-color,box-shadow] ${EASE} focus-within:ring-[3px] ${error
+    ? 'border-red-500 focus-within:ring-red-500/15'
+    : 'border-neutral-200 hover:border-neutral-300 focus-within:border-neutral-900 focus-within:ring-neutral-900/10'}`;
+
+/* Signature: units live inside the field as quiet mono affixes, so the fee rows read like a schedule */
+const TextInput = ({ id, prefix, suffix, trailing, error, ...props }) => (
+    <div className={boxClass(error)}>
+        {prefix && <span className="select-none pl-3 font-mono text-[13px] text-neutral-500">{prefix}</span>}
+        <input
+            id={id}
+            aria-invalid={!!error}
+            className={`h-full min-w-0 flex-1 bg-transparent text-sm text-neutral-900 tabular-nums outline-none placeholder:text-neutral-400 ${prefix ? 'pl-2' : 'pl-3'} ${suffix || trailing ? 'pr-2' : 'pr-3'}`}
+            {...props}
+        />
+        {suffix && <span className="select-none pr-3 font-mono text-[13px] text-neutral-500">{suffix}</span>}
+        {trailing}
+    </div>
+);
+
+const TextArea = ({ id, ...props }) => (
+    <textarea
+        id={id}
+        className={`w-full resize-none rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm leading-5 text-neutral-900 outline-none transition-[border-color,box-shadow] ${EASE} placeholder:text-neutral-400 hover:border-neutral-300 focus:border-neutral-900 focus:ring-[3px] focus:ring-neutral-900/10`}
+        {...props}
+    />
+);
+
+const PasswordInput = ({ id, visible, onToggle, ...props }) => (
+    <TextInput
+        id={id}
+        type={visible ? 'text' : 'password'}
+        autoComplete="off"
+        trailing={(
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-label={visible ? 'Hide password' : 'Show password'}
+                className={`mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-neutral-500 outline-none transition-colors ${EASE} hover:bg-neutral-100 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900`}
+            >
+                {visible ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+            </button>
+        )}
+        {...props}
+    />
+);
+
+const OptionRow = ({ name, checked, onChange, label, help }) => (
+    <label className={`flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 transition-colors ${EASE} ${checked ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+        <input type="radio" name={name} checked={checked} onChange={onChange} className="mt-0.5 h-4 w-4 shrink-0 accent-neutral-900" />
+        <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium leading-5 text-neutral-900">{label}</span>
+            {help && <span className="text-[13px] leading-5 text-neutral-500">{help}</span>}
+        </span>
+    </label>
+);
+
+const Group = ({ label, children }) => (
+    <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-[13px] font-medium leading-5 text-neutral-900">{label}</legend>
+        {children}
+    </fieldset>
+);
+
+const PrimaryButton = ({ children, ...props }) => (
+    <button
+        type="button"
+        className={`inline-flex h-9 items-center justify-center rounded-lg bg-neutral-900 px-4 text-[13px] font-medium text-white outline-none transition-[background-color,transform] ${EASE} hover:bg-neutral-800 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50`}
+        {...props}
+    >
+        {children}
+    </button>
+);
+
+/* ---------- Rule preview: the one rich moment, drawn from the values on this page ---------- */
+
+const MAX_SEGMENTS = 24;
+
+const Lane = ({ label, state, amount, unit }) => {
+    // state: 'counted' | 'unlimited' | 'none'
+    let track;
+    if (state === 'counted' && amount > 0 && unit === 'properties' && amount <= MAX_SEGMENTS) {
+        track = (
+            <div className="flex h-2 gap-1">
+                {Array.from({ length: amount }, (_, i) => (
+                    <span key={i} className="h-full flex-1 rounded-[2px] bg-orange-600" />
+                ))}
+            </div>
+        );
+    } else if (state === 'counted' && amount > 0) {
+        const weeks = unit === 'days' && amount <= 180 ? Math.floor((amount - 1) / 7) : 0;
+        track = (
+            <div className="relative h-2 overflow-hidden rounded-full bg-orange-600">
+                {Array.from({ length: weeks }, (_, i) => (
+                    <span key={i} className="absolute inset-y-0 w-px bg-white/70" style={{ left: `${((i + 1) * 7 / amount) * 100}%` }} />
+                ))}
+            </div>
+        );
+    } else if (state === 'unlimited') {
+        track = <div className="h-0 border-t-2 border-dashed border-neutral-300" />;
+    } else {
+        track = <div className="h-2 rounded-full bg-neutral-200" />;
+    }
+
+    const value = state === 'unlimited'
+        ? 'No limit'
+        : `${state === 'counted' ? amount : 0} ${unit}`;
+
+    return (
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 sm:grid-cols-[72px_minmax(0,1fr)_104px]">
+            <span className="order-1 text-[13px] text-neutral-600">{label}</span>
+            <div className="order-3 col-span-2 sm:order-2 sm:col-span-1">{track}</div>
+            <span className="order-2 text-right font-mono text-[13px] tabular-nums text-neutral-900 sm:order-3">{value}</span>
+        </div>
+    );
+};
+
+const RulePreview = ({ freeAccess, usesTime, usesListings, summary }) => {
+    const off = !freeAccess.enabled || freeAccess.mode === 'none';
+    const lifetime = !off && freeAccess.mode === 'lifetime';
+    const listings = Math.max(0, Number(freeAccess.listingLimit) || 0);
+    const days = Math.max(0, Number(freeAccess.durationDays) || 0);
+
+    const laneState = (uses) => {
+        if (off) return 'none';
+        if (lifetime) return 'unlimited';
+        return uses ? 'counted' : 'unlimited';
+    };
+
+    const selectedRoles = FREE_ACCESS_ROLE_OPTIONS
+        .filter((r) => freeAccess.roles.includes(r.value))
+        .map((r) => `${r.label.toLowerCase()}s`);
+    const rolesText = selectedRoles.length
+        ? `Applies to ${new Intl.ListFormat('en', { type: 'conjunction' }).format(selectedRoles)}`
+        : 'No roles selected';
+
+    let endLabel = 'Then subscription';
+    if (off) endLabel = 'Subscription from signup';
+    else if (lifetime) endLabel = 'No paywall';
+    else if (usesTime && usesListings) endLabel = 'Paywall at whichever ends first';
+
+    return (
+        <div className="flex flex-col gap-5 rounded-xl border border-neutral-900/[0.06] bg-neutral-50 p-5">
+            <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <p className="text-[13px] font-medium text-neutral-600">Rule preview</p>
+                    <p className="text-xs text-neutral-500">{rolesText}</p>
+                </div>
+                <p className="text-[15px] leading-6 text-neutral-900">{summary}</p>
+            </div>
+            <div className="flex flex-col gap-3">
+                <Lane label="Properties" state={laneState(usesListings)} amount={listings} unit="properties" />
+                <Lane label="Days" state={laneState(usesTime)} amount={days} unit="days" />
+            </div>
+            <div className="flex items-center justify-between gap-4 font-mono text-xs text-neutral-500 sm:ml-[88px] sm:mr-[120px]">
+                <span>Signup</span>
+                <span className="flex items-center gap-1.5 text-right">
+                    {!lifetime && <Lock size={12} strokeWidth={1.5} className="shrink-0" />}
+                    {endLabel}
+                </span>
+            </div>
+        </div>
+    );
+};
+
 const FREE_ACCESS_MODE_OPTIONS = [
-    { value: 'none', label: 'No free access', help: 'Subscription is required from the start.' },
-    { value: 'time', label: 'Free for a limited time', help: 'Free for a set number of days after signup, then a subscription is needed.' },
-    { value: 'listings', label: 'Free for a limited number of properties', help: 'The first N properties are free, with no time limit.' },
-    { value: 'time_and_listings', label: 'Limited time and properties (whichever ends first)', help: 'Free for N days and up to M properties; whichever limit is reached first ends it.' },
-    { value: 'lifetime', label: 'Free forever (unlimited)', help: 'No limit and no paywall — builders always list free.' }
+    { value: 'none', label: 'No free access', help: 'A subscription is required from the start' },
+    { value: 'time', label: 'Free for a limited time', help: 'Free for a set number of days after signup, then a subscription is needed' },
+    { value: 'listings', label: 'Free for a limited number of properties', help: 'The first N properties are free, with no time limit' },
+    { value: 'time_and_listings', label: 'Limited time and properties, whichever ends first', help: 'Free for N days and up to M properties, the first limit reached ends it' },
+    { value: 'lifetime', label: 'Free forever', help: 'No limit and no paywall, builders always list free' }
 ];
 const FREE_ACCESS_ROLE_OPTIONS = [
     { value: 'builder', label: 'Builder' },
     { value: 'partner', label: 'Partner' },
     { value: 'broker', label: 'Broker' },
     { value: 'owner', label: 'Owner' }
+];
+const EXISTING_USER_OPTIONS = [
+    { value: true, label: 'Apply to everyone', help: 'Existing builders get the new rule immediately' },
+    { value: false, label: 'Keep the old rule for existing builders', help: 'Builders who signed up earlier keep the previous rule, only new signups get this one' }
 ];
 
 const AdminSettings = () => {
@@ -65,7 +250,7 @@ const AdminSettings = () => {
         email: '',
         phone: ''
     });
-    
+
     const [profileErrors, setProfileErrors] = useState({});
     const [platformErrors, setPlatformErrors] = useState({});
 
@@ -94,11 +279,11 @@ const AdminSettings = () => {
     const freeAccessUsesTime = freeAccess.mode === 'time' || freeAccess.mode === 'time_and_listings';
     const freeAccessUsesListings = freeAccess.mode === 'listings' || freeAccess.mode === 'time_and_listings';
     const freeAccessSummary = (() => {
-        if (!freeAccess.enabled || freeAccess.mode === 'none') return 'Builders must subscribe before they can list a property.';
-        if (freeAccess.mode === 'lifetime') return 'Builders can list unlimited properties, free forever.';
-        if (freeAccess.mode === 'time') return `Builders can list free for ${freeAccess.durationDays || 0} days after signing up.`;
-        if (freeAccess.mode === 'listings') return `Builders can list their first ${freeAccess.listingLimit || 0} properties free, with no time limit.`;
-        return `Builders can list up to ${freeAccess.listingLimit || 0} properties free within ${freeAccess.durationDays || 0} days of signing up — whichever ends first.`;
+        if (!freeAccess.enabled || freeAccess.mode === 'none') return 'Builders must subscribe before they can list a property';
+        if (freeAccess.mode === 'lifetime') return 'Builders can list unlimited properties, free forever';
+        if (freeAccess.mode === 'time') return `Builders can list free for ${freeAccess.durationDays || 0} days after signing up`;
+        if (freeAccess.mode === 'listings') return `Builders can list their first ${freeAccess.listingLimit || 0} properties free, with no time limit`;
+        return `Builders can list up to ${freeAccess.listingLimit || 0} properties free within ${freeAccess.durationDays || 0} days of signing up, whichever ends first`;
     })();
     const [platformFlatFee, setPlatformFlatFee] = useState(20);
     const [cashCollectionFee, setCashCollectionFee] = useState(20);
@@ -113,7 +298,7 @@ const AdminSettings = () => {
         confirmPassword: ''
     });
     const [passwordErrors, setPasswordErrors] = useState({});
-    
+
     const [showOldPassword, setShowOldPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -199,14 +384,14 @@ const AdminSettings = () => {
         } else if (!/^[6-9]\d{9}$/.test(profile.phone)) {
             errors.phone = 'Mobile must be 10 digits starting with 6-9';
         }
-        
+
         setProfileErrors(errors);
         return Object.keys(errors).length === 0;
     };
 
     const handleSaveProfile = async () => {
         if (!validateProfile()) return;
-        
+
         try {
             setSavingProfile(true);
             if (isManager) {
@@ -318,521 +503,399 @@ const AdminSettings = () => {
         }
     };
 
+    const updatePasswordField = (field, value) => {
+        setPasswordData(prev => ({ ...prev, [field]: value }));
+        setPasswordErrors(prev => ({ ...prev, [field]: null }));
+    };
+
+    const permissions = currentUser?.permissions || [];
+
     return (
-        <div className="max-w-4xl mx-auto space-y-8 pb-20">
-            <div>
-                <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">
-                    {isManager ? 'Manager Profile Settings' : 'Platform Settings'}
+        <div className="mx-auto flex max-w-4xl flex-col gap-6 pb-16">
+            <div className="mb-2 flex flex-col gap-1">
+                <h2 className="text-[28px] font-medium leading-9 text-neutral-900">
+                    {isManager ? 'Profile settings' : 'Platform settings'}
                 </h2>
-                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-tight">
-                    {isManager ? 'Manage your personal profile and view your system access scoping.' : 'Configure global rules, commission rates, and system preferences.'}
+                <p className="text-sm leading-5 text-neutral-500">
+                    {isManager
+                        ? 'Your profile, password and access scope'
+                        : 'Booking status, fees, support contacts and builder free access'}
                 </p>
             </div>
 
-            {/* Manager Scoping & Identity Info (Only for Manager Role) */}
+            {/* Manager scope (manager role only) */}
             {isManager && currentUser && (
-                <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6 shadow-xs space-y-4">
-                    <div className="flex items-center gap-2 border-b border-teal-100 pb-3">
-                        <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white">
-                            <Shield size={18} />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-teal-900 uppercase tracking-tight">Access & Scope Identity</h3>
-                            <p className="text-[9px] text-teal-700 font-bold uppercase tracking-tight">Detailed summary of your system roles and permissions.</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3">
-                            <MapPin size={16} className="text-teal-600 shrink-0" />
-                            <div>
-                                <p className="text-[9px] font-bold text-teal-700 uppercase tracking-tight">Branch Scope</p>
-                                <p className="text-xs font-bold text-gray-900 uppercase tracking-tight">
-                                    {currentUser.branch ? currentUser.branch : 'Global (All Branches)'}
-                                </p>
+                <Section title="Access and scope" description="Your branch, role and permissions">
+                    <div className="flex flex-col gap-6">
+                        <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                                <dt className="text-[13px] text-neutral-500">Branch</dt>
+                                <dd className="text-sm font-medium text-neutral-900">{currentUser.branch || 'All branches'}</dd>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Key size={16} className="text-teal-600 shrink-0" />
-                            <div>
-                                <p className="text-[9px] font-bold text-teal-700 uppercase tracking-tight">Assigned System Role</p>
-                                <p className="text-xs font-bold text-gray-900 uppercase tracking-tight">
-                                    {currentUser.role ? currentUser.role : 'Manager'}
-                                </p>
+                            <div className="flex flex-col gap-1">
+                                <dt className="text-[13px] text-neutral-500">Role</dt>
+                                <dd className="text-sm font-medium capitalize text-neutral-900">{currentUser.role || 'Manager'}</dd>
                             </div>
-                        </div>
-                    </div>
-
-                    <div className="pt-2">
-                        <p className="text-[9px] font-bold text-teal-700 uppercase tracking-tight mb-2">Assigned Permissions Matrix</p>
-                        <div className="flex flex-wrap gap-2">
-                            {currentUser.permissions && currentUser.permissions.length > 0 ? (
-                                currentUser.permissions.map((perm, idx) => (
-                                    <div key={idx} className="bg-white border border-teal-100 rounded-lg p-2 flex flex-col gap-0.5">
-                                        <span className="text-[10px] font-bold text-teal-900 uppercase tracking-tight">{perm.module}</span>
-                                        <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tight">
-                                            {perm.actions.join(', ')}
-                                        </span>
-                                    </div>
-                                ))
+                        </dl>
+                        <div className="flex flex-col gap-2">
+                            <p className="text-[13px] font-medium text-neutral-900">Permissions</p>
+                            {permissions.length > 0 ? (
+                                <ul className="divide-y divide-neutral-900/[0.06] rounded-lg border border-neutral-900/[0.08]">
+                                    {permissions.map((perm, idx) => (
+                                        <li key={idx} className="flex items-center justify-between gap-4 px-4 py-3">
+                                            <span className="text-sm capitalize text-neutral-900">{perm.module}</span>
+                                            <span className="text-right font-mono text-xs text-neutral-500">{perm.actions.join(', ')}</span>
+                                        </li>
+                                    ))}
+                                </ul>
                             ) : (
-                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight italic">No modular permissions assigned yet.</span>
+                                <p className="text-[13px] text-neutral-500">No permissions assigned yet</p>
                             )}
                         </div>
                     </div>
-                </div>
+                </Section>
             )}
 
-            <Section title={isManager ? "Profile Information" : "Admin Profile"} icon={Settings}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Full Name</label>
-                        <input
+            <Section
+                title={isManager ? 'Profile' : 'Admin profile'}
+                description="Name, email and phone for this account"
+                footer={(
+                    <PrimaryButton onClick={handleSaveProfile} disabled={savingProfile}>
+                        {savingProfile ? 'Saving…' : 'Save profile'}
+                    </PrimaryButton>
+                )}
+            >
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <Field label="Full name" htmlFor="profile-name" error={profileErrors.name}>
+                        <TextInput
+                            id="profile-name"
                             type="text"
+                            autoComplete="name"
                             value={profile.name}
                             onChange={(e) => handleProfileChange('name', e.target.value)}
-                            className={`w-full px-4 py-2 border rounded-xl text-xs font-bold uppercase focus:border-black outline-none transition-colors ${profileErrors.name ? 'border-red-500' : 'border-gray-200'}`}
-                            placeholder="Full Name"
+                            error={profileErrors.name}
                         />
-                        {profileErrors.name && <p className="text-red-500 text-[10px] mt-1 font-bold">{profileErrors.name}</p>}
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Email</label>
-                        <input
+                    </Field>
+                    <Field label="Email" htmlFor="profile-email" error={profileErrors.email}>
+                        <TextInput
+                            id="profile-email"
                             type="email"
+                            autoComplete="email"
                             value={profile.email}
                             onChange={(e) => handleProfileChange('email', e.target.value)}
-                            className={`w-full px-4 py-2 border rounded-xl text-xs font-bold focus:border-black outline-none transition-colors ${profileErrors.email ? 'border-red-500' : 'border-gray-200'}`}
-                            placeholder="email@example.com"
+                            placeholder="name@example.com"
+                            error={profileErrors.email}
                         />
-                        {profileErrors.email && <p className="text-red-500 text-[10px] mt-1 font-bold">{profileErrors.email}</p>}
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Phone</label>
-                        <div className="flex">
-                            <span className="inline-flex items-center px-3 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 text-gray-500 text-xs font-bold">
-                                +91
-                            </span>
-                            <input
-                                type="tel"
-                                maxLength="10"
-                                value={profile.phone}
-                                onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, '');
-                                    handleProfileChange('phone', val);
-                                }}
-                                className={`w-full px-4 py-2 border rounded-r-xl text-xs font-bold focus:border-black outline-none transition-colors ${profileErrors.phone ? 'border-red-500' : 'border-gray-200'}`}
-                                placeholder="Phone Number"
-                            />
-                        </div>
-                        {profileErrors.phone && <p className="text-red-500 text-[10px] mt-1 font-bold">{profileErrors.phone}</p>}
-                    </div>
-                </div>
-                <div className="flex justify-end pt-2">
-                    <button
-                        type="button"
-                        onClick={handleSaveProfile}
-                        disabled={savingProfile}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-[10px] font-bold uppercase rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60 transition-all"
-                    >
-                        <Save size={14} />
-                        {savingProfile ? 'Saving...' : 'Save Profile'}
-                    </button>
+                    </Field>
+                    <Field label="Phone" htmlFor="profile-phone" error={profileErrors.phone}>
+                        <TextInput
+                            id="profile-phone"
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength="10"
+                            prefix="+91"
+                            value={profile.phone}
+                            onChange={(e) => handleProfileChange('phone', e.target.value.replace(/\D/g, ''))}
+                            placeholder="9876543210"
+                            error={profileErrors.phone}
+                        />
+                    </Field>
                 </div>
             </Section>
 
-            {/* Password Update Section */}
-            <Section title="Update Password" icon={Lock}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Current Password</label>
-                        <div className="relative">
-                            <input
-                                type={showOldPassword ? "text" : "password"}
-                                value={passwordData.oldPassword}
-                                onChange={(e) => {
-                                    setPasswordData(prev => ({ ...prev, oldPassword: e.target.value }));
-                                    setPasswordErrors(prev => ({ ...prev, oldPassword: null }));
-                                }}
-                                className={`w-full px-4 py-2 border rounded-xl text-xs font-bold pr-10 focus:border-black outline-none transition-colors ${passwordErrors.oldPassword ? 'border-red-500' : 'border-gray-200'}`}
-                                placeholder="••••••••"
-                            />
-                            <button
-                                type="button"
-                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                                onClick={() => setShowOldPassword(!showOldPassword)}
-                            >
-                                {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                        </div>
-                        {passwordErrors.oldPassword && <p className="text-red-500 text-[10px] mt-1 font-bold">{passwordErrors.oldPassword}</p>}
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">New Password</label>
-                        <div className="relative">
-                            <input
-                                type={showNewPassword ? "text" : "password"}
-                                value={passwordData.newPassword}
-                                onChange={(e) => {
-                                    setPasswordData(prev => ({ ...prev, newPassword: e.target.value }));
-                                    setPasswordErrors(prev => ({ ...prev, newPassword: null }));
-                                }}
-                                className={`w-full px-4 py-2 border rounded-xl text-xs font-bold pr-10 focus:border-black outline-none transition-colors ${passwordErrors.newPassword ? 'border-red-500' : 'border-gray-200'}`}
-                                placeholder="••••••••"
-                            />
-                            <button
-                                type="button"
-                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                                onClick={() => setShowNewPassword(!showNewPassword)}
-                            >
-                                {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                        </div>
-                        {passwordErrors.newPassword && <p className="text-red-500 text-[10px] mt-1 font-bold">{passwordErrors.newPassword}</p>}
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Confirm New Password</label>
-                        <div className="relative">
-                            <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                value={passwordData.confirmPassword}
-                                onChange={(e) => {
-                                    setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }));
-                                    setPasswordErrors(prev => ({ ...prev, confirmPassword: null }));
-                                }}
-                                className={`w-full px-4 py-2 border rounded-xl text-xs font-bold pr-10 focus:border-black outline-none transition-colors ${passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-200'}`}
-                                placeholder="••••••••"
-                            />
-                            <button
-                                type="button"
-                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            >
-                                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                        </div>
-                        {passwordErrors.confirmPassword && <p className="text-red-500 text-[10px] mt-1 font-bold">{passwordErrors.confirmPassword}</p>}
-                    </div>
-                </div>
-                <div className="flex justify-end pt-2">
-                    <button
-                        type="button"
+            <Section
+                title="Password"
+                description="At least 6 characters, different from the current one"
+                footer={(
+                    <PrimaryButton
                         onClick={handleSavePassword}
                         disabled={savingPassword || !passwordData.oldPassword || !passwordData.newPassword}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-[10px] font-bold uppercase rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60 transition-all"
                     >
-                        <Key size={14} />
-                        {savingPassword ? 'Updating...' : 'Update Password'}
-                    </button>
+                        {savingPassword ? 'Updating…' : 'Update password'}
+                    </PrimaryButton>
+                )}
+            >
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <Field label="Current password" htmlFor="pw-current" error={passwordErrors.oldPassword}>
+                        <PasswordInput
+                            id="pw-current"
+                            visible={showOldPassword}
+                            onToggle={() => setShowOldPassword(!showOldPassword)}
+                            value={passwordData.oldPassword}
+                            onChange={(e) => updatePasswordField('oldPassword', e.target.value)}
+                            error={passwordErrors.oldPassword}
+                        />
+                    </Field>
+                    <Field label="New password" htmlFor="pw-new" error={passwordErrors.newPassword}>
+                        <PasswordInput
+                            id="pw-new"
+                            visible={showNewPassword}
+                            onToggle={() => setShowNewPassword(!showNewPassword)}
+                            value={passwordData.newPassword}
+                            onChange={(e) => updatePasswordField('newPassword', e.target.value)}
+                            error={passwordErrors.newPassword}
+                        />
+                    </Field>
+                    <Field label="Confirm new password" htmlFor="pw-confirm" error={passwordErrors.confirmPassword}>
+                        <PasswordInput
+                            id="pw-confirm"
+                            visible={showConfirmPassword}
+                            onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => updatePasswordField('confirmPassword', e.target.value)}
+                            error={passwordErrors.confirmPassword}
+                        />
+                    </Field>
                 </div>
             </Section>
 
-            {/* Render General Configurations (Only for Admin Role) */}
+            {/* Platform configuration (admin role only) */}
             {!isManager && (
                 <>
-                    <Section title="General Configuration" icon={Globe}>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-bold text-gray-900 text-sm uppercase tracking-tight">Platform Status</p>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Enable or disable booking capability globally.</p>
-                            </div>
-                            <ToggleSwitch enabled={platformOpen} onChange={setPlatformOpen} />
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-bold text-gray-900 text-sm uppercase tracking-tight">Maintenance Mode</p>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Show maintenance screen to all users.</p>
-                            </div>
-                            <ToggleSwitch enabled={maintenance} onChange={setMaintenance} />
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 pt-2">
-                            <div>
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">User message when booking is disabled</label>
-                                <input
-                                    type="text"
-                                    value={bookingMessage}
-                                    onChange={(e) => setBookingMessage(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                    placeholder="Bookings are temporarily disabled. Please try again later."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Maintenance title</label>
-                                <input
-                                    type="text"
-                                    value={maintenanceTitle}
-                                    onChange={(e) => setMaintenanceTitle(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold uppercase focus:border-black outline-none transition-colors"
-                                    placeholder="We will be back soon."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Maintenance description</label>
-                                <textarea
-                                    rows={3}
-                                    value={maintenanceMessage}
-                                    onChange={(e) => setMaintenanceMessage(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold uppercase focus:border-black outline-none transition-colors resize-none"
-                                    placeholder="The platform is under scheduled maintenance. Please check back in some time."
-                                />
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <div className="pb-4 font-bold text-md flex items-center gap-2 border-b border-gray-100 uppercase tracking-tight mb-4">
-                                <Globe size={16} /> Financial Rule
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Default Commission (%)</label>
-                                    <input
-                                        type="number"
-                                        value={commission}
-                                        onChange={(e) => setCommission(e.target.value)}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">GST / Tax Rate (%)</label>
-                                    <input
-                                        type="number"
-                                        value={taxRate}
-                                        onChange={(e) => setTaxRate(e.target.value)}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Platform Flat Commission (₹)</label>
-                                    <input
-                                        type="number"
-                                        value={platformFlatFee}
-                                        onChange={(e) => setPlatformFlatFee(e.target.value)}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Cash Extra Fee (₹)</label>
-                                    <input
-                                        type="number"
-                                        value={cashCollectionFee}
-                                        onChange={(e) => setCashCollectionFee(e.target.value)}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                    />
-                                </div>
-                            </div>
-                            <div className="pb-4 pt-6 font-bold text-md flex items-center gap-2 border-b border-gray-100 mt-6 uppercase tracking-tight mb-4">
-                                <MapPin size={16} /> Support Contact Details
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Support Email</label>
-                                    <input
-                                        type="email"
-                                        value={supportEmail}
-                                        onChange={(e) => setSupportEmail(e.target.value)}
-                                        className={`w-full px-4 py-2 border rounded-xl text-xs font-bold focus:border-black outline-none transition-colors ${platformErrors.supportEmail ? 'border-red-500' : 'border-gray-200'}`}
-                                        placeholder="support@example.com"
-                                    />
-                                    {platformErrors.supportEmail && <p className="text-red-500 text-[10px] mt-1 font-bold">{platformErrors.supportEmail}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Support Phone</label>
-                                    <div className="flex">
-                                        <span className="inline-flex items-center px-3 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 text-gray-500 text-xs font-bold">
-                                            +91
-                                        </span>
-                                        <input
-                                            type="tel"
-                                            maxLength="10"
-                                            value={supportPhone}
-                                            onChange={(e) => setSupportPhone(e.target.value.replace(/\D/g, ''))}
-                                            className={`w-full px-4 py-2 border rounded-r-xl text-xs font-bold focus:border-black outline-none transition-colors ${platformErrors.supportPhone ? 'border-red-500' : 'border-gray-200'}`}
-                                            placeholder="1234567890"
-                                        />
+                    <Section title="Platform status" description="Bookings and maintenance for the whole platform">
+                        <div className="flex flex-col divide-y divide-neutral-900/[0.06]">
+                            <div className="flex flex-col gap-4 pb-6">
+                                <div className="flex items-center justify-between gap-6">
+                                    <div className="flex flex-col gap-0.5">
+                                        <p className="text-sm font-medium leading-5 text-neutral-900">Bookings open</p>
+                                        <p className="text-[13px] leading-5 text-neutral-500">Turn booking on or off for every user</p>
                                     </div>
-                                    {platformErrors.supportPhone && <p className="text-red-500 text-[10px] mt-1 font-bold">{platformErrors.supportPhone}</p>}
+                                    <ToggleSwitch enabled={platformOpen} onChange={setPlatformOpen} label="Bookings open" />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Support WhatsApp</label>
-                                    <div className="flex">
-                                        <span className="inline-flex items-center px-3 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 text-gray-500 text-xs font-bold">
-                                            +91
-                                        </span>
-                                        <input
-                                            type="tel"
-                                            maxLength="10"
-                                            value={supportWhatsapp}
-                                            onChange={(e) => setSupportWhatsapp(e.target.value.replace(/\D/g, ''))}
-                                            className={`w-full px-4 py-2 border rounded-r-xl text-xs font-bold focus:border-black outline-none transition-colors ${platformErrors.supportWhatsapp ? 'border-red-500' : 'border-gray-200'}`}
-                                            placeholder="1234567890"
-                                        />
+                                <Field label="Message when bookings are off" htmlFor="booking-message">
+                                    <TextInput
+                                        id="booking-message"
+                                        type="text"
+                                        value={bookingMessage}
+                                        onChange={(e) => setBookingMessage(e.target.value)}
+                                        placeholder="Bookings are temporarily disabled. Please try again later."
+                                    />
+                                </Field>
+                            </div>
+                            <div className="flex flex-col gap-4 pt-6">
+                                <div className="flex items-center justify-between gap-6">
+                                    <div className="flex flex-col gap-0.5">
+                                        <p className="text-sm font-medium leading-5 text-neutral-900">Maintenance mode</p>
+                                        <p className="text-[13px] leading-5 text-neutral-500">Show the maintenance screen to every user</p>
                                     </div>
-                                    {platformErrors.supportWhatsapp && <p className="text-red-500 text-[10px] mt-1 font-bold">{platformErrors.supportWhatsapp}</p>}
+                                    <ToggleSwitch enabled={maintenance} onChange={setMaintenance} label="Maintenance mode" />
                                 </div>
+                                <Field label="Maintenance title" htmlFor="maintenance-title">
+                                    <TextInput
+                                        id="maintenance-title"
+                                        type="text"
+                                        value={maintenanceTitle}
+                                        onChange={(e) => setMaintenanceTitle(e.target.value)}
+                                        placeholder="We will be back soon"
+                                    />
+                                </Field>
+                                <Field label="Maintenance description" htmlFor="maintenance-message">
+                                    <TextArea
+                                        id="maintenance-message"
+                                        rows={3}
+                                        value={maintenanceMessage}
+                                        onChange={(e) => setMaintenanceMessage(e.target.value)}
+                                        placeholder="The platform is under scheduled maintenance. Please check back in some time."
+                                    />
+                                </Field>
                             </div>
-                            <div className="pb-4 pt-6 font-bold text-md flex items-center gap-2 border-b border-gray-100 mt-6 uppercase tracking-tight mb-4">
-                                <CreditCard size={16} /> Builder Free Access
-                            </div>
+                        </div>
+                    </Section>
 
-                            {/* Master switch */}
-                            <label className="flex items-center justify-between gap-4 p-3 border border-gray-200 rounded-xl cursor-pointer mb-4">
-                                <div>
-                                    <p className="text-xs font-bold text-gray-900">Enable free access</p>
-                                    <p className="text-[10px] text-gray-500 mt-0.5">When off, every builder needs a subscription before listing.</p>
-                                </div>
-                                <input
-                                    type="checkbox"
-                                    checked={freeAccess.enabled}
-                                    onChange={(e) => updateFreeAccess({ enabled: e.target.checked })}
-                                    className="w-5 h-5 accent-black shrink-0"
+                    <Section title="Fees and tax" description="Defaults for commission, GST and flat fees">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <Field label="Default commission" htmlFor="fee-commission">
+                                <TextInput id="fee-commission" type="number" inputMode="decimal" suffix="%" value={commission} onChange={(e) => setCommission(e.target.value)} />
+                            </Field>
+                            <Field label="GST / tax rate" htmlFor="fee-tax">
+                                <TextInput id="fee-tax" type="number" inputMode="decimal" suffix="%" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} />
+                            </Field>
+                            <Field label="Flat platform commission" htmlFor="fee-flat">
+                                <TextInput id="fee-flat" type="number" inputMode="decimal" prefix="₹" value={platformFlatFee} onChange={(e) => setPlatformFlatFee(e.target.value)} />
+                            </Field>
+                            <Field label="Extra fee for cash payments" htmlFor="fee-cash">
+                                <TextInput id="fee-cash" type="number" inputMode="decimal" prefix="₹" value={cashCollectionFee} onChange={(e) => setCashCollectionFee(e.target.value)} />
+                            </Field>
+                        </div>
+                    </Section>
+
+                    <Section title="Support contact" description="Email, phone and WhatsApp for customer support">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <Field label="Email" htmlFor="support-email" error={platformErrors.supportEmail}>
+                                <TextInput
+                                    id="support-email"
+                                    type="email"
+                                    value={supportEmail}
+                                    onChange={(e) => setSupportEmail(e.target.value)}
+                                    placeholder="support@example.com"
+                                    error={platformErrors.supportEmail}
                                 />
-                            </label>
+                            </Field>
+                            <Field label="Phone" htmlFor="support-phone" error={platformErrors.supportPhone}>
+                                <TextInput
+                                    id="support-phone"
+                                    type="tel"
+                                    inputMode="numeric"
+                                    maxLength="10"
+                                    prefix="+91"
+                                    value={supportPhone}
+                                    onChange={(e) => setSupportPhone(e.target.value.replace(/\D/g, ''))}
+                                    placeholder="9876543210"
+                                    error={platformErrors.supportPhone}
+                                />
+                            </Field>
+                            <Field label="WhatsApp" htmlFor="support-whatsapp" error={platformErrors.supportWhatsapp}>
+                                <TextInput
+                                    id="support-whatsapp"
+                                    type="tel"
+                                    inputMode="numeric"
+                                    maxLength="10"
+                                    prefix="+91"
+                                    value={supportWhatsapp}
+                                    onChange={(e) => setSupportWhatsapp(e.target.value.replace(/\D/g, ''))}
+                                    placeholder="9876543210"
+                                    error={platformErrors.supportWhatsapp}
+                                />
+                            </Field>
+                        </div>
+                    </Section>
 
-                            <div className={freeAccess.enabled ? '' : 'opacity-50 pointer-events-none'}>
-                                {/* Mode */}
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">How long should listing be free?</label>
-                                <div className="grid grid-cols-1 gap-2 mb-4">
+                    <Section
+                        title="Builder free access"
+                        description="How long builders can list before a subscription is needed"
+                        action={(
+                            <ToggleSwitch
+                                enabled={freeAccess.enabled}
+                                onChange={(enabled) => updateFreeAccess({ enabled })}
+                                label="Enable free access"
+                            />
+                        )}
+                    >
+                        <div className="flex flex-col gap-6">
+                            <RulePreview
+                                freeAccess={freeAccess}
+                                usesTime={freeAccessUsesTime}
+                                usesListings={freeAccessUsesListings}
+                                summary={freeAccessSummary}
+                            />
+
+                            <div
+                                aria-disabled={!freeAccess.enabled}
+                                className={`flex flex-col gap-6 transition-opacity ${EASE} ${freeAccess.enabled ? '' : 'pointer-events-none opacity-50'}`}
+                            >
+                                <Group label="How long listing is free">
                                     {FREE_ACCESS_MODE_OPTIONS.map((opt) => (
-                                        <label
+                                        <OptionRow
                                             key={opt.value}
-                                            className={`flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${freeAccess.mode === opt.value ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="freeAccessMode"
-                                                value={opt.value}
-                                                checked={freeAccess.mode === opt.value}
-                                                onChange={() => updateFreeAccess({ mode: opt.value })}
-                                                className="mt-0.5 accent-black"
-                                            />
-                                            <span>
-                                                <span className="block text-xs font-bold text-gray-900">{opt.label}</span>
-                                                <span className="block text-[10px] text-gray-500 mt-0.5">{opt.help}</span>
-                                            </span>
-                                        </label>
+                                            name="freeAccessMode"
+                                            checked={freeAccess.mode === opt.value}
+                                            onChange={() => updateFreeAccess({ mode: opt.value })}
+                                            label={opt.label}
+                                            help={opt.help}
+                                        />
                                     ))}
-                                </div>
+                                </Group>
 
-                                {/* Numbers, shown only when the chosen mode uses them */}
                                 {(freeAccessUsesTime || freeAccessUsesListings) && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         {freeAccessUsesListings && (
-                                            <div>
-                                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Free properties allowed</label>
-                                                <input
+                                            <Field label="Free properties allowed" htmlFor="fa-listings" hint="0 means no free properties">
+                                                <TextInput
+                                                    id="fa-listings"
                                                     type="number"
                                                     min="0"
+                                                    inputMode="numeric"
+                                                    suffix="properties"
                                                     value={freeAccess.listingLimit}
                                                     onChange={(e) => updateFreeAccess({ listingLimit: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
                                                 />
-                                                <p className="text-[10px] text-gray-400 mt-1">Example: 3 → a builder can list 3 properties free. 0 means none.</p>
-                                            </div>
+                                            </Field>
                                         )}
                                         {freeAccessUsesTime && (
-                                            <div>
-                                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Free period (days)</label>
-                                                <input
+                                            <Field label="Free period" htmlFor="fa-days" hint="Counted from the builder's signup date">
+                                                <TextInput
+                                                    id="fa-days"
                                                     type="number"
                                                     min="0"
+                                                    inputMode="numeric"
+                                                    suffix="days"
                                                     value={freeAccess.durationDays}
                                                     onChange={(e) => updateFreeAccess({ durationDays: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
                                                 />
-                                                <p className="text-[10px] text-gray-400 mt-1">Counted from the day the builder signed up.</p>
-                                            </div>
+                                            </Field>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Roles */}
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Applies to</label>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {FREE_ACCESS_ROLE_OPTIONS.map((r) => {
-                                        const checked = freeAccess.roles.includes(r.value);
-                                        return (
-                                            <label
-                                                key={r.value}
-                                                className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-bold ${checked ? 'border-black bg-gray-50' : 'border-gray-200 text-gray-500'}`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={checked}
-                                                    onChange={() => toggleFreeAccessRole(r.value)}
-                                                    className="accent-black"
-                                                />
-                                                {r.label}
-                                            </label>
-                                        );
-                                    })}
-                                </div>
+                                <Group label="Applies to">
+                                    <div className="flex flex-wrap gap-2">
+                                        {FREE_ACCESS_ROLE_OPTIONS.map((r) => {
+                                            const checked = freeAccess.roles.includes(r.value);
+                                            return (
+                                                <label
+                                                    key={r.value}
+                                                    className={`flex h-9 cursor-pointer items-center gap-2 rounded-lg border px-3 text-[13px] transition-colors ${EASE} ${checked ? 'border-neutral-900 bg-neutral-50 text-neutral-900' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'}`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        onChange={() => toggleFreeAccessRole(r.value)}
+                                                        className="h-4 w-4 accent-neutral-900"
+                                                    />
+                                                    {r.label}
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </Group>
 
-                                {/* Existing users */}
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">When this rule changes</label>
-                                <div className="grid grid-cols-1 gap-2 mb-4">
-                                    {[
-                                        { value: true, label: 'Apply to everyone', help: 'Existing builders get the new rule immediately.' },
-                                        { value: false, label: 'Keep the old rule for existing builders', help: 'Builders who signed up before this change keep the previous rule; only new sign-ups get the new one.' }
-                                    ].map((opt) => (
-                                        <label
+                                <Group label="When this rule changes">
+                                    {EXISTING_USER_OPTIONS.map((opt) => (
+                                        <OptionRow
                                             key={String(opt.value)}
-                                            className={`flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${freeAccess.applyToExisting === opt.value ? 'border-black bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="freeAccessApplyToExisting"
-                                                checked={freeAccess.applyToExisting === opt.value}
-                                                onChange={() => updateFreeAccess({ applyToExisting: opt.value })}
-                                                className="mt-0.5 accent-black"
-                                            />
-                                            <span>
-                                                <span className="block text-xs font-bold text-gray-900">{opt.label}</span>
-                                                <span className="block text-[10px] text-gray-500 mt-0.5">{opt.help}</span>
-                                            </span>
-                                        </label>
+                                            name="freeAccessApplyToExisting"
+                                            checked={freeAccess.applyToExisting === opt.value}
+                                            onChange={() => updateFreeAccess({ applyToExisting: opt.value })}
+                                            label={opt.label}
+                                            help={opt.help}
+                                        />
                                     ))}
-                                </div>
+                                </Group>
 
-                                {/* Paywall copy */}
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Paywall popup text (optional)</label>
-                                <div className="grid grid-cols-1 gap-3">
-                                    <input
-                                        type="text"
-                                        maxLength={120}
-                                        value={freeAccess.paywallTitle}
-                                        onChange={(e) => updateFreeAccess({ paywallTitle: e.target.value })}
-                                        placeholder="Title — leave blank for the default"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors"
-                                    />
-                                    <textarea
-                                        rows={2}
-                                        maxLength={500}
-                                        value={freeAccess.paywallMessage}
-                                        onChange={(e) => updateFreeAccess({ paywallMessage: e.target.value })}
-                                        placeholder="Message — leave blank for the default"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none transition-colors resize-none"
-                                    />
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex flex-col gap-0.5">
+                                        <p className="text-[13px] font-medium leading-5 text-neutral-900">Paywall popup</p>
+                                        <p className="text-xs leading-4 text-neutral-500">Optional, leave blank to use the default text</p>
+                                    </div>
+                                    <Field label="Title" htmlFor="fa-paywall-title">
+                                        <TextInput
+                                            id="fa-paywall-title"
+                                            type="text"
+                                            maxLength={120}
+                                            value={freeAccess.paywallTitle}
+                                            onChange={(e) => updateFreeAccess({ paywallTitle: e.target.value })}
+                                        />
+                                    </Field>
+                                    <Field label="Message" htmlFor="fa-paywall-message">
+                                        <TextArea
+                                            id="fa-paywall-message"
+                                            rows={2}
+                                            maxLength={500}
+                                            value={freeAccess.paywallMessage}
+                                            onChange={(e) => updateFreeAccess({ paywallMessage: e.target.value })}
+                                        />
+                                    </Field>
                                 </div>
                             </div>
-
-                            <p className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl text-[11px] font-bold text-gray-700">
-                                {freeAccessSummary}
-                            </p>
-                        </div>
-
-                        <div className="flex justify-end pt-4">
-                            <button
-                                type="button"
-                                onClick={handleSavePlatformSettings}
-                                disabled={savingSettings || loadingSettings}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-[10px] font-bold uppercase rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60 transition-all"
-                            >
-                                <Save size={14} />
-                                {savingSettings || loadingSettings ? 'Saving...' : 'Save Configuration'}
-                            </button>
                         </div>
                     </Section>
+
+                    <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
+                        <p className="text-[13px] text-neutral-500">Saves platform status, fees, support contact and free access</p>
+                        <PrimaryButton onClick={handleSavePlatformSettings} disabled={savingSettings || loadingSettings}>
+                            {loadingSettings ? 'Loading…' : savingSettings ? 'Saving…' : 'Save platform settings'}
+                        </PrimaryButton>
+                    </div>
                 </>
             )}
         </div>

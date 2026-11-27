@@ -1116,26 +1116,58 @@ export const getPublicProperties = async (req, res) => {
 
     // 2.1 Property Specific Filters
     if (bhkType) {
-      const bhkValues = bhkType.split(',').map(t => t.trim());
-      const bhkRegexList = bhkValues.map(t => {
+      const bhkValues = bhkType.split(',').map(t => t.trim()).filter(Boolean);
+      const bhkRegexList = [];
+      const bhkNumbers = [];   // exact numeric matches (bedrooms stored as a number)
+      let bhkMinNumber = null; // "4+BHK" → 4 or more
+      bhkValues.forEach(t => {
         const numMatch = t.match(/\d+/);
-        if (numMatch) {
-          const num = numMatch[0];
-          return new RegExp(`${num}\\s*BHK|^${num}$`, 'i');
+        if (!numMatch) {
+          bhkRegexList.push(new RegExp(t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+          return;
         }
-        return new RegExp(t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+        const num = parseInt(numMatch[0], 10);
+        if (t.includes('+')) {
+          // N or more: "4 BHK", "5 BHK", "5+", "10 BHK" … for 4+.
+          const digits = num <= 9 ? `(?:[${num}-9]|[1-9]\\d)` : `[1-9]\\d`;
+          bhkRegexList.push(new RegExp(`(?:^|[^0-9])${digits}\\s*\\+?\\s*(?:BHK|bed)|^${digits}\\s*\\+?$`, 'i'));
+          bhkMinNumber = bhkMinNumber === null ? num : Math.min(bhkMinNumber, num);
+        } else {
+          // "(^|non-digit)3 BHK" so "13 BHK" doesn't count as 3; 1 BHK also covers "1 RK".
+          const unit = num === 1 ? '(?:BHK|RK)' : 'BHK';
+          bhkRegexList.push(new RegExp(`(?:^|[^0-9])${num}\\s*${unit}|^${num}$`, 'i'));
+          bhkNumbers.push(num);
+        }
       });
 
-      const bhkMatch = {
-        $or: [
-          { 'dynamicData.bhkType': { $in: bhkRegexList } },
-          { 'dynamicData.bhk': { $in: bhkRegexList } },
-          { 'rentDetails.type': { $in: bhkRegexList } },
-          { 'buyDetails.bhkType': { $in: bhkRegexList } },
-          { 'buyDetails.type': { $in: bhkRegexList } },
-          { propertyName: { $in: bhkRegexList } }
-        ]
-      };
+      // Simple listings keep the BHK on one field; builder projects keep it per
+      // unit in their Step 4 repeaters (promoted to `unitConfigurations`), which
+      // the old filter never looked at — so every project was missed.
+      const BHK_TEXT_FIELDS = [
+        'dynamicData.bhkType',
+        'dynamicData.bhk',
+        'dynamicData.bedrooms',
+        'rentDetails.type',
+        'buyDetails.bhkType',
+        'buyDetails.type',
+        'unitConfigurations.unitType',
+        'unitConfigurations.villaType',
+        'dynamicData.unitConfigurations.unitType',
+        'dynamicData.villaConfigurations.villaType',
+        'dynamicData.rentalConfigurations.unitType',
+        'dynamicData.villaTypes',
+        'dynamicData.floorPlans.configName',
+        'propertyName'
+      ];
+      const BHK_NUMBER_FIELDS = ['dynamicData.bedrooms', 'dynamicData.bhk'];
+
+      const bhkOr = BHK_TEXT_FIELDS.map(f => ({ [f]: { $in: bhkRegexList } }));
+      BHK_NUMBER_FIELDS.forEach(f => {
+        if (bhkNumbers.length) bhkOr.push({ [f]: { $in: bhkNumbers } });
+        if (bhkMinNumber !== null) bhkOr.push({ [f]: { $gte: bhkMinNumber } });
+      });
+
+      const bhkMatch = { $or: bhkOr };
 
       if (matchConditions.$and) {
         matchConditions.$and.push(bhkMatch);
@@ -1295,13 +1327,38 @@ export const getPublicProperties = async (req, res) => {
     if (subType) {
       const subTypeList = subType.split(',').map(s => s.trim()).filter(Boolean);
       if (subTypeList.length > 0) {
-        const subTypeRegexes = subTypeList.map(s => {
-          // Plots are stored both as "Plot / Land" (form) and bare "plot" (older listings)
-          if (/^plots?(\s*\/\s*land)?$/i.test(s)) return /^(plots?|plot\s*\/\s*land)$/i;
-          const escaped = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-          // Replace escaped slash with flexible spacing regex
-          const flexSlash = escaped.replace(/\\\/|\\s\*\\\/\\s\*/g, '\\s*\\/\\s*');
-          return new RegExp('^' + flexSlash + '$', 'i');
+        // Search-sheet chips use short names; listings store the exact type of
+        // the form that created them (owner forms: "Plot / Land", "Ready to move
+        // office space", "Commercial Shops"…; builder wizard: "Villa", "Plot",
+        // "Land", "Commercial"…). Map each chip to every stored spelling, or the
+        // chip matches nothing.
+        const SUBTYPE_ALIASES = [
+          // Generic plot chip (Plots tab default, Commercial tab "Plot / Land")
+          { test: /^plots?(\s*\/\s*lands?)?$|^lands?$/i, match: [/^(plots?|lands?|plot\s*\/\s*land)$/i, /^commercial\s*land/i, /^agricultural\s*\/?\s*farm\s*land$/i, /^industrial\s*lands?/i] },
+          { test: /^residential\s*plot/i, match: [/^(plots?|lands?|plot\s*\/\s*land|residential\s*plots?)$/i] },
+          { test: /^commercial\s*land/i, match: [/^commercial\s*land/i] },
+          { test: /^agricultural/i, match: [/^agricultural\s*\/?\s*farm\s*land$/i] },
+          { test: /^industrial\s*(plot|land)/i, match: [/^industrial\s*(lands?|plots?)/i] },
+          // "Independent House / Villa" vs builder "Villa" / older "Independent House"
+          { test: /villa|independent\s*house/i, match: [/^(independent\s*house\s*\/\s*villa|villas?|independent\s*house)$/i] },
+          { test: /^(apartments?|flats?)$/i, match: [/^(apartments?|flats?)$/i] },
+          { test: /^farm\s*-?\s*house$/i, match: [/^farm\s*-?\s*house$/i] },
+          // Commercial parent chips → the owner-form sub-types under them
+          { test: /^office$/i, match: [/office\s*space/i, /^office$/i] },
+          { test: /^retail$/i, match: [/^commercial\s*(shops?|showrooms?)$/i, /^retail$/i, /^shops?$/i, /^showrooms?$/i] },
+          { test: /^storage$/i, match: [/^ware\s*house$/i, /^cold\s*storage$/i, /^storage$/i] },
+          { test: /^industry$/i, match: [/^factory$/i, /^manufacturing$/i, /^industry$/i] },
+          { test: /^hospitality$/i, match: [/^hotel\s*\/\s*resorts?$/i, /^guest-?\s*house/i, /^hospitality$/i] }
+        ];
+
+        const subTypeRegexes = subTypeList.flatMap(s => {
+          const alias = SUBTYPE_ALIASES.find(a => a.test.test(s));
+          if (alias) return alias.match;
+          // Any spacing around "/" — forms store both "1 RK / Studio Apartment"
+          // and "1 RK/ Studio Apartment". Collapse it first, then escape.
+          const escaped = s.replace(/\s*\/\s*/g, '/').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const flexSlash = escaped.replace(/\\\//g, '\\s*\\/\\s*');
+          return [new RegExp('^' + flexSlash + '$', 'i')];
         });
         matchConditions.propertyType = { $in: subTypeRegexes };
       }

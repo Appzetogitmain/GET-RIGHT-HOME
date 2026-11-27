@@ -45,7 +45,10 @@ const propertyFormTemplateSchema = new mongoose.Schema({
   category: { type: String, required: true },
   propertyType: { type: String, required: true }, // e.g. "Flat/Apartment", "Office Space"
   steps: [stepSchema],
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+  // Names of one-time field additions already applied to this template, so a
+  // field an admin later removes is never silently re-added on restart.
+  fieldPacks: [{ type: String }]
 }, { timestamps: true });
 
 // Ensure unique combination so we know exactly which template to load

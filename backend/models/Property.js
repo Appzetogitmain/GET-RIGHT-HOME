@@ -356,7 +356,8 @@ const propertySchema = new mongoose.Schema({
   },
 
   reraNumber: { type: String },
-  reraStatus: { type: String, enum: ['Registered', 'Not Registered', 'Not Applicable / Exempt'] },
+  // Must stay in sync with RERA_STATUSES in config/builderProjectSteps.js
+  reraStatus: { type: String, enum: ['Registered', 'Applied', 'Not Registered', 'Not Applicable / Exempt'] },
   reraVerified: { type: Boolean, default: false },
 
   // Denormalised price range, derived from unitConfigurations on save

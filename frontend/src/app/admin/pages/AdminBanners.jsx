@@ -235,7 +235,9 @@ const AdminBanners = () => {
                 <div className="space-y-3">
                     <label className="text-sm font-black text-gray-700 uppercase tracking-wider ml-1">Banner Image <span className="text-red-500">*</span></label>
                     <div className="relative group max-w-2xl">
-                        <div className={`aspect-[2.5/1] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center overflow-hidden bg-gray-50/50 ${formData.imageUrl ? 'border-transparent shadow-md' : 'border-gray-200 hover:border-black/20'
+                        {/* Same shape as the home page banner box (~1920x560), so the
+                            preview shows what visitors will actually see. */}
+                        <div className={`aspect-[1920/560] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center overflow-hidden bg-gray-50/50 ${formData.imageUrl ? 'border-transparent shadow-md' : 'border-gray-200 hover:border-black/20'
                             }`}>
                             {uploading ? (
                                 <div className="flex flex-col items-center gap-3">
@@ -258,7 +260,8 @@ const AdminBanners = () => {
                                         <Plus size={32} />
                                     </div>
                                     <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Upload Desktop Banner</span>
-                                    <span className="text-xs text-gray-400 mt-2">Recommended size: 1920x800px (Max 2MB)</span>
+                                    <span className="text-xs text-gray-400 mt-2">Recommended size: 1920x560px, wide banner (Max 2MB)</span>
+                                    <span className="text-[11px] text-gray-400 mt-1">Square or tall images get cropped top and bottom on the home page</span>
                                     <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                                 </label>
                             )}

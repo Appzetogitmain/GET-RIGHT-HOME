@@ -736,7 +736,42 @@ const HandpickedDetailsPage = () => {
   };
 
   // Floor plans
-  const floorPlansList = dynamicData.floorPlans || [];
+  // Builder projects store their sellable units in Step 4 (`unitConfigurations`,
+  // promoted to the top level by builderProjectMapper; raw villa/plot/commercial/
+  // rental repeaters may also sit in dynamicData). Step 8 `floorPlans` is optional
+  // and only adds layout images / room dimensions. So list the units, and attach
+  // the matching floor plan to each; floor plans with no matching unit are kept.
+  const floorPlansList = (() => {
+    const rawFloorPlans = Array.isArray(dynamicData.floorPlans) ? dynamicData.floorPlans : [];
+    const topLevelUnits = Array.isArray(property?.unitConfigurations) ? property.unitConfigurations : [];
+    const unitRows = topLevelUnits.length
+      ? topLevelUnits
+      : CONFIG_KEYS.flatMap(k => (Array.isArray(dynamicData[k]) ? dynamicData[k] : []));
+    if (!unitRows.length) return rawFloorPlans;
+
+    const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, '');
+    const planCfg = (p) => p?.configName || p?.configType || p?.configuration || '';
+    const usedPlans = new Set();
+
+    const units = unitRows.map(u => {
+      const cfg = u?.unitType || u?.villaType || (u?.plotNumber ? `Plot ${u.plotNumber}` : '') || 'Unit Layout';
+      const fp = rawFloorPlans.find(p => norm(planCfg(p)) && norm(planCfg(p)) === norm(cfg)) || null;
+      if (fp) usedPlans.add(fp);
+      return {
+        ...(fp || {}),
+        ...u,
+        configName: cfg,
+        price: toPositiveNum(u?.price) ?? toPositiveNum(u?.monthlyRent) ?? toPositiveNum(fp?.price) ?? undefined,
+        carpetArea: toPositiveNum(u?.carpetArea) ?? toPositiveNum(u?.builtUpArea) ?? toPositiveNum(u?.plotArea) ?? toPositiveNum(fp?.carpetArea) ?? undefined,
+        superArea: toPositiveNum(u?.superArea) ?? toPositiveNum(fp?.superArea) ?? undefined,
+        possessionStatus: fp?.possessionStatus || u?.possessionStatus || u?.status || undefined,
+        floorPlanImage: fp?.floorPlanImage || fp?.image || fp?.layoutImage || u?.floorPlanImage || undefined,
+        roomDimensions: fp?.roomDimensions || u?.roomDimensions,
+      };
+    });
+
+    return [...units, ...rawFloorPlans.filter(p => !usedPlans.has(p))];
+  })();
 
   // Plot configurations (for Plot land)
   const plotConfigsList = dynamicData.plotConfigurations || [];
